@@ -10,5 +10,7 @@ export function sunForTime(hours) {
   const elevation = 60 * Math.sin((2 * Math.PI * (h - 6)) / 24);
   const azimuth = 90 + h * 7.5; // 朝は東寄り、夕方は西寄り
   const exposure = 0.12 + (0.5 - 0.12) * smoothstep(-6, 10, elevation);
-  return { elevation, azimuth, exposure, isNight: elevation < -4 };
+  // 日中の度合い。1 で晴れた昼の青空と青い海、0 に近いほど朝夕・夜の色
+  const daylight = smoothstep(2, 25, elevation);
+  return { elevation, azimuth, exposure, daylight, isNight: elevation < -4 };
 }

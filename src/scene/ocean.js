@@ -16,7 +16,8 @@ function makeWaterNormals(size) {
   return texture;
 }
 
-const DAY_WATER_COLOR = 0x001e0f;
+const DAY_WATER_COLOR = 0x0a4f8a;      // 晴れた昼の青い海
+const LOW_SUN_WATER_COLOR = 0x0d2a3a;  // 朝夕の海
 const NIGHT_WATER_COLOR = 0x000a14;
 const MOON_DIRECTION = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(65), THREE.MathUtils.degToRad(200));
 
@@ -102,13 +103,20 @@ export function createOcean(canvas) {
     const lightDir = s.isNight ? MOON_DIRECTION : sunDir;
     water.material.uniforms.sunDirection.value.copy(lightDir).normalize();
     water.material.uniforms.sunColor.value.set(s.isNight ? 0x8899bb : 0xffffff);
-    water.material.uniforms.waterColor.value.set(s.isNight ? NIGHT_WATER_COLOR : DAY_WATER_COLOR);
+    // 昼に近いほど空気が澄んだ青空と青い海、朝夕は少しかすんだ色にする
+    const lerp = (a, b) => a + (b - a) * s.daylight;
+    skyU.turbidity.value = lerp(8, 1.8);
+    skyU.rayleigh.value = lerp(3, 1.2);
+    skyU.mieCoefficient.value = lerp(0.005, 0.002);
+    const waterColor = water.material.uniforms.waterColor.value;
+    if (s.isNight) waterColor.set(NIGHT_WATER_COLOR);
+    else waterColor.lerpColors(new THREE.Color(LOW_SUN_WATER_COLOR), new THREE.Color(DAY_WATER_COLOR), s.daylight);
     sunLight.position.copy(lightDir).multiplyScalar(1000);
     sunLight.color.set(s.isNight ? 0x8899bb : 0xffffff);
     sunLight.intensity = s.isNight ? 0.4 : 1.5;
     ambient.intensity = s.isNight ? 0.25 : 0.8;
     moon.visible = s.isNight;
-    renderer.toneMappingExposure = s.exposure;
+    renderer.toneMappingExposure = s.exposure + 0.12 * s.daylight;
   }
 
   function render(dt) {

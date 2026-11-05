@@ -1,0 +1,135 @@
+import * as THREE from 'three';
+
+const MAX = 3000; // スマホで重くならないよう、全体の粒子数に上限をかける
+
+const vertexShader = `
+  attribute float aSize;
+  attribute float aAlpha;
+  varying float vAlpha;
+  void main() {
+    vAlpha = aAlpha;
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = aSize * (300.0 / -mv.z);
+    gl_Position = projectionMatrix * mv;
+  }`;
+
+const fragmentShader = `
+  uniform vec3 uColor;
+  varying float vAlpha;
+  void main() {
+    float d = length(gl_PointCoord - 0.5);
+    float a = smoothstep(0.5, 0.0, d) * vAlpha;
+    if (a < 0.01) discard;
+    gl_FragColor = vec4(uColor, a);
+  }`;
+
+// 潮吹き・水しぶき・泡。すべて粒子を使い回して描く。
+export function createEffects(scene) {
+  const pos = new Float32Array(MAX * 3);
+  const size = new Float32Array(MAX);
+  const alpha = new Float32Array(MAX);
+  const vel = new Float32Array(MAX * 3);
+  const life = new Float32Array(MAX);      // 残り時間(秒)。0以下なら空き
+  const maxLife = new Float32Array(MAX);
+  const baseSize = new Float32Array(MAX);
+  const baseAlpha = new Float32Array(MAX);
+  const gravity = new Float32Array(MAX);
+  const wind = new Float32Array(MAX);
+  const grow = new Float32Array(MAX);
+  const floor = new Uint8Array(MAX);       // 1なら海面より下で消す
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
+  geometry.setAttribute('aSize', new THREE.BufferAttribute(size, 1).setUsage(THREE.DynamicDrawUsage));
+  geometry.setAttribute('aAlpha', new THREE.BufferAttribute(alpha, 1).setUsage(THREE.DynamicDrawUsage));
+
+  const material = new THREE.ShaderMaterial({
+    uniforms: { uColor: { value: new THREE.Color(0xf2f6f8) } },
+    vertexShader,
+    fragmentShader,
+    transparent: true,
+    depthWrite: false,
+  });
+  const points = new THREE.Points(geometry, material);
+  points.frustumCulled = false;
+  scene.add(points);
+
+  let cursor = 0;
+
+  function emit(p, v, opts) {
+    const i = cursor;
+    cursor = (cursor + 1) % MAX; // 空きがなければ古い粒子から使い回す
+    pos.set(p, i * 3);
+    vel.set(v, i * 3);
+    life[i] = maxLife[i] = opts.life;
+    baseSize[i] = opts.size;
+    baseAlpha[i] = opts.alpha ?? 0.9;
+    gravity[i] = opts.gravity ?? 9.8;
+    wind[i] = opts.wind ?? 0;
+    grow[i] = opts.grow ?? 1;
+    floor[i] = opts.floor ?? 1;
+  }
+
+  const rand = (a, b) => a + Math.random() * (b - a);
+
+  return {
+    // 上に6〜9mほど噴き上がり、風に流れて3秒で消える霧
+    spout(position) {
+      const [x, y, z] = position;
+      for (let k = 0; k < 300; k++) {
+        const a = Math.random() * Math.PI * 2, r = Math.random() * 0.8;
+        emit([x + Math.cos(a) * 0.3, y + 1, z + Math.sin(a) * 0.3],
+          [Math.cos(a) * r, rand(9, 11), Math.sin(a) * r],
+          { life: rand(2.2, 3), size: rand(1.2, 2), alpha: 0.55, gravity: 6, wind: 1.5, grow: 2.5 });
+      }
+    },
+
+    // 放射状に飛び散って落ちる水しぶき。small は尾びれ、large はジャンプ
+    splash(position, kind = 'small') {
+      const [x, y, z] = position;
+      const big = kind === 'large';
+      const n = big ? 800 : 200;
+      for (let k = 0; k < n; k++) {
+        const a = Math.random() * Math.PI * 2;
+        const out = big ? rand(5, 12) : rand(3, 6);
+        emit([x + Math.cos(a) * rand(0, big ? 4 : 1.5), y + 0.2, z + Math.sin(a) * rand(0, big ? 4 : 1.5)],
+          [Math.cos(a) * out, big ? rand(6, 14) : rand(4, 8), Math.sin(a) * out],
+          { life: big ? rand(1.8, 2.6) : rand(1, 1.6), size: big ? rand(0.6, 1.2) : rand(0.4, 0.7), alpha: 0.85 });
+      }
+    },
+
+    // 海面に白い泡を円状に広げ、durationMs かけて薄くする
+    foam(position, durationMs = 8000) {
+      const [x, , z] = position;
+      for (let k = 0; k < 400; k++) {
+        const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 6;
+        emit([x + Math.cos(a) * r, 0.25, z + Math.sin(a) * r],
+          [Math.cos(a) * 0.35, 0, Math.sin(a) * 0.35],
+          { life: (durationMs / 1000) * rand(0.7, 1), size: rand(1, 1.8), alpha: 0.5, gravity: 0, floor: 0, grow: 1.3 });
+      }
+    },
+
+    update(dt) {
+      if (dt <= 0) return;
+      for (let i = 0; i < MAX; i++) {
+        if (life[i] <= 0) { alpha[i] = 0; continue; }
+        life[i] -= dt;
+        const j = i * 3;
+        vel[j + 1] -= gravity[i] * dt;
+        vel[j] += wind[i] * dt;
+        const drag = 1 - 0.6 * dt;
+        vel[j] *= drag; vel[j + 2] *= drag;
+        pos[j] += vel[j] * dt;
+        pos[j + 1] += vel[j + 1] * dt;
+        pos[j + 2] += vel[j + 2] * dt;
+        if (floor[i] && pos[j + 1] < 0 && vel[j + 1] < 0) life[i] = 0;
+        const t = Math.max(0, life[i] / maxLife[i]); // 1 → 0
+        size[i] = baseSize[i] * (1 + (grow[i] - 1) * (1 - t));
+        alpha[i] = life[i] > 0 ? baseAlpha[i] * Math.min(1, t * 2.5) : 0;
+      }
+      geometry.attributes.position.needsUpdate = true;
+      geometry.attributes.aSize.needsUpdate = true;
+      geometry.attributes.aAlpha.needsUpdate = true;
+    },
+  };
+}

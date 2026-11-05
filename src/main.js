@@ -1,6 +1,7 @@
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createOcean } from './scene/ocean.js';
 import { createWhales } from './scene/whales.js';
+import { createEffects } from './scene/effects.js';
 import { PATTERNS, resolvePattern } from './logic/patterns.js';
 import { spawnPosition } from './logic/spawn.js';
 import { createMixer, loadBuffers } from './audio/mixer.js';
@@ -20,6 +21,8 @@ const ocean = createOcean(document.getElementById('sea'));
 const scheduler = createScheduler({ now: Date.now(), intervalScale: FAST ? 1 / 30 : 1 });
 
 let mixer = null;
+const effects = createEffects(ocean.scene);
+ocean.addUpdater(effects.update);
 const whalesReady = createWhales(ocean.scene, new GLTFLoader());
 whalesReady.then(w => ocean.addUpdater(w.update));
 

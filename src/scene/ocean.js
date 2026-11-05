@@ -3,9 +3,18 @@ import { Water } from 'three/addons/objects/Water.js';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { CAMERA_PRESETS } from './cameras.js';
 import { sunForTime } from '../logic/sky.js';
+import { waterNormalPixels } from '../logic/waterNormals.js';
 
-const WATER_NORMALS =
-  'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/textures/waternormals.jpg';
+// 海面の凹凸の模様は外部の画像に頼らず、その場で作る
+function makeWaterNormals(size) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.putImageData(new ImageData(waterNormalPixels(size), size, size), 0, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  return texture;
+}
 
 const DAY_WATER_COLOR = 0x001e0f;
 const NIGHT_WATER_COLOR = 0x000a14;
@@ -26,9 +35,7 @@ export function createOcean(canvas) {
   const water = new Water(new THREE.PlaneGeometry(10000, 10000), {
     textureWidth: lowPower ? 256 : 512,
     textureHeight: lowPower ? 256 : 512,
-    waterNormals: new THREE.TextureLoader().load(WATER_NORMALS, t => {
-      t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    }),
+    waterNormals: makeWaterNormals(lowPower ? 128 : 256),
     sunDirection: new THREE.Vector3(),
     sunColor: 0xffffff,
     waterColor: DAY_WATER_COLOR,

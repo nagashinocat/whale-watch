@@ -1,6 +1,6 @@
 import { MENU_HIDE_MS } from '../logic/config.js';
 
-const CAMERA_LABELS = { cliff: '崖の上', boat: '船の上', beach: '浜辺', surface: '水面' };
+const CAMERA_LABELS = { sky: '上空', cliff: '崖の上', surface: '水面' };
 const TIME_LABELS = { auto: '自動', morning: '朝', day: '昼', evening: '夕方', night: '夜' };
 
 // 起動画面とメニュー。

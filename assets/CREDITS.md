@@ -11,8 +11,6 @@
 | sperm-clicks.mp3 | マッコウクジラのクリック音 | (未定) | | |
 | splash.mp3 | 水しぶき | (未定) | | |
 | waves-cliff.mp3 | 遠くでうねる波 | (未定) | | |
-| waves-boat.mp3 | 船体に当たる水音 | (未定) | | |
-| waves-beach.mp3 | 波打ち際の音 | (未定) | | |
 | waves-surface.mp3 | 近くで揺れる水の音 | (未定) | | |
 
 ## 3Dモデル (`assets/models/`)

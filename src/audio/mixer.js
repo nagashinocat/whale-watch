@@ -3,8 +3,6 @@ import { waveTargetGain, whaleTargetGain } from '../logic/gains.js';
 
 export const SOUND_FILES = Object.freeze({
   'waves-cliff': 'assets/audio/waves-cliff.mp3',
-  'waves-boat': 'assets/audio/waves-boat.mp3',
-  'waves-beach': 'assets/audio/waves-beach.mp3',
   'waves-surface': 'assets/audio/waves-surface.mp3',
   humpback: 'assets/audio/humpback-song.mp3',
   sperm: 'assets/audio/sperm-clicks.mp3',
@@ -24,6 +22,9 @@ export async function loadBuffers(ctx, files = SOUND_FILES) {
   }));
   return Object.fromEntries(entries);
 }
+
+// カメラごとの波の音。上空は崖の上と同じ遠い波の音を使う
+const waveSound = camera => (camera === 'surface' ? 'surface' : 'cliff');
 
 // 今の値から目標値まで、重ならないようにフェードする。
 function rampTo(param, ctx, target, ms) {
@@ -58,14 +59,14 @@ export function createMixer(ctx, buffers) {
   const waveGains = {};
 
   function startWaves() {
-    for (const name of ['cliff', 'boat', 'beach', 'surface']) {
+    for (const name of ['cliff', 'surface']) {
       const buffer = buffers[`waves-${name}`];
       if (!buffer) continue;
       const src = ctx.createBufferSource();
       src.buffer = buffer;
       src.loop = true;
       const g = ctx.createGain();
-      g.gain.value = name === camera ? 1 : 0;
+      g.gain.value = name === waveSound(camera) ? 1 : 0;
       src.connect(g).connect(waveBus);
       src.start();
       waveGains[name] = g;
@@ -97,10 +98,10 @@ export function createMixer(ctx, buffers) {
     },
 
     setCamera(cam) {
-      if (cam === camera) return;
-      if (started) {
-        if (waveGains[camera]) rampTo(waveGains[camera].gain, ctx, 0, AUDIO.fadeMs);
-        if (waveGains[cam]) rampTo(waveGains[cam].gain, ctx, 1, AUDIO.fadeMs);
+      const from = waveSound(camera), to = waveSound(cam);
+      if (started && from !== to) {
+        if (waveGains[from]) rampTo(waveGains[from].gain, ctx, 0, AUDIO.fadeMs);
+        if (waveGains[to]) rampTo(waveGains[to].gain, ctx, 1, AUDIO.fadeMs);
       }
       camera = cam;
     },

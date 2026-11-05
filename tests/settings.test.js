@@ -14,8 +14,8 @@ test('何も保存されていなければ初期設定', () => {
 
 test('保存した設定を読み戻せる', () => {
   const s = mem();
-  saveSettings(s, { mode: 'sleep', camera: 'beach', volume: 0.3, time: 'night' });
-  assert.deepEqual(loadSettings(s), { mode: 'sleep', camera: 'beach', volume: 0.3, time: 'night' });
+  saveSettings(s, { mode: 'sleep', camera: 'sky', volume: 0.3, time: 'night' });
+  assert.deepEqual(loadSettings(s), { mode: 'sleep', camera: 'sky', volume: 0.3, time: 'night' });
 });
 
 test('時間の設定は最初は自動、不正な値なら自動に戻す', () => {
@@ -29,12 +29,19 @@ test('壊れたJSONなら初期設定', () => {
 });
 
 test('不正な項目だけ初期値に戻す', () => {
-  const s = mem({ 'whale-ocean-settings': JSON.stringify({ mode: 'party', camera: 'beach', volume: 7 }) });
-  assert.deepEqual(loadSettings(s), { mode: 'normal', camera: 'beach', volume: 0.5, time: 'auto' });
+  const s = mem({ 'whale-ocean-settings': JSON.stringify({ mode: 'party', camera: 'surface', volume: 7 }) });
+  assert.deepEqual(loadSettings(s), { mode: 'normal', camera: 'surface', volume: 0.5, time: 'auto' });
 });
 
 test('storageが例外を投げても止まらない', () => {
   const bad = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); } };
   assert.deepEqual(loadSettings(bad), DEFAULTS);
   assert.doesNotThrow(() => saveSettings(bad, DEFAULTS));
+});
+
+test('なくしたカメラ(船の上・浜辺)が保存されていたら崖の上に戻す', () => {
+  for (const camera of ['boat', 'beach']) {
+    const s = mem({ 'whale-ocean-settings': JSON.stringify({ camera }) });
+    assert.equal(loadSettings(s).camera, 'cliff');
+  }
 });

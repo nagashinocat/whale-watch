@@ -4,7 +4,6 @@ import { CAMERA_PRESETS } from './cameras.js';
 import { sunForTime } from '../logic/sky.js';
 import { waterNormalPixels } from '../logic/waterNormals.js';
 import { createGradientSky } from './sky.js';
-import { createProps } from './props.js';
 import { skyPalette } from '../logic/skyPalette.js';
 
 // 海面の凹凸の模様は外部の画像に頼らず、その場で作る
@@ -30,9 +29,9 @@ export function createOcean(canvas) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 20000);
+  const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 30000);
 
-  const water = new Water(new THREE.PlaneGeometry(10000, 10000), {
+  const water = new Water(new THREE.PlaneGeometry(40000, 40000), {
     textureWidth: lowPower ? 256 : 512,
     textureHeight: lowPower ? 256 : 512,
     waterNormals: makeWaterNormals(lowPower ? 128 : 256),
@@ -83,11 +82,8 @@ export function createOcean(canvas) {
     camera.updateProjectionMatrix();
   }
 
-  const props = createProps(scene, camera);
-
   function setCamera(name) {
     preset = CAMERA_PRESETS[name] ?? CAMERA_PRESETS.cliff;
-    props.setCamera(name);
     placeCamera();
   }
 
@@ -117,7 +113,6 @@ export function createOcean(canvas) {
     elapsed += dt;
     water.material.uniforms.time.value += dt * 0.6;
     if (preset.sway) placeCamera();
-    props.update(dt);
     for (const fn of updaters) fn(dt);
     renderer.render(scene, camera);
   }

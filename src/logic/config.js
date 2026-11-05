@@ -3,7 +3,7 @@
 
 export const MODES = ['sleep', 'normal'];
 
-export const CAMERAS = ['cliff', 'boat', 'beach', 'surface'];
+export const CAMERAS = ['sky', 'cliff', 'surface'];
 
 // 空の時間帯。auto は実際の時刻、それ以外はその時刻(時)に固定する
 export const TIME_PRESETS = Object.freeze({ auto: null, morning: 7, day: 12, evening: 17.5, night: 22 });

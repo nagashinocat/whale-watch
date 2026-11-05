@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>クジラの見える海</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="sea"></canvas>
+  <script type="module">
+    import { createOcean } from './src/scene/ocean.js';
+    const ocean = createOcean(document.getElementById('sea'));
+    const now = new Date();
+    ocean.setTime(now.getHours() + now.getMinutes() / 60);
+    ocean.start();
+    window.ocean = ocean; // 確認用(Task 5 で外す)
+  </script>
+</body>
+</html>

@@ -1,4 +1,8 @@
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createOcean } from './scene/ocean.js';
+import { createWhales } from './scene/whales.js';
+import { PATTERNS, resolvePattern } from './logic/patterns.js';
+import { spawnPosition } from './logic/spawn.js';
 import { createMixer, loadBuffers } from './audio/mixer.js';
 import { createMenu } from './ui/menu.js';
 import { createScheduler } from './logic/scheduler.js';
@@ -16,6 +20,8 @@ const ocean = createOcean(document.getElementById('sea'));
 const scheduler = createScheduler({ now: Date.now(), intervalScale: FAST ? 1 / 30 : 1 });
 
 let mixer = null;
+const whalesReady = createWhales(ocean.scene, new GLTFLoader());
+whalesReady.then(w => ocean.addUpdater(w.update));
 
 function safeStorage() {
   try {
@@ -44,10 +50,34 @@ function refreshSummonButton() {
 // 出番係のイベントを、演出と音に渡す。終わったら出番係に知らせる。
 async function handleEvent(event) {
   if (event.kind === 'summon') menu.setSummonStatus(null);
-  mixer?.playWhale('humpback', { maxMs: 60000 });
-  await new Promise(r => setTimeout(r, 60000));
-  scheduler.endEvent(Date.now());
-  refreshSummonButton();
+  try {
+    const whales = await whalesReady;
+    const name = resolvePattern(event.pattern, whales.models);
+    const { sound, durationMs } = PATTERNS[name];
+    if (sound) mixer?.playWhale(sound, { maxMs: durationMs });
+    // 画面が隠れて描画が止まっていても、必ず決まった時間で終わらせる
+    await Promise.race([
+      whales.play(name, spawnPosition(Math.random)),
+      new Promise(r => setTimeout(r, durationMs + 1000)),
+    ]);
+  } finally {
+    if (event.kind !== 'debug') scheduler.endEvent(Date.now());
+    refreshSummonButton();
+  }
+}
+
+// 開発用: ?debug=1 で各出方をすぐ出せるボタンを表示する
+if (DEBUG) {
+  const panel = document.createElement('div');
+  panel.className = 'debug';
+  for (const name of Object.keys(PATTERNS)) {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.addEventListener('pointerdown', e => e.stopPropagation());
+    b.addEventListener('click', () => handleEvent({ kind: 'debug', pattern: name }));
+    panel.append(b);
+  }
+  document.body.append(panel);
 }
 
 const menu = createMenu(document.getElementById('ui'), {

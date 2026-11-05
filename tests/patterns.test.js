@@ -18,6 +18,11 @@ test('モデルがなければ鳴き声だけに置き換える', () => {
   assert.equal(resolvePattern('breach', { humpback: {}, sperm: null }), 'breach');
 });
 
+test('呼んだクジラの歌は到着してから(最初から鳴らさない)', () => {
+  assert.equal(PATTERNS.summon.sound, null);
+  assert.ok(PATTERNS.summon.songAtMs >= 30000 && PATTERNS.summon.songAtMs < PATTERNS.summon.durationMs);
+});
+
 test('呼んだクジラはモデルがなくても歌だけは届く', () => {
   assert.equal(resolvePattern('summon', { humpback: null, sperm: null }), 'voice');
 });

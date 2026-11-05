@@ -25,7 +25,7 @@ const effects = createEffects(ocean.scene);
 ocean.addUpdater(effects.update);
 const whalesReady = createWhales(ocean.scene, new GLTFLoader(), {
   effects,
-  playSound: name => mixer?.playWhale(name),
+  playSound: (name, opts) => mixer?.playWhale(name, opts),
 });
 whalesReady.then(w => ocean.addUpdater(w.update));
 

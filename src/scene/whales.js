@@ -203,6 +203,11 @@ const MOTIONS = {
       },
       cues: [
         { at: 14, run: (fx, [w]) => fx.effects.foam(bodyPoint(w, 0), 8000) },
+        // 着いたら歌い始め、帰り始めるまで歌う
+        {
+          at: PATTERNS.summon.songAtMs / 1000,
+          run: fx => fx.playSound('humpback', { maxMs: (85 - PATTERNS.summon.songAtMs / 1000) * 1000 }),
+        },
         { at: 45, run: (fx, [w]) => fx.effects.spout(bodyPoint(w, 0.28, 1)) },
         { at: 70, run: (fx, [w]) => fx.effects.spout(bodyPoint(w, 0.28, 1)) },
         { at: 106.5, run: (fx, [w]) => fx.effects.splash(bodyPoint(w, -0.5), 'small') },

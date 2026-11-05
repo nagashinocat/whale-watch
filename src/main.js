@@ -23,7 +23,10 @@ const scheduler = createScheduler({ now: Date.now(), intervalScale: FAST ? 1 / 3
 let mixer = null;
 const effects = createEffects(ocean.scene);
 ocean.addUpdater(effects.update);
-const whalesReady = createWhales(ocean.scene, new GLTFLoader());
+const whalesReady = createWhales(ocean.scene, new GLTFLoader(), {
+  effects,
+  playSound: name => mixer?.playWhale(name),
+});
 whalesReady.then(w => ocean.addUpdater(w.update));
 
 function safeStorage() {

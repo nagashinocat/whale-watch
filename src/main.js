@@ -8,6 +8,8 @@ import { createMixer, loadBuffers } from './audio/mixer.js';
 import { createMenu } from './ui/menu.js';
 import { createScheduler } from './logic/scheduler.js';
 import { loadSettings, saveSettings } from './logic/settings.js';
+import { hoursFor, blendHours } from './logic/time.js';
+import { AUDIO } from './logic/config.js';
 
 // メニューに表示する素材のクレジット(assets/CREDITS.md と合わせる)
 const CREDITS = ['クジラの声: NOAA'];
@@ -42,9 +44,28 @@ function save() {
   menu.setValues(settings);
 }
 
-function updateTime() {
-  const d = new Date();
-  ocean.setTime(d.getHours() + d.getMinutes() / 60);
+let skyHours = null;    // 今の空の時刻
+let skyTransition = 0;  // 移り変わりの番号(新しい切り替えが来たら古いものを止める)
+
+// 空を今の設定の時刻に合わせる。smooth なら3秒かけて移り変わる。
+function updateTime(smooth = false) {
+  const target = hoursFor(settings.time, new Date());
+  const id = ++skyTransition;
+  if (!smooth || skyHours === null || document.hidden) {
+    skyHours = target;
+    ocean.setTime(target);
+    return;
+  }
+  const from = skyHours;
+  const startAt = performance.now();
+  const step = now => {
+    if (id !== skyTransition) return;
+    const t = Math.min(1, (now - startAt) / AUDIO.fadeMs);
+    skyHours = blendHours(from, target, t);
+    ocean.setTime(skyHours);
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 function refreshSummonButton() {
@@ -107,6 +128,11 @@ const menu = createMenu(document.getElementById('ui'), {
     settings.camera = camera;
     ocean.setCamera(camera);
     mixer?.setCamera(camera);
+    save();
+  },
+  onTime(time) {
+    settings.time = time;
+    updateTime(true);
     save();
   },
   onVolume(volume) {

@@ -1,6 +1,7 @@
 import { MENU_HIDE_MS } from '../logic/config.js';
 
 const CAMERA_LABELS = { cliff: '崖の上', boat: '船の上', beach: '浜辺', surface: '水面' };
+const TIME_LABELS = { auto: '自動', morning: '朝', day: '昼', evening: '夕方', night: '夜' };
 
 // 起動画面とメニュー。
 export function createMenu(root, handlers) {
@@ -20,6 +21,9 @@ export function createMenu(root, handlers) {
       <label class="volume">音量<input type="range" min="0" max="1" step="0.01" data-volume></label>
       <div class="seg cams" role="group" aria-label="カメラ">
         ${Object.entries(CAMERA_LABELS).map(([k, v]) => `<button data-camera="${k}">${v}</button>`).join('')}
+      </div>
+      <div class="seg times" role="group" aria-label="時間">
+        ${Object.entries(TIME_LABELS).map(([k, v]) => `<button data-time="${k}">${v}</button>`).join('')}
       </div>
       <div class="row foot">
         <small class="credits" data-credits></small>
@@ -71,12 +75,16 @@ export function createMenu(root, handlers) {
     b.addEventListener('click', () => handlers.onMode(b.dataset.mode)));
   root.querySelectorAll('[data-camera]').forEach(b =>
     b.addEventListener('click', () => handlers.onCamera(b.dataset.camera)));
+  root.querySelectorAll('[data-time]').forEach(b =>
+    b.addEventListener('click', () => handlers.onTime(b.dataset.time)));
   summon.addEventListener('click', () => handlers.onSummon());
   volume.addEventListener('input', () => handlers.onVolume(Number(volume.value)));
   $('[data-full]').addEventListener('click', () => handlers.onFullscreen());
 
   return {
-    setValues({ mode, camera, volume: v }) {
+    setValues({ mode, camera, volume: v, time }) {
+      root.querySelectorAll('[data-time]').forEach(b =>
+        b.classList.toggle('on', b.dataset.time === time));
       root.querySelectorAll('[data-mode]').forEach(b =>
         b.classList.toggle('on', b.dataset.mode === mode));
       root.querySelectorAll('[data-camera]').forEach(b =>

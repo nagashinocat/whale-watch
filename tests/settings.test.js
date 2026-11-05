@@ -14,8 +14,14 @@ test('何も保存されていなければ初期設定', () => {
 
 test('保存した設定を読み戻せる', () => {
   const s = mem();
-  saveSettings(s, { mode: 'sleep', camera: 'beach', volume: 0.3 });
-  assert.deepEqual(loadSettings(s), { mode: 'sleep', camera: 'beach', volume: 0.3 });
+  saveSettings(s, { mode: 'sleep', camera: 'beach', volume: 0.3, time: 'night' });
+  assert.deepEqual(loadSettings(s), { mode: 'sleep', camera: 'beach', volume: 0.3, time: 'night' });
+});
+
+test('時間の設定は最初は自動、不正な値なら自動に戻す', () => {
+  assert.equal(loadSettings(mem()).time, 'auto');
+  const s = mem({ 'whale-ocean-settings': JSON.stringify({ time: 'midnight' }) });
+  assert.equal(loadSettings(s).time, 'auto');
 });
 
 test('壊れたJSONなら初期設定', () => {
@@ -24,7 +30,7 @@ test('壊れたJSONなら初期設定', () => {
 
 test('不正な項目だけ初期値に戻す', () => {
   const s = mem({ 'whale-ocean-settings': JSON.stringify({ mode: 'party', camera: 'beach', volume: 7 }) });
-  assert.deepEqual(loadSettings(s), { mode: 'normal', camera: 'beach', volume: 0.5 });
+  assert.deepEqual(loadSettings(s), { mode: 'normal', camera: 'beach', volume: 0.5, time: 'auto' });
 });
 
 test('storageが例外を投げても止まらない', () => {

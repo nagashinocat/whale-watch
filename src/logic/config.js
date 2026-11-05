@@ -5,7 +5,10 @@ export const MODES = ['sleep', 'normal'];
 
 export const CAMERAS = ['cliff', 'boat', 'beach', 'surface'];
 
-export const DEFAULTS = Object.freeze({ mode: 'normal', camera: 'cliff', volume: 0.5 });
+// 空の時間帯。auto は実際の時刻、それ以外はその時刻(時)に固定する
+export const TIME_PRESETS = Object.freeze({ auto: null, morning: 7, day: 12, evening: 17.5, night: 22 });
+
+export const DEFAULTS = Object.freeze({ mode: 'normal', camera: 'cliff', volume: 0.5, time: 'auto' });
 
 export const SCHEDULE = Object.freeze({
   minIntervalMs: 30 * 60 * 1000,

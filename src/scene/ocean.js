@@ -4,6 +4,7 @@ import { CAMERA_PRESETS } from './cameras.js';
 import { sunForTime } from '../logic/sky.js';
 import { waterNormalPixels } from '../logic/waterNormals.js';
 import { createGradientSky } from './sky.js';
+import { createProps } from './props.js';
 import { skyPalette } from '../logic/skyPalette.js';
 
 // 海面の凹凸の模様は外部の画像に頼らず、その場で作る
@@ -72,16 +73,21 @@ export function createOcean(canvas) {
     camera.position.set(...preset.position);
     camera.lookAt(...preset.target);
     if (preset.sway) {
+      // 船や水面に浮かんでいるように、傾きながら上下に揺れる
       const deg = THREE.MathUtils.degToRad(preset.sway);
-      camera.rotateZ(Math.sin(elapsed * 0.6) * deg);
+      camera.rotateZ((Math.sin(elapsed * 0.6) + 0.3 * Math.sin(elapsed * 1.3)) * deg);
       camera.rotateX(Math.sin(elapsed * 0.43) * deg * 0.6);
-      camera.position.y = preset.position[1] + Math.sin(elapsed * 0.5) * 0.3;
+      camera.position.y = preset.position[1]
+        + (Math.sin(elapsed * 0.9) + 0.35 * Math.sin(elapsed * 1.7)) * preset.bob;
     }
     camera.updateProjectionMatrix();
   }
 
+  const props = createProps(scene, camera);
+
   function setCamera(name) {
     preset = CAMERA_PRESETS[name] ?? CAMERA_PRESETS.cliff;
+    props.setCamera(name);
     placeCamera();
   }
 
@@ -111,6 +117,7 @@ export function createOcean(canvas) {
     elapsed += dt;
     water.material.uniforms.time.value += dt * 0.6;
     if (preset.sway) placeCamera();
+    props.update(dt);
     for (const fn of updaters) fn(dt);
     renderer.render(scene, camera);
   }

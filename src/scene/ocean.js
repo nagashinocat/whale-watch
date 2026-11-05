@@ -4,6 +4,7 @@ import { Sky } from 'three/addons/objects/Sky.js';
 import { CAMERA_PRESETS } from './cameras.js';
 import { sunForTime } from '../logic/sky.js';
 import { waterNormalPixels } from '../logic/waterNormals.js';
+import { createDaySky } from './daySky.js';
 
 // 海面の凹凸の模様は外部の画像に頼らず、その場で作る
 function makeWaterNormals(size) {
@@ -55,6 +56,10 @@ export function createOcean(canvas) {
   skyU.mieDirectionalG.value = 0.8;
   scene.add(sky);
 
+  // 晴れた昼の青空と雲(Sky の内側に重ねる)
+  const daySky = createDaySky();
+  scene.add(daySky.mesh);
+
   // 夜に見える月
   const moon = new THREE.Mesh(
     new THREE.SphereGeometry(60, 24, 12),
@@ -103,6 +108,7 @@ export function createOcean(canvas) {
     const lightDir = s.isNight ? MOON_DIRECTION : sunDir;
     water.material.uniforms.sunDirection.value.copy(lightDir).normalize();
     water.material.uniforms.sunColor.value.set(s.isNight ? 0x8899bb : 0xffffff);
+    daySky.setDaylight(s.daylight);
     // 昼に近いほど空気が澄んだ青空と青い海、朝夕は少しかすんだ色にする
     const lerp = (a, b) => a + (b - a) * s.daylight;
     skyU.turbidity.value = lerp(8, 1.8);
@@ -122,6 +128,7 @@ export function createOcean(canvas) {
   function render(dt) {
     elapsed += dt;
     water.material.uniforms.time.value += dt * 0.6;
+    daySky.update(dt);
     if (preset.sway) placeCamera();
     for (const fn of updaters) fn(dt);
     renderer.render(scene, camera);

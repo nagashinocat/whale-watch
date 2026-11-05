@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import { Water } from 'three/addons/objects/Water.js';
-import { Sky } from 'three/addons/objects/Sky.js';
 import { CAMERA_PRESETS } from './cameras.js';
 import { sunForTime } from '../logic/sky.js';
 import { waterNormalPixels } from '../logic/waterNormals.js';
-import { createDaySky } from './daySky.js';
+import { createGradientSky } from './sky.js';
+import { skyPalette } from '../logic/skyPalette.js';
 
 // 海面の凹凸の模様は外部の画像に頼らず、その場で作る
 function makeWaterNormals(size) {
@@ -17,9 +17,6 @@ function makeWaterNormals(size) {
   return texture;
 }
 
-const DAY_WATER_COLOR = 0x0a4f8a;      // 晴れた昼の青い海
-const LOW_SUN_WATER_COLOR = 0x0d2a3a;  // 朝夕の海
-const NIGHT_WATER_COLOR = 0x000a14;
 const MOON_DIRECTION = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(65), THREE.MathUtils.degToRad(200));
 
 // 海・空・カメラ・描画ループ。
@@ -40,25 +37,16 @@ export function createOcean(canvas) {
     waterNormals: makeWaterNormals(lowPower ? 128 : 256),
     sunDirection: new THREE.Vector3(),
     sunColor: 0xffffff,
-    waterColor: DAY_WATER_COLOR,
+    waterColor: 0x0a4f8a,
     distortionScale: 3.7,
     fog: false,
   });
   water.rotation.x = -Math.PI / 2;
   scene.add(water);
 
-  const sky = new Sky();
-  sky.scale.setScalar(10000);
-  const skyU = sky.material.uniforms;
-  skyU.turbidity.value = 10;
-  skyU.rayleigh.value = 2;
-  skyU.mieCoefficient.value = 0.005;
-  skyU.mieDirectionalG.value = 0.8;
-  scene.add(sky);
-
-  // 晴れた昼の青空と雲(Sky の内側に重ねる)
-  const daySky = createDaySky();
-  scene.add(daySky.mesh);
+  // 時刻に合わせて色が変わる空(昼の青空、夕焼け、夜)
+  const sky = createGradientSky();
+  scene.add(sky.mesh);
 
   // 夜に見える月
   const moon = new THREE.Mesh(
@@ -104,21 +92,15 @@ export function createOcean(canvas) {
       THREE.MathUtils.degToRad(90 - s.elevation),
       THREE.MathUtils.degToRad(s.azimuth),
     );
-    skyU.sunPosition.value.copy(sunDir);
     const lightDir = s.isNight ? MOON_DIRECTION : sunDir;
     water.material.uniforms.sunDirection.value.copy(lightDir).normalize();
-    water.material.uniforms.sunColor.value.set(s.isNight ? 0x8899bb : 0xffffff);
-    daySky.setDaylight(s.daylight);
-    // 昼に近いほど空気が澄んだ青空と青い海、朝夕は少しかすんだ色にする
-    const lerp = (a, b) => a + (b - a) * s.daylight;
-    skyU.turbidity.value = lerp(8, 1.8);
-    skyU.rayleigh.value = lerp(3, 1.2);
-    skyU.mieCoefficient.value = lerp(0.005, 0.002);
-    const waterColor = water.material.uniforms.waterColor.value;
-    if (s.isNight) waterColor.set(NIGHT_WATER_COLOR);
-    else waterColor.lerpColors(new THREE.Color(LOW_SUN_WATER_COLOR), new THREE.Color(DAY_WATER_COLOR), s.daylight);
+    // 空・海・光の色は時刻ごとの色見本から決める
+    const palette = skyPalette(hours);
+    sky.setColors(palette);
+    water.material.uniforms.sunColor.value.set(palette.light);
+    water.material.uniforms.waterColor.value.set(palette.water);
     sunLight.position.copy(lightDir).multiplyScalar(1000);
-    sunLight.color.set(s.isNight ? 0x8899bb : 0xffffff);
+    sunLight.color.set(palette.light);
     sunLight.intensity = s.isNight ? 0.4 : 1.5;
     ambient.intensity = s.isNight ? 0.25 : 0.8;
     moon.visible = s.isNight;
@@ -128,7 +110,6 @@ export function createOcean(canvas) {
   function render(dt) {
     elapsed += dt;
     water.material.uniforms.time.value += dt * 0.6;
-    daySky.update(dt);
     if (preset.sway) placeCamera();
     for (const fn of updaters) fn(dt);
     renderer.render(scene, camera);

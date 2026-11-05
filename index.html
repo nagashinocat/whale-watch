@@ -3,10 +3,53 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
   <title>クジラの見える海</title>
   <style>
-    html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+    :root {
+      --glass: rgba(10, 18, 28, 0.62);
+      --line: rgba(255, 255, 255, 0.16);
+      --text: #eef3f7;
+      --muted: rgba(238, 243, 247, 0.6);
+      --accent: #9fd3e6;
+    }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #000; color: var(--text);
+      font-family: "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
     canvas { display: block; width: 100vw; height: 100vh; }
+    #ui [hidden] { display: none !important; }
+
+    .start { position: fixed; inset: 0; display: grid; place-items: center; cursor: pointer;
+      background: linear-gradient(to bottom, rgba(0,0,0,0) 40%, rgba(0,0,0,0.35)); }
+    .start p { margin: 0; padding: 12px 22px; border: 1px solid var(--line); border-radius: 999px;
+      background: var(--glass); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      letter-spacing: 0.08em; font-size: 15px; }
+
+    .menu { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom));
+      transform: translateX(-50%); width: min(440px, calc(100vw - 32px)); box-sizing: border-box;
+      padding: 14px; border: 1px solid var(--line); border-radius: 18px; background: var(--glass);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      display: grid; gap: 12px; animation: rise .25s ease-out; }
+    @keyframes rise { from { opacity: 0; transform: translate(-50%, 8px); } }
+    .row { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+    button { font: inherit; font-size: 14px; color: var(--text); background: transparent;
+      border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; min-height: 40px; cursor: pointer; }
+    button:disabled { opacity: 0.4; cursor: default; }
+    .seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    .seg button { border: 0; border-radius: 0; flex: 1; }
+    .seg button + button { border-left: 1px solid var(--line); }
+    .seg button.on { background: rgba(159, 211, 230, 0.22); color: #fff; }
+    .cams { width: 100%; }
+    .summon { border-color: rgba(159, 211, 230, 0.5); color: var(--accent); }
+    .status { margin: -4px 0 0; font-size: 13px; color: var(--accent); text-align: right; }
+    .volume { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); }
+    .volume input { flex: 1; accent-color: var(--accent); }
+    .foot { gap: 8px; }
+    .credits { color: var(--muted); font-size: 11px; }
+    .full { padding: 6px 10px; min-height: 32px; font-size: 12px; }
+    .notice { margin: 0; font-size: 12px; color: #ffd28a; }
+
+    .debug { position: fixed; top: 12px; right: 12px; display: grid; gap: 6px; z-index: 10; }
+    .debug button { background: var(--glass); font-size: 12px; min-height: 30px; padding: 4px 10px; }
   </style>
   <script type="importmap">
     {
@@ -19,13 +62,7 @@
 </head>
 <body>
   <canvas id="sea"></canvas>
-  <script type="module">
-    import { createOcean } from './src/scene/ocean.js';
-    const ocean = createOcean(document.getElementById('sea'));
-    const now = new Date();
-    ocean.setTime(now.getHours() + now.getMinutes() / 60);
-    ocean.start();
-    window.ocean = ocean; // 確認用(Task 5 で外す)
-  </script>
+  <div id="ui"></div>
+  <script type="module" src="./src/main.js"></script>
 </body>
 </html>

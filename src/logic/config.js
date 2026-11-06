@@ -19,7 +19,10 @@ export const TIME_PRESETS = Object.freeze({
   blue: SKY_MOMENTS.blue,
 });
 
-export const DEFAULTS = Object.freeze({ mode: 'normal', camera: 'cliff', volume: 0.5, time: 'auto' });
+// 海を見ている場所(くわしくは places.js)
+export const PLACES = ['okinawa', 'ogasawara'];
+
+export const DEFAULTS = Object.freeze({ mode: 'normal', camera: 'cliff', volume: 0.5, time: 'auto', place: 'okinawa' });
 
 export const SCHEDULE = Object.freeze({
   minIntervalMs: 30 * 60 * 1000,

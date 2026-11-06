@@ -2,6 +2,8 @@ import { createOcean } from './scene/ocean.js';
 import { createWhales } from './scene/whales.js';
 import { createEffects } from './scene/effects.js';
 import { createFootprints } from './scene/footprints.js';
+import { setUnderwaterLight } from './scene/whaleModel.js';
+import { SPOT } from './scene/cameras.js';
 import { cameraShake } from './logic/behavior.js';
 import { PATTERNS, PATTERN_LABELS, resolvePattern, voiceSound } from './logic/patterns.js';
 import { spawnPosition } from './logic/spawn.js';
@@ -10,6 +12,7 @@ import { createMenu } from './ui/menu.js';
 import { createScheduler } from './logic/scheduler.js';
 import { loadSettings, saveSettings } from './logic/settings.js';
 import { hoursFor, blendHours } from './logic/time.js';
+import { realSky, seasonInfo } from './logic/places.js';
 import { AUDIO } from './logic/config.js';
 
 // メニューに表示する素材のクレジット(assets/CREDITS.md と合わせる)
@@ -34,6 +37,7 @@ ocean.addSurfaceDecal(footprints.group);
 ocean.addUpdater(footprints.update);
 ocean.onPalette(footprints.setPalette);
 ocean.onPalette(palette => effects.setLight(palette.light));
+ocean.onPalette(setUnderwaterLight);
 const whalesReady = createWhales(ocean.scene, {
   effects,
   footprint: (position, yaw) => footprints.add(position, yaw),
@@ -63,13 +67,22 @@ function save() {
 let skyHours = null;    // 今の空の時刻
 let skyTransition = 0;  // 移り変わりの番号(新しい切り替えが来たら古いものを止める)
 
-// 空を今の設定の時刻に合わせる。smooth なら3秒かけて移り変わる。
+// 今の設定の空。「自動」のときは、選んだ場所の本物の太陽と月に合わせる
+function skyTarget() {
+  if (settings.time === 'auto') {
+    const real = realSky(settings.place, new Date());
+    return { hours: real.hours, sunAzimuth: real.sunAzimuth, moon: real.moon };
+  }
+  return { hours: hoursFor(settings.time, new Date()) };
+}
+
+// 空を今の設定に合わせる。smooth なら3秒かけて移り変わる。
 function updateTime(smooth = false) {
-  const target = hoursFor(settings.time, new Date());
+  const target = skyTarget();
   const id = ++skyTransition;
   if (!smooth || skyHours === null || document.hidden) {
-    skyHours = target;
-    ocean.setTime(target);
+    skyHours = target.hours;
+    ocean.setSky(target);
     return;
   }
   const from = skyHours;
@@ -77,11 +90,27 @@ function updateTime(smooth = false) {
   const step = now => {
     if (id !== skyTransition) return;
     const t = Math.min(1, (now - startAt) / AUDIO.fadeMs);
-    skyHours = blendHours(from, target, t);
-    ocean.setTime(skyHours);
+    skyHours = blendHours(from, target.hours, t);
+    ocean.setSky({ ...target, hours: skyHours });
     if (t < 1) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
+}
+
+// 音を聞く位置と向きを、カメラに合わせる
+function updateListener() {
+  if (!mixer) return;
+  const c = ocean.camera;
+  c.updateMatrixWorld();
+  const f = c.getWorldDirection(new c.position.constructor());
+  mixer.setListener([c.position.x, c.position.y, c.position.z], [f.x, f.y, f.z]);
+}
+
+// その場所・その日のクジラのシーズンに合わせて、出やすさと出方を変える
+function updateSeason() {
+  const season = seasonInfo(settings.place, new Date());
+  scheduler.setSeason(season);
+  menu.setSeason(season.label);
 }
 
 function refreshSummonButton() {
@@ -101,7 +130,8 @@ async function handleEvent(event) {
     const voice = name === 'voice' && mixer
       ? voiceSound(Math.random, { humpback: mixer.has('humpback'), 'humpback-call': mixer.has('humpback-call') })
       : sound;
-    if (voice) mixer?.playWhale(voice, { maxMs: durationMs });
+    // 声はクジラの出る場所から聞こえる
+    if (voice) mixer?.playWhale(voice, { maxMs: durationMs, position: [...SPOT] });
     // 画面が隠れて描画が止まっていても、必ず決まった時間で終わらせる
     await Promise.race([
       whales.play(name, spawnPosition(Math.random)),
@@ -152,6 +182,7 @@ const menu = createMenu(document.getElementById('ui'), {
     mixer.setMode(settings.mode);
     mixer.setVolume(settings.volume);
     mixer.start(settings.camera);
+    updateListener();
   },
   onMode(mode) {
     settings.mode = mode;
@@ -162,6 +193,13 @@ const menu = createMenu(document.getElementById('ui'), {
     settings.camera = camera;
     ocean.setCamera(camera);
     mixer?.setCamera(camera);
+    updateListener();
+    save();
+  },
+  onPlace(place) {
+    settings.place = place;
+    updateSeason();
+    updateTime(true);
     save();
   },
   onTime(time) {
@@ -199,6 +237,8 @@ setInterval(() => {
 }, 1000);
 // 空はなめらかに変わるよう10秒ごとに合わせる
 setInterval(updateTime, 10 * 1000);
+updateSeason();
+setInterval(updateSeason, 60 * 60 * 1000);
 
 // 見えていないときは描画を止めて電池を節約する
 document.addEventListener('visibilitychange', () => {

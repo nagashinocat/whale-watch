@@ -11,3 +11,11 @@ export function whaleTargetGain({ mode, volume }) {
   if (mode === 'sleep') return 0;
   return waveTargetGain(volume) * AUDIO.whaleMaxRatio;
 }
+
+// クジラの音の、距離による小さくなり方。ブラウザの音の部品(PannerNode)の「inverse」と同じ式。
+// refDistance より近いときは小さくしないので、近くても今の音量の上限より大きくはならない
+export const AUDIO_DISTANCE = Object.freeze({ refDistance: 25, rolloffFactor: 1 });
+export function whaleDistanceGain(distance) {
+  const { refDistance: ref, rolloffFactor: k } = AUDIO_DISTANCE;
+  return ref / (ref + k * (Math.max(distance, ref) - ref));
+}

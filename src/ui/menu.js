@@ -1,6 +1,7 @@
 import { MENU_HIDE_MS } from '../logic/config.js';
 
 const CAMERA_LABELS = { sky: '上空', cliff: '崖の上', near: '間近' };
+const PLACE_LABELS = { okinawa: '沖縄(慶良間)', ogasawara: '小笠原(父島)' };
 const TIME_LABELS = { auto: '自動', morning: '朝', day: '昼', evening: '夕方', night: '夜' };
 // 特別にきれいな時間
 const SPECIAL_LABELS = { golden: 'ゴールデンアワー', blue: 'ブルーアワー' };
@@ -26,6 +27,12 @@ export function createMenu(root, handlers) {
       </div>
       <div class="seg times" role="group" aria-label="時間">
         ${Object.entries(TIME_LABELS).map(([k, v]) => `<button data-time="${k}">${v}</button>`).join('')}
+      </div>
+      <div class="place">
+        <div class="seg" role="group" aria-label="海を見ている場所">
+          ${Object.entries(PLACE_LABELS).map(([k, v]) => `<button data-place="${k}">${v}</button>`).join('')}
+        </div>
+        <p class="season" data-season></p>
       </div>
       <div class="special">
         <span class="label">特別な時間</span>
@@ -83,6 +90,8 @@ export function createMenu(root, handlers) {
     b.addEventListener('click', () => handlers.onMode(b.dataset.mode)));
   root.querySelectorAll('[data-camera]').forEach(b =>
     b.addEventListener('click', () => handlers.onCamera(b.dataset.camera)));
+  root.querySelectorAll('[data-place]').forEach(b =>
+    b.addEventListener('click', () => handlers.onPlace(b.dataset.place)));
   root.querySelectorAll('[data-time]').forEach(b =>
     b.addEventListener('click', () => handlers.onTime(b.dataset.time)));
   summon.addEventListener('click', () => handlers.onSummon());
@@ -90,7 +99,9 @@ export function createMenu(root, handlers) {
   $('[data-full]').addEventListener('click', () => handlers.onFullscreen());
 
   return {
-    setValues({ mode, camera, volume: v, time }) {
+    setValues({ mode, camera, volume: v, time, place }) {
+      root.querySelectorAll('[data-place]').forEach(b =>
+        b.classList.toggle('on', b.dataset.place === place));
       root.querySelectorAll('[data-time]').forEach(b =>
         b.classList.toggle('on', b.dataset.time === time));
       root.querySelectorAll('[data-mode]').forEach(b =>
@@ -98,6 +109,10 @@ export function createMenu(root, handlers) {
       root.querySelectorAll('[data-camera]').forEach(b =>
         b.classList.toggle('on', b.dataset.camera === camera));
       volume.value = String(v);
+    },
+    // その場所のクジラのシーズン(「ザトウクジラのシーズン中」など)
+    setSeason(text) {
+      $('[data-season]').textContent = text;
     },
     setSummonEnabled(enabled) {
       summon.disabled = !enabled;

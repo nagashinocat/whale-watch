@@ -226,7 +226,7 @@ const MOTIONS = {
             fx.effects.splash([p[0], 0, p[2]], 'large', headingOf(w));
             fx.impact?.([p[0], 0, p[2]], 1);
             fx.effects.foam([p[0], 0, p[2]], 12000);
-            fx.playSound('splash');
+            fx.playSound('splash', { position: [p[0], 0, p[2]] });
           },
         },
       ],
@@ -270,7 +270,7 @@ const MOTIONS = {
           const tip = finWorld(w, 1);
           fx.effects.splash(onWater(tip), 'small', headingOf(w));
           fx.impact?.(onWater(tip), 0.4);
-          fx.playSound('splash', { gain: 0.6 });
+          fx.playSound('splash', { gain: 0.6, position: onWater(tip) });
         },
       });
     }
@@ -301,7 +301,7 @@ const MOTIONS = {
           fx.effects.splash(tail, 'small', headingOf(w));
           fx.effects.splash(tail, 'small', headingOf(w));
           fx.impact?.(tail, 0.7);
-          fx.playSound('splash', { gain: 0.8 });
+          fx.playSound('splash', { gain: 0.8, position: tail });
         },
       });
     }
@@ -351,7 +351,7 @@ const MOTIONS = {
         // 着いたら歌い始め、帰り始めるまで歌う
         {
           at: PATTERNS.summon.songAtMs / 1000,
-          run: fx => fx.playSound('humpback', { maxMs: (85 - PATTERNS.summon.songAtMs / 1000) * 1000 }),
+          run: (fx, [w]) => fx.playSound('humpback', { maxMs: (85 - PATTERNS.summon.songAtMs / 1000) * 1000, position: bodyPoint(w, 0) }),
         },
         { at: 45, run: (fx, [w]) => blow(fx, w) },
         { at: 70, run: (fx, [w]) => blow(fx, w) },

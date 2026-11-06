@@ -4,7 +4,9 @@ const between = (rng, min, max) => min + rng() * (max - min);
 
 // 重み付きで出方を選ぶ。直前と同じ出方なら選び直す。
 export function pickPattern(prev, rng, weights = SCHEDULE.weights) {
-  const entries = Object.entries(weights).filter(([name]) => name !== prev);
+  let entries = Object.entries(weights).filter(([name]) => name !== prev);
+  // 出方が1種類しかないときは、同じ出方が続いてもよい
+  if (entries.length === 0) entries = Object.entries(weights);
   const total = entries.reduce((sum, [, w]) => sum + w, 0);
   let r = rng() * total;
   for (const [name, w] of entries) {
@@ -16,8 +18,11 @@ export function pickPattern(prev, rng, weights = SCHEDULE.weights) {
 
 // クジラの出番係。いつ・どの出方で出すかだけを決め、描画や音には触らない。
 export function createScheduler({ now, rng = Math.random, intervalScale = 1 }) {
+  // シーズンによる出やすさ(倍率)と出方。setSeason で変える
+  let seasonScale = 1;
+  let weights = SCHEDULE.weights;
   const nextInterval = () =>
-    between(rng, SCHEDULE.minIntervalMs, SCHEDULE.maxIntervalMs) * intervalScale;
+    between(rng, SCHEDULE.minIntervalMs, SCHEDULE.maxIntervalMs) * intervalScale * seasonScale;
 
   let busy = null;          // 'natural' | 'summon' | null
   let summonAt = null;      // 呼んだクジラの到着予定
@@ -37,7 +42,7 @@ export function createScheduler({ now, rng = Math.random, intervalScale = 1 }) {
       }
       if (summonAt === null && t >= s.nextAt) {
         busy = 'natural';
-        prevPattern = pickPattern(prevPattern, rng);
+        prevPattern = pickPattern(prevPattern, rng, weights);
         return { kind: 'natural', pattern: prevPattern };
       }
       return null;
@@ -53,6 +58,12 @@ export function createScheduler({ now, rng = Math.random, intervalScale = 1 }) {
       if (busy === 'summon') s.nextAt = t + pausedRemaining;
       else if (busy === 'natural') s.nextAt = t + nextInterval();
       busy = null;
+    },
+
+    // シーズンに合わせて、出やすさと出方を変える(次の出番から)
+    setSeason(season) {
+      seasonScale = season.intervalScale ?? 1;
+      weights = season.weights ?? SCHEDULE.weights;
     },
 
     isSummoning() {

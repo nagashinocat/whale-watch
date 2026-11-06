@@ -21,7 +21,9 @@ const fragmentShader = `
   uniform float uGlow;       // 太陽のまわりの空の明るさ(沈んだ直後も残る)
   uniform vec3 uMoonDir;
   uniform float uMoon;       // 月の見え方 0〜1
+  uniform vec3 uSunReal;     // 月の満ち欠けを決める、太陽の本当の向き(沈んでいても)
   uniform float uStars;      // 星の見え方 0〜1
+  uniform float uMoonGlow;   // 月明かりのにじみ(満月で 1)
   uniform float uTime;
   varying vec3 vWorld;
 
@@ -84,12 +86,18 @@ const fragmentShader = `
       float m = dot(dir, uMoonDir);
       float ang = sqrt(max(0.0, 2.0 * (1.0 - m)));
       float radius = 0.013;
-      sky += vec3(0.55, 0.62, 0.8) * (exp(-ang / 0.05) * 0.18 + exp(-ang / 0.3) * 0.05) * uMoon;
+      sky += vec3(0.55, 0.62, 0.8) * (exp(-ang / 0.05) * 0.18 + exp(-ang / 0.3) * 0.05) * uMoon * uMoonGlow;
       float disc = 1.0 - smoothstep(radius * 0.92, radius, ang);
       vec3 local = (dir - uMoonDir * m) / radius;
       float maria = noise3(local * 2.2 + 3.0) * 0.6 + noise3(local * 5.0) * 0.4;
-      vec3 moonColor = vec3(0.97, 0.95, 0.88) * (1.0 - smoothstep(0.45, 0.75, maria) * 0.22);
-      sky = mix(sky, moonColor, disc * uMoon);
+      // 月の満ち欠け: 月を球と考えて、太陽に照らされている側だけを明るくする
+      vec3 right = normalize(cross(uMoonDir, vec3(0.0, 1.0, 0.0)));
+      vec3 up = cross(right, uMoonDir);
+      vec2 q = vec2(dot(local, right), dot(local, up));
+      vec3 n = q.x * right + q.y * up - sqrt(max(0.0, 1.0 - dot(q, q))) * uMoonDir;
+      float lit = smoothstep(-0.06, 0.06, dot(n, uSunReal));
+      vec3 moonColor = vec3(0.97, 0.95, 0.88) * (1.0 - smoothstep(0.45, 0.75, maria) * 0.22) * (0.06 + 0.94 * lit);
+      sky = mix(sky, moonColor, disc * uMoon * (0.35 + 0.65 * lit));
     }
 
     gl_FragColor = vec4(sky, 1.0);
@@ -107,7 +115,9 @@ export function createGradientSky() {
     uGlow: { value: 1 },
     uMoonDir: { value: new THREE.Vector3(0, 1, 0) },
     uMoon: { value: 0 },
+    uSunReal: { value: new THREE.Vector3(0, -1, 0) },
     uStars: { value: 0 },
+    uMoonGlow: { value: 1 },
     uTime: { value: 0 },
   };
   const material = new THREE.ShaderMaterial({
@@ -123,7 +133,7 @@ export function createGradientSky() {
   return {
     mesh,
     // palette: skyPalette() の結果 / sun: sunForTime() の結果
-    setState({ palette, sun, sunDir, moonDir }) {
+    setState({ palette, sun, sunDir, moonDir, moonUp = 1, illumination = 1 }) {
       uniforms.uZenith.value.set(palette.zenith);
       uniforms.uMiddle.value.set(palette.middle);
       uniforms.uHorizon.value.set(palette.horizon);
@@ -133,7 +143,11 @@ export function createGradientSky() {
       uniforms.uSunUp.value = THREE.MathUtils.smoothstep(sun.elevation, -1.2, 0.5);
       // 太陽が沈んだあとも、しばらくは空が色づいている
       uniforms.uGlow.value = THREE.MathUtils.smoothstep(sun.elevation, -9, 1) * (1 - 0.6 * sun.daylight);
-      uniforms.uMoon.value = sun.moonlight;
+      // 月は昼でもうっすら見える。地平線より下なら見えない
+      uniforms.uMoon.value = moonUp * (0.3 + 0.7 * sun.moonlight);
+      uniforms.uSunReal.value.copy(sunDir).normalize();
+      // 月明かりのにじみは、満ち欠けに合わせる
+      uniforms.uMoonGlow.value = illumination;
       uniforms.uStars.value = sun.starlight;
     },
     update(dt) {

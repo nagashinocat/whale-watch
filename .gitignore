@@ -1,0 +1,12 @@
+# このフォルダはホームフォルダも兼ねているので、アプリのファイルだけを記録する
+/*
+!/src/
+!/tests/
+!/assets/
+!/tools/
+!/docs/
+!/index.html
+!/README.md
+!/CLAUDE.md
+!/package.json
+!/.gitignore

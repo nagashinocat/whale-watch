@@ -63,9 +63,12 @@ export function createOcean(canvas) {
   renderer.setPixelRatio(pixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  // クジラの海面より上だけを描くため
+  renderer.localClippingEnabled = true;
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 30000);
+  camera.layers.enable(1);   // 水の中のクジラ(映りこみには描かない層)も見る
 
   const water = new Water(new THREE.PlaneGeometry(40000, 40000), {
     textureWidth: 512,
@@ -80,6 +83,10 @@ export function createOcean(canvas) {
   water.rotation.x = -Math.PI / 2;
   scene.add(water);
   const tuned = tuneWaterShader(water.material);
+  // 海面は奥行きを書きこまない。水の中のクジラが、海面の下に透けて見えるように
+  // (海面より下のクジラは、ふつうの描き方では切り取ってある)
+  water.material.depthWrite = false;
+  water.renderOrder = -5;
 
   // 白波。海に映り込むと二重に見えるので、海の映り込みを描くあいだは隠す
   const whitecaps = createWhitecaps(lowPower);
@@ -99,6 +106,7 @@ export function createOcean(canvas) {
 
   // 時刻に合わせて色が変わる空(昼の青空、夕焼け、夜)
   const sky = createGradientSky();
+  sky.mesh.renderOrder = -10;   // 空をいちばん先に描く(海面が奥行きを書かないので)
   scene.add(sky.mesh);
 
   // クジラ用の光
@@ -145,18 +153,24 @@ export function createOcean(canvas) {
     placeCamera();
   }
 
-  function setTime(hours) {
+  // 方位と高さ(度)から、画面の中の向き
+  const direction = (elevation, azimuth) => new THREE.Vector3().setFromSphericalCoords(
+    1, THREE.MathUtils.degToRad(90 - elevation), THREE.MathUtils.degToRad(azimuth));
+
+  // 空を合わせる。hours は空の色の時刻。本物の空では、太陽の方位(sunAzimuth)と月(moon)も渡す
+  function setSky({ hours, sunAzimuth, moon }) {
     const s = sunForTime(hours);
-    const sunDir = new THREE.Vector3().setFromSphericalCoords(
-      1,
-      THREE.MathUtils.degToRad(90 - s.elevation),
-      THREE.MathUtils.degToRad(s.azimuth),
-    );
-    const lightDir = s.isNight ? MOON_DIRECTION : sunDir;
+    const sunDir = direction(s.elevation, sunAzimuth ?? s.azimuth);
+    const moonEl = moon ? moon.elevation : 20;
+    const moonDir = moon ? direction(moon.elevation, moon.azimuth) : MOON_DIRECTION.clone();
+    const illumination = moon ? moon.illumination : 1;
+    // 夜の海の光の道は、月が出ているときだけ。明るさは月の満ち欠けに合わせる
+    const moonUp = THREE.MathUtils.smoothstep(moonEl, -1, 3);
+    const lightDir = s.isNight ? moonDir : sunDir;
     water.material.uniforms.sunDirection.value.copy(lightDir).normalize();
     // 空・海・光の色は時刻ごとの色見本から決める
     const palette = skyPalette(hours);
-    sky.setState({ palette, sun: s, sunDir, moonDir: MOON_DIRECTION });
+    sky.setState({ palette, sun: s, sunDir, moonDir, moonUp, illumination });
     scene.fog.color.set(palette.horizon);
     whitecaps.setLight(palette.light);
     for (const fn of paletteListeners) fn(palette);
@@ -168,7 +182,7 @@ export function createOcean(canvas) {
       if (s.isNight) {
         // 月の光の道: 細くまっすぐ、くっきり
         u.uShiny.value = 260;
-        u.uSpec.value = 2.6 * s.moonlight * GLARE;
+        u.uSpec.value = 2.6 * s.moonlight * moonUp * illumination * GLARE;
         u.uGlint.value = 0.8 * GLARE;
       } else {
         // 太陽が低いほど光の道が太く、金色に強く光る
@@ -180,9 +194,13 @@ export function createOcean(canvas) {
     }
     sunLight.position.copy(lightDir).multiplyScalar(1000);
     sunLight.color.set(palette.light);
-    sunLight.intensity = s.isNight ? 0.4 : 1.5;
+    sunLight.intensity = s.isNight ? 0.4 * (0.3 + 0.7 * moonUp * illumination) : 1.5;
     ambient.intensity = s.isNight ? 0.25 : 0.8;
     renderer.toneMappingExposure = s.exposure + 0.12 * s.daylight;
+  }
+
+  function setTime(hours) {
+    setSky({ hours });
   }
 
   function render(dt) {
@@ -243,6 +261,7 @@ export function createOcean(canvas) {
   return {
     setCamera,
     setTime,
+    setSky,
     render,
     start,
     stop,

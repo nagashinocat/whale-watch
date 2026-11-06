@@ -1,4 +1,4 @@
-import { CAMERAS, DEFAULTS, MODES, STORAGE_KEY, TIME_PRESETS } from './config.js';
+import { CAMERAS, DEFAULTS, MODES, PLACES, STORAGE_KEY, TIME_PRESETS } from './config.js';
 
 const isVolume = v => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1;
 
@@ -17,6 +17,7 @@ export function loadSettings(storage) {
     camera: CAMERAS.includes(saved.camera) ? saved.camera : DEFAULTS.camera,
     volume: isVolume(saved.volume) ? saved.volume : DEFAULTS.volume,
     time: Object.hasOwn(TIME_PRESETS, saved.time) ? saved.time : DEFAULTS.time,
+    place: PLACES.includes(saved.place) ? saved.place : DEFAULTS.place,
   };
 }
 
@@ -28,6 +29,7 @@ export function saveSettings(storage, settings) {
       camera: settings.camera,
       volume: settings.volume,
       time: settings.time,
+      place: settings.place,
     }));
   } catch {
     // プライベートブラウズなどで保存できなくても続ける

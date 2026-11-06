@@ -1,5 +1,5 @@
 import { AUDIO } from '../logic/config.js';
-import { waveTargetGain, whaleTargetGain } from '../logic/gains.js';
+import { AUDIO_DISTANCE, waveTargetGain, whaleTargetGain } from '../logic/gains.js';
 
 export const SOUND_FILES = Object.freeze({
   // 波の音はくり返しても継ぎ目が出ないよう、圧縮しない形式(wav)にしてある
@@ -114,7 +114,21 @@ export function createMixer(ctx, buffers) {
       return !!buffers[name];
     },
 
-    playWhale(name, { gain = 1, maxMs = Infinity } = {}) {
+    // 聞いている位置と向き(カメラ)。position は [x, y, z]、forward は前の向き
+    setListener(position, forward) {
+      const l = ctx.listener;
+      if (l.positionX) {
+        l.positionX.value = position[0]; l.positionY.value = position[1]; l.positionZ.value = position[2];
+        l.forwardX.value = forward[0]; l.forwardY.value = forward[1]; l.forwardZ.value = forward[2];
+        l.upX.value = 0; l.upY.value = 1; l.upZ.value = 0;
+      } else {
+        l.setPosition?.(...position);
+        l.setOrientation?.(...forward, 0, 1, 0);
+      }
+    },
+
+    // position を渡すと、その場所から聞こえる(遠いほど小さく、左右の向きもわかる)
+    playWhale(name, { gain = 1, maxMs = Infinity, position = null } = {}) {
       const buffer = buffers[name];
       if (!started || !buffer) return;
       const now = ctx.currentTime;
@@ -138,7 +152,23 @@ export function createMixer(ctx, buffers) {
         muffle.frequency.value = 800;
         node = node.connect(muffle);
       }
-      node.connect(env).connect(whaleBus);
+      node = node.connect(env);
+      if (position) {
+        // 遠いほど小さく。近くても、いまの音量の上限より大きくはしない(refDistance より近いと小さくしないだけ)
+        const panner = ctx.createPanner();
+        panner.panningModel = 'HRTF';
+        panner.distanceModel = 'inverse';
+        panner.refDistance = AUDIO_DISTANCE.refDistance;
+        panner.rolloffFactor = AUDIO_DISTANCE.rolloffFactor;
+        panner.maxDistance = 10000;
+        if (panner.positionX) {
+          panner.positionX.value = position[0]; panner.positionY.value = position[1]; panner.positionZ.value = position[2];
+        } else {
+          panner.setPosition?.(...position);
+        }
+        node = node.connect(panner);
+      }
+      node.connect(whaleBus);
       src.start(now);
       src.stop(now + length + 0.05);
     },

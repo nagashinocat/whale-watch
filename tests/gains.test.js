@@ -18,3 +18,11 @@ test('範囲外の音量は0〜1に収める', () => {
   assert.equal(waveTargetGain(NaN), 0);
   assert.ok(whaleTargetGain({ mode: 'normal', volume: 99 }) <= 0.8);
 });
+
+test('クジラの音は、遠いほど小さくなる。近くても今の上限より大きくはならない', async () => {
+  const { whaleDistanceGain, AUDIO_DISTANCE } = await import('../src/logic/gains.js');
+  assert.equal(whaleDistanceGain(5), 1);
+  assert.equal(whaleDistanceGain(AUDIO_DISTANCE.refDistance), 1);
+  assert.ok(whaleDistanceGain(80) < whaleDistanceGain(30));
+  for (let d = 0; d < 500; d += 5) assert.ok(whaleDistanceGain(d) <= 1 && whaleDistanceGain(d + 5) <= whaleDistanceGain(d));
+});

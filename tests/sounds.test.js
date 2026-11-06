@@ -17,3 +17,11 @@ test('公開できる大きさ(1つ15MBまで)に収まっている', () => {
     if (existsSync(url)) assert.ok(statSync(url).size < 15 * 1024 * 1024, path);
   }
 });
+
+test('クジラの声のファイルがそろっている', () => {
+  for (const name of ['humpback', 'humpback-call', 'sperm']) {
+    const path = SOUND_FILES[name];
+    assert.ok(path, `${name} がない`);
+    assert.ok(existsSync(new URL(`../${path}`, import.meta.url)), `${path} がない`);
+  }
+});

@@ -2,7 +2,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createOcean } from './scene/ocean.js';
 import { createWhales } from './scene/whales.js';
 import { createEffects } from './scene/effects.js';
-import { PATTERNS, resolvePattern } from './logic/patterns.js';
+import { PATTERNS, resolvePattern, voiceSound } from './logic/patterns.js';
 import { spawnPosition } from './logic/spawn.js';
 import { createMixer, loadBuffers } from './audio/mixer.js';
 import { createMenu } from './ui/menu.js';
@@ -12,11 +12,12 @@ import { hoursFor, blendHours } from './logic/time.js';
 import { AUDIO } from './logic/config.js';
 
 // メニューに表示する素材のクレジット(assets/CREDITS.md と合わせる)
-const CREDITS = ['波と水しぶきの音: Rmutt, plantmonkey, Fission9 (Freesound / CC0)', 'クジラの声: NOAA'];
+const CREDITS = ['波と水しぶきの音: Rmutt, plantmonkey, Fission9 (Freesound / CC0)', 'クジラの声: NOAA Fisheries, NOAA PMEL Acoustics Program (pmel.noaa.gov/acoustics/multimedia.html)'];
 
 const params = new URLSearchParams(location.search);
-const DEBUG = params.has('debug');
-const FAST = params.has('fast');
+// 確認用: ?debug=1(&fast=1) か、公開ページではアドレスの最後に #debug(#debug-fast)
+const DEBUG = params.has('debug') || location.hash.startsWith('#debug');
+const FAST = params.has('fast') || location.hash === '#debug-fast';
 
 const settings = loadSettings(safeStorage());
 const ocean = createOcean(document.getElementById('sea'));
@@ -81,7 +82,11 @@ async function handleEvent(event) {
     const whales = await whalesReady;
     const name = resolvePattern(event.pattern, whales.models);
     const { sound, durationMs } = PATTERNS[name];
-    if (sound) mixer?.playWhale(sound, { maxMs: durationMs });
+    // 鳴き声だけのときは、長い歌と短い一声をまぜて選ぶ
+    const voice = name === 'voice' && mixer
+      ? voiceSound(Math.random, { humpback: mixer.has('humpback'), 'humpback-call': mixer.has('humpback-call') })
+      : sound;
+    if (voice) mixer?.playWhale(voice, { maxMs: durationMs });
     // 画面が隠れて描画が止まっていても、必ず決まった時間で終わらせる
     await Promise.race([
       whales.play(name, spawnPosition(Math.random)),

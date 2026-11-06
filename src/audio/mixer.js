@@ -5,8 +5,9 @@ export const SOUND_FILES = Object.freeze({
   // 波の音はくり返しても継ぎ目が出ないよう、圧縮しない形式(wav)にしてある
   'waves-cliff': 'assets/audio/waves-cliff.wav',
   'waves-surface': 'assets/audio/waves-surface.wav',
-  humpback: 'assets/audio/humpback-song.mp3',
-  sperm: 'assets/audio/sperm-clicks.mp3',
+  humpback: 'assets/audio/humpback-song.wav',
+  'humpback-call': 'assets/audio/humpback-call.wav',
+  sperm: 'assets/audio/sperm-clicks.wav',
   splash: 'assets/audio/splash.wav',
 });
 
@@ -108,6 +109,11 @@ export function createMixer(ctx, buffers) {
     },
 
     // クジラの音を鳴らす。maxMs を超える音は、そこでフェードアウトして止める。
+    // その音が読み込めているか
+    has(name) {
+      return !!buffers[name];
+    },
+
     playWhale(name, { gain = 1, maxMs = Infinity } = {}) {
       const buffer = buffers[name];
       if (!started || !buffer) return;

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PATTERNS, resolvePattern } from '../src/logic/patterns.js';
+import { PATTERNS, resolvePattern, voiceSound } from '../src/logic/patterns.js';
 import { SCHEDULE } from '../src/logic/config.js';
 
 test('すべての出方と summon が定義されている', () => {
@@ -25,4 +25,19 @@ test('呼んだクジラの歌は到着してから(最初から鳴らさない)
 
 test('呼んだクジラはモデルがなくても歌だけは届く', () => {
   assert.equal(resolvePattern('summon', { humpback: null, sperm: null }), 'voice');
+});
+
+test('鳴き声だけのときは、長い歌と短い一声をまぜて選ぶ', () => {
+  let s = 3; const rng = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+  const both = { humpback: true, 'humpback-call': true };
+  const picks = Array.from({ length: 1000 }, () => voiceSound(rng, both));
+  const calls = picks.filter(p => p === 'humpback-call').length;
+  assert.ok(calls > 250 && calls < 550, `calls ${calls}`);
+  assert.ok(picks.every(p => p === 'humpback' || p === 'humpback-call'));
+});
+
+test('片方の音しかなければ、ある方を使う', () => {
+  const rng = () => 0.99;
+  assert.equal(voiceSound(rng, { humpback: true, 'humpback-call': false }), 'humpback');
+  assert.equal(voiceSound(() => 0, { humpback: false, 'humpback-call': true }), 'humpback-call');
 });

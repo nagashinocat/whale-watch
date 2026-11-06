@@ -17,3 +17,11 @@ export function resolvePattern(name, models) {
   if (!needs) return name in PATTERNS ? name : 'voice';
   return models[needs] ? name : 'voice';
 }
+
+// 「鳴き声だけ」のときの声を選ぶ。長い歌(humpback)と短い一声(humpback-call)をまぜて、
+// 毎回ちがう聞こえ方にする。available は { 音の名前: 読み込めたか }。
+export function voiceSound(rng, available) {
+  const song = !!available.humpback, call = !!available['humpback-call'];
+  if (song && call) return rng() < 0.4 ? 'humpback-call' : 'humpback';
+  return call && !song ? 'humpback-call' : 'humpback';
+}

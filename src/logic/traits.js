@@ -53,7 +53,7 @@ export function rollTraits(rng) {
 }
 
 // 大きさの倍率
-export const sizeOf = ind => ({ big: 1.12, small: 0.88 }[ind.traits?.size] ?? 1);
+export const sizeOf = ind => ({ big: 1.1, small: 0.9 }[ind.traits?.size] ?? 1);
 
 // 個性の説明(図鑑に出す)。とくにないものは出さない
 export function traitsText(ind) {

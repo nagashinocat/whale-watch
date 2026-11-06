@@ -15,7 +15,7 @@
     }
     html, body { margin: 0; height: 100%; overflow: hidden; background: #000; color: var(--text);
       font-family: "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
-    canvas { display: block; width: 100vw; height: 100vh; }
+    #sea { display: block; width: 100vw; height: 100vh; }
     #ui [hidden] { display: none !important; }
 
     .start { position: fixed; inset: 0; display: grid; place-items: center; cursor: pointer;
@@ -71,6 +71,41 @@
     .zukan-form { display: flex; gap: 6px; align-items: center; }
     .zukan-form input { flex: 1; min-width: 0; font: inherit; font-size: 14px; color: var(--text); background: rgba(255, 255, 255, 0.06);
       border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+    .photo { border-color: rgba(255, 255, 255, 0.3); }
+    .flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 30; }
+    .flash.go { animation: flash .45s ease-out; }
+    @keyframes flash { 0% { opacity: 0.85; } 100% { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .flash.go { animation-duration: .2s; } }
+    .zukan-tabs { margin: 10px 0 2px; }
+    .zukan-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px; text-align: left; border-radius: 12px; }
+    .zukan-list li { padding: 0; border: 0; }
+    .zukan-detail-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 0 0; }
+    .zukan-name { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: 0.04em; overflow-wrap: anywhere; }
+    .zukan-sub { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .zukan-portrait { display: block; width: 100%; height: auto; margin: 10px 0 4px; border-radius: 12px;
+      background: radial-gradient(ellipse at 50% 40%, rgba(60, 100, 130, 0.55), rgba(8, 22, 34, 0.2)); }
+    .zukan-locked { margin: 10px 0 4px; padding: 26px 12px; border: 1px dashed var(--line); border-radius: 12px;
+      text-align: center; font-size: 12px; color: var(--muted); }
+    .zukan-stats { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 10px 0; font-size: 13px; }
+    .zukan-stats dt { color: var(--muted); }
+    .zukan-stats dd { margin: 0; font-variant-numeric: tabular-nums; }
+    .zukan h4 { margin: 14px 0 6px; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.04em; }
+    .zukan-comment { margin: 0; font-size: 13px; line-height: 1.7; }
+    .zukan-dim { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.6; }
+    .zukan-next { margin: 8px 0 0; font-size: 12px; color: #ffd28a; }
+    .zukan canvas { max-width: 100%; height: auto; }
+    .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; }
+    .photo-thumb { padding: 0; border: 0; border-radius: 8px; overflow: hidden; aspect-ratio: 16 / 10; min-height: 0; }
+    .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-view { position: fixed; inset: 0; z-index: 25; display: grid; place-content: center; gap: 10px; padding: 16px;
+      background: rgba(0, 0, 0, 0.86); }
+    .photo-view[hidden] { display: none; }
+    .photo-view img { max-width: calc(100vw - 32px); max-height: calc(100vh - 140px); border-radius: 10px; }
+    .photo-caption { margin: 0; text-align: center; font-size: 13px; color: var(--text); }
+    .photo-actions { display: flex; gap: 8px; justify-content: center; }
+    .photo-btn { display: inline-flex; align-items: center; color: var(--text); text-decoration: none; border: 1px solid var(--line); border-radius: 10px; }
+    .debug select { font: inherit; font-size: 12px; color: var(--text); background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line);
+      border-radius: 8px; padding: 6px; max-width: 100%; }
     .toast { position: fixed; left: 50%; top: max(16px, env(safe-area-inset-top)); transform: translateX(-50%); z-index: 15;
       width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; margin: 0; padding: 10px 16px;
       border: 1px solid var(--line); border-radius: 999px; background: var(--glass); color: var(--text); font-size: 13px; line-height: 1.5;

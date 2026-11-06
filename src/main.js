@@ -14,7 +14,12 @@ import { loadSettings, saveSettings } from './logic/settings.js';
 import { hoursFor, blendHours } from './logic/time.js';
 import { realSky } from './logic/places.js';
 import { AUDIO } from './logic/config.js';
-import { loadBook, saveBook, nextVisitor, recordSighting, bookEntries, setNickname, displayName } from './logic/flukeId.js';
+import { loadBook, saveBook, nextVisitor, recordSighting, bookEntries, setNickname, displayName, population } from './logic/flukeId.js';
+import { traitsText } from './logic/traits.js';
+import { PHOTOS } from './logic/photos.js';
+import { createZukan } from './ui/zukan.js';
+import { createPhotoStore } from './ui/photoStore.js';
+import { portraitOf } from './scene/portrait.js';
 
 // メニューに表示する素材のクレジット(assets/CREDITS.md と合わせる)
 const CREDITS = ['波と水しぶきの音: Rmutt, plantmonkey, Fission9 (Freesound / CC0)', 'クジラの声: NOAA Fisheries, NOAA PMEL Acoustics Program (pmel.noaa.gov/acoustics/multimedia.html)'];
@@ -28,6 +33,9 @@ const FAST = params.has('fast') || location.hash === '#debug-fast';
 const settings = loadSettings(safeStorage());
 // クジラ図鑑(尾びれの模様で見分けたクジラの記録)
 let book = loadBook(safeStorage());
+let forcedVisitor = null;   // 動作確認用: 出すクジラの番号
+// 撮った写真(この端末のブラウザに保存する)
+const photos = createPhotoStore();
 const ocean = createOcean(document.getElementById('sea'));
 const scheduler = createScheduler({ now: Date.now(), intervalScale: FAST ? 1 / 30 : 1 });
 
@@ -53,6 +61,8 @@ const whalesReady = createWhales(ocean.scene, {
   playSound: (name, opts) => mixer?.playWhale(name, opts),
   // この出方に来るクジラ(図鑑にのっているクジラが、ときどきもう一度来る)。taken は同じ出方ですでに来ているクジラ
   visitor(taken = []) {
+    // 動作確認のページで「出すクジラ」を選んでいたら、その子を出す
+    if (forcedVisitor && !taken.includes(forcedVisitor)) return forcedVisitor;
     let id = nextVisitor(book);
     for (let k = 0; k < 20 && taken.includes(id); k++) id = nextVisitor(book);
     return id;
@@ -63,7 +73,7 @@ const whalesReady = createWhales(ocean.scene, {
     const r = recordSighting(book, w.individual.id, Date.now());
     book = r.book;
     saveBook(safeStorage(), book);
-    menu.setZukan(bookEntries(book));
+    zukan.setEntries(bookEntries(book));
     const name = displayName(w.individual.id, book);
     menu.showToast(r.first
       ? `はじめて見るクジラです。「${name}」と仮の名前で図鑑にのせました。図鑑で好きな名前を付けられます`
@@ -183,6 +193,20 @@ if (DEBUG) {
     });
     panel.append(b);
   }
+  // 出すクジラを選ぶ(個性を確かめるため)
+  const pick = document.createElement('select');
+  pick.setAttribute('aria-label', '出すクジラ');
+  pick.append(new Option('出すクジラ: おまかせ', ''));
+  for (const ind of population()) {
+    const t = traitsText(ind);
+    pick.append(new Option(`${ind.name}${t.length ? `(${t[0]})` : ''}`, String(ind.id)));
+  }
+  pick.addEventListener('pointerdown', e => e.stopPropagation());
+  pick.addEventListener('change', () => {
+    forcedVisitor = pick.value ? Number(pick.value) : null;
+    status.textContent = forcedVisitor ? `つぎに出るおとなのザトウクジラは「${pick.selectedOptions[0].text}」です` : 'クジラはおまかせで出ます';
+  });
+  panel.append(pick);
   // 図鑑を空にする(はじめて見るときのお知らせを、もう一度ためすため)
   const clear = document.createElement('button');
   clear.textContent = '図鑑を空にする';
@@ -190,7 +214,7 @@ if (DEBUG) {
   clear.addEventListener('click', () => {
     book = {};
     saveBook(safeStorage(), book);
-    menu.setZukan([]);
+    zukan.setEntries([]);
     status.textContent = '図鑑を空にしました';
   });
   panel.append(clear, status);
@@ -239,11 +263,9 @@ const menu = createMenu(document.getElementById('ui'), {
     }
   },
   // 図鑑のクジラに名前を付ける
-  onRename(id, name) {
-    book = setNickname(book, id, name);
-    saveBook(safeStorage(), book);
-    menu.setZukan(bookEntries(book));
-  },
+  onZukan() { zukan.open(); },
+  onPhoto() { takePhoto(); },
+  isOverlay: target => zukan.contains(target),
   onFullscreen() {
     if (document.fullscreenElement) document.exitFullscreen?.();
     else document.documentElement.requestFullscreen?.().catch(() => {});
@@ -252,7 +274,36 @@ const menu = createMenu(document.getElementById('ui'), {
 
 menu.setValues(settings);
 menu.showCredits(CREDITS);
-menu.setZukan(bookEntries(book));
+// 図鑑(メニューのあとに作る。メニューが画面の部品を作りなおすので)
+const nameOf = id => (book[id] ? displayName(id, book) : 'まだ図鑑にいないクジラ');
+const zukan = createZukan(document.getElementById('ui'), {
+  photos,
+  portrait: portraitOf,
+  nameOf,
+  onRename(id, name) {
+    book = setNickname(book, id, name);
+    saveBook(safeStorage(), book);
+    zukan.setEntries(bookEntries(book));
+  },
+});
+zukan.setEntries(bookEntries(book));
+
+// 写真を撮る: 画面を写して保存し、写っていたクジラを覚えておく(図鑑のその子のページに集まる)
+async function takePhoto() {
+  menu.flash();
+  try {
+    const whales = await whalesReady;
+    const ids = whales.visibleIndividuals(ocean.camera);
+    const blob = await ocean.snapshot(PHOTOS);
+    if (!blob) throw new Error('no image');
+    const { saved } = await photos.add({ time: Date.now(), whales: ids, camera: settings.camera, blob });
+    const names = ids.map(nameOf);
+    menu.showToast(`写真を撮りました${names.length ? `(${names.join('、')}が写っています)` : ''}。図鑑の「写真」で見られます${saved ? '' : '(この端末に保存できないので、ページを閉じると消えます)'}`);
+    zukan.refresh();
+  } catch {
+    menu.showToast('写真を撮れませんでした');
+  }
+}
 ocean.setCamera(settings.camera);
 updateTime();
 ocean.start();

@@ -1,10 +1,4 @@
 import { MENU_HIDE_MS } from '../logic/config.js';
-import { drawFluke } from './flukeCanvas.js';
-import { FLUKE_ID, NAME_MAX } from '../logic/flukeId.js';
-import { traitsText } from '../logic/traits.js';
-
-// 日付を「11月6日」の形に
-const day = ms => { const d = new Date(ms); return `${d.getMonth() + 1}月${d.getDate()}日`; };
 
 const CAMERA_LABELS = { sky: '上空', cliff: '崖の上', near: '間近' };
 const TIME_LABELS = { auto: '自動', morning: '朝', day: '昼', evening: '夕方', night: '夜' };
@@ -23,6 +17,7 @@ export function createMenu(root, handlers) {
           <button data-mode="sleep">おやすみ</button>
           <button data-mode="normal">ふつう</button>
         </div>
+        <button class="photo" data-photo>写真</button>
         <button class="summon" data-summon>クジラを呼ぶ</button>
       </div>
       <p class="status" data-status hidden></p>
@@ -46,15 +41,8 @@ export function createMenu(root, handlers) {
       </div>
       <p class="notice" data-notice hidden></p>
     </div>
-    <section class="zukan" data-zukan hidden aria-label="クジラ図鑑">
-      <div class="zukan-head">
-        <h2>クジラ図鑑</h2>
-        <button class="full" data-zukan-close>閉じる</button>
-      </div>
-      <p class="zukan-note">尾びれの裏の模様は1頭ずつちがいます。尾びれを上げて潜ったクジラが、ここにのります。<span data-zukan-count></span></p>
-      <ol class="zukan-list" data-zukan-list></ol>
-    </section>
-    <p class="toast" data-toast hidden></p>`;
+    <p class="toast" data-toast hidden></p>
+    <div class="flash" data-flash hidden></div>`;
 
   const $ = sel => root.querySelector(sel);
   const start = $('[data-start]');
@@ -63,80 +51,11 @@ export function createMenu(root, handlers) {
   const status = $('[data-status]');
   const volume = $('[data-volume]');
   const notice = $('[data-notice]');
-  const zukan = $('[data-zukan]');
   const toast = $('[data-toast]');
+  const flash = $('[data-flash]');
   let started = false;
   let toastTimer = null;
-  let entries = [];
 
-  function renderZukan() {
-    const list = $('[data-zukan-list]');
-    list.innerHTML = '';
-    $('[data-zukan-count]').textContent = ` いままでに ${entries.length} / ${FLUKE_ID.size} 頭`;
-    if (!entries.length) {
-      const li = document.createElement('li');
-      li.className = 'zukan-empty';
-      li.textContent = 'まだだれものっていません。クジラが尾びれを上げて潜るのを待ちましょう';
-      list.append(li);
-      return;
-    }
-    for (const e of entries) {
-      const li = document.createElement('li');
-      const c = document.createElement('canvas');
-      c.width = 176; c.height = 48;
-      c.setAttribute('aria-hidden', 'true');
-      drawFluke(c, e);
-      const text = document.createElement('div');
-      text.className = 'zukan-text';
-      const name = document.createElement('b');
-      name.textContent = e.displayName;
-      const sub = document.createElement('span');
-      // 自分で名前を付けたら、模様から付けた名前も小さく出す
-      sub.textContent = `${e.count}回 ・ さいご ${day(e.last)}${e.nickname ? ` ・ ${e.autoName}` : ''}`;
-      const traits = traitsText(e);
-      const feat = document.createElement('small');
-      feat.className = 'zukan-traits';
-      feat.textContent = traits.length ? traits.join('・') : 'とくに目立つところはない';
-      const rename = document.createElement('button');
-      rename.className = 'full zukan-rename';
-      rename.textContent = '名前を付ける';
-      rename.addEventListener('click', () => startRename(text, e));
-      text.append(name, sub, feat, rename);
-      li.append(c, text);
-      list.append(li);
-    }
-  }
-
-  // 名前を入力する欄を出す
-  function startRename(box, e) {
-    const form = document.createElement('form');
-    form.className = 'zukan-form';
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.maxLength = NAME_MAX;
-    input.value = e.nickname ?? '';
-    input.placeholder = e.autoName;
-    input.setAttribute('aria-label', `${e.displayName}の名前`);
-    const ok = document.createElement('button');
-    ok.className = 'full';
-    ok.type = 'submit';
-    ok.textContent = '決める';
-    const cancel = document.createElement('button');
-    cancel.className = 'full';
-    cancel.type = 'button';
-    cancel.textContent = 'やめる';
-    cancel.addEventListener('click', renderZukan);
-    form.addEventListener('submit', ev => {
-      ev.preventDefault();
-      handlers.onRename?.(e.id, input.value);
-    });
-    const hint = document.createElement('small');
-    hint.className = 'zukan-traits';
-    hint.textContent = `${NAME_MAX}文字まで。空にすると「${e.autoName}」にもどります`;
-    form.append(input, ok, cancel);
-    box.replaceChildren(form, hint);
-    input.focus();
-  }
   let hideTimer = null;
 
   const fullscreenSupported = !!document.documentElement.requestFullscreen;
@@ -162,7 +81,8 @@ export function createMenu(root, handlers) {
   // 海をタップするとメニューが出る。メニューを触っている間は隠さない。
   document.addEventListener('pointerdown', e => {
     if (!started) return;
-    if (zukan.contains(e.target)) return;
+    // 図鑑や写真を見ているあいだは、メニューを出したり隠したりしない
+    if (handlers.isOverlay?.(e.target)) return;
     if (menu.contains(e.target)) scheduleHide();
     else if (menu.hidden) showMenu();
     else menu.hidden = true;
@@ -179,11 +99,14 @@ export function createMenu(root, handlers) {
   volume.addEventListener('input', () => handlers.onVolume(Number(volume.value)));
   $('[data-full]').addEventListener('click', () => handlers.onFullscreen());
   $('[data-zukan-open]').addEventListener('click', () => {
-    renderZukan();
-    zukan.hidden = false;
     menu.hidden = true;
+    handlers.onZukan();
   });
-  $('[data-zukan-close]').addEventListener('click', () => { zukan.hidden = true; });
+  // 写真: メニューを閉じて、シャッターを切る
+  $('[data-photo]').addEventListener('click', () => {
+    menu.hidden = true;
+    handlers.onPhoto();
+  });
 
   return {
     setValues({ mode, camera, volume: v, time }) {
@@ -206,10 +129,13 @@ export function createMenu(root, handlers) {
       notice.hidden = false;
       notice.textContent = text;
     },
-    // 図鑑の中身(最後に見た順)
-    setZukan(list) {
-      entries = list;
-      if (!zukan.hidden) renderZukan();
+    // シャッターを切ったときの、画面の白い光
+    flash() {
+      flash.hidden = false;
+      flash.classList.remove('go');
+      void flash.offsetWidth;
+      flash.classList.add('go');
+      setTimeout(() => { flash.hidden = true; }, 450);
     },
     // 画面の上に、しばらくお知らせを出す
     showToast(text) {

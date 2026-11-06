@@ -206,6 +206,19 @@ export function createOcean(canvas) {
     renderer.render(scene, camera);
   }
 
+  // 写真: いまの画面をもう一度描いて、すぐに写しとる(描いたあとすぐでないと、画面が消えてしまう)。
+  // 横の大きさを maxWidth までにちぢめて、JPEG にする
+  function snapshot({ maxWidth = 1280, quality = 0.86 } = {}) {
+    renderer.render(scene, camera);
+    const src = renderer.domElement;
+    const k = Math.min(1, maxWidth / src.width);
+    const out = document.createElement('canvas');
+    out.width = Math.round(src.width * k);
+    out.height = Math.round(src.height * k);
+    out.getContext('2d').drawImage(src, 0, 0, out.width, out.height);
+    return new Promise(resolve => out.toBlob(b => resolve(b), 'image/jpeg', quality));
+  }
+
   // 2秒ごとに、なめらかに動いているかを見て、画面のきめ細かさを決めなおす
   let frames = 0, frameTime = 0;
   function adjustQuality(dt) {
@@ -255,6 +268,7 @@ export function createOcean(canvas) {
     setTime,
     setSky,
     render,
+    snapshot,
     start,
     stop,
     scene,

@@ -6,7 +6,7 @@ import { FEEDING, feedingPose, BUBBLE_NET, bubbleNetGroup } from '../logic/feedi
 import { BREATH, diveSurfacing, calfBreaths } from '../logic/breathing.js';
 import { SLEEP, sleepingGroup, headBob } from '../logic/sleep.js';
 import { individual as individualById } from '../logic/flukeId.js';
-import { sizeOf } from '../logic/traits.js';
+import { lengthOf } from '../logic/zukan.js';
 import { BREACH, breachPose, groupBreachPlan, calfBreachPlan, POD, podPlan, groupSpyhopPlan } from '../logic/breach.js';
 import { divingYaw } from '../logic/behavior.js';
 import { followFactor } from '../logic/quality.js';
@@ -22,8 +22,8 @@ const lerp = (a, b, t) => a + (b - a) * t;
 // swim: 0 で体をしならせない(寝ているクジラ)、1 でふつうに泳ぐ
 // individual: 尾びれの裏の模様で見分けられる1頭(おとなのザトウクジラだけ)
 function makeWhale(kind, scale = 1, swim = 1, individual = null) {
-  // 大きい子・小さめの子(個性)
-  const size = individual ? sizeOf(individual) : 1;
+  // 大きい子・小さめの子(個性)。図鑑の全長と同じ大きさにする
+  const size = individual ? lengthOf(individual) / WHALE_SPECS.humpback.lengthMeters : 1;
   const whale = createWhaleMesh(kind, WHALE_SPECS[kind].lengthMeters * scale * size, { individual });
   whale.setSwim(swim);
   const group = new THREE.Group();
@@ -833,5 +833,26 @@ export async function createWhales(scene, fx) {
     });
   }
 
-  return { models, play, update };
+  // いま camera に写っている、名前のあるクジラの番号(写真に使う)。
+  // 体の点のどれかが、水面より上か水面のすぐ下にあって、画面の中に入っていれば「写っている」
+  const frustum = new THREE.Frustum(), m = new THREE.Matrix4();
+  function visibleIndividuals(camera) {
+    camera.updateMatrixWorld();
+    m.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    frustum.setFromProjectionMatrix(m);
+    const ids = [];
+    for (const act of acts) {
+      for (const w of act.whales) {
+        if (!w.individual || ids.includes(w.individual.id)) continue;
+        const seen = [0.5, 0.3, 0, -0.25, -0.5].some(along => {
+          const p = new THREE.Vector3(...bodyPoint(w, along));
+          return p.y > -0.4 && frustum.containsPoint(p);
+        });
+        if (seen) ids.push(w.individual.id);
+      }
+    }
+    return ids;
+  }
+
+  return { models, play, update, visibleIndividuals };
 }

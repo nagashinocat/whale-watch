@@ -14,7 +14,7 @@ import { loadSettings, saveSettings } from './logic/settings.js';
 import { hoursFor, blendHours } from './logic/time.js';
 import { realSky } from './logic/places.js';
 import { AUDIO } from './logic/config.js';
-import { loadBook, saveBook, nextVisitor, recordSighting, bookEntries, setNickname, displayName, population } from './logic/flukeId.js';
+import { loadBook, saveBook, nextVisitor, recordSighting, bookEntries, setNickname, displayName, population, FLUKE_ID } from './logic/flukeId.js';
 import { traitsText } from './logic/traits.js';
 import { sightingMessage } from './logic/zukan.js';
 import { PHOTOS } from './logic/photos.js';
@@ -76,7 +76,7 @@ const whalesReady = createWhales(ocean.scene, {
     const r = recordSighting(book, w.individual.id, Date.now());
     book = r.book;
     saveBook(safeStorage(), book);
-    zukan.setEntries(bookEntries(book));
+    showBook();
     pendingSightings.push({ name: displayName(w.individual.id, book), first: r.first, count: r.count });
     clearTimeout(sightingTimer);
     sightingTimer = setTimeout(() => {
@@ -116,6 +116,7 @@ function skyTarget() {
 function updateTime(smooth = false) {
   const target = skyTarget();
   const id = ++skyTransition;
+  menu.setSunHours(target.hours);
   if (!smooth || skyHours === null || document.hidden) {
     skyHours = target.hours;
     ocean.setSky(target);
@@ -219,7 +220,7 @@ if (DEBUG) {
   clear.addEventListener('click', () => {
     book = {};
     saveBook(safeStorage(), book);
-    zukan.setEntries([]);
+    showBook();
     status.textContent = '図鑑を空にしました';
   });
   panel.append(clear, status);
@@ -279,6 +280,13 @@ const menu = createMenu(document.getElementById('ui'), {
 
 menu.setValues(settings);
 menu.showCredits(CREDITS);
+// 図鑑の中身と、パネルの図鑑のしるし(何頭のっているか)を新しくする
+function showBook() {
+  const list = bookEntries(book);
+  zukan.setEntries(list);
+  menu.setZukanCount(list.length, FLUKE_ID.size);
+}
+
 // 図鑑(メニューのあとに作る。メニューが画面の部品を作りなおすので)
 const nameOf = id => (book[id] ? displayName(id, book) : 'まだ図鑑にいないクジラ');
 const zukan = createZukan(document.getElementById('ui'), {
@@ -288,10 +296,10 @@ const zukan = createZukan(document.getElementById('ui'), {
   onRename(id, name) {
     book = setNickname(book, id, name);
     saveBook(safeStorage(), book);
-    zukan.setEntries(bookEntries(book));
+    showBook();
   },
 });
-zukan.setEntries(bookEntries(book));
+showBook();
 
 // 写真を撮る: 画面を写して保存し、写っていたクジラを覚えておく(図鑑のその子のページに集まる)
 async function takePhoto() {

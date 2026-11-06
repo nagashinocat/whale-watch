@@ -54,6 +54,7 @@ export function createMenu(root, handlers) {
       </div>
       <label class="vol-pop" data-volpop hidden>音量<input type="range" min="0" max="1" step="0.01" data-volume></label>
       <div class="hud-bottom">
+        <p class="sleep-note" data-sleepnote hidden>${icon('moon', 16)}おやすみモード中 ・ クジラの声は鳴らず、波の音だけ</p>
         <div class="sky">
           <div class="sky-labels" aria-hidden="true">
             ${['morning', 'day', 'evening', 'night'].map(k => `<span style="left:${barPosition(TIME_PRESETS[k]) * 100}%">${TIME_LABELS[k]}</span>`).join('')}
@@ -84,6 +85,7 @@ export function createMenu(root, handlers) {
         <small class="credits" data-credits></small>
       </div>
     </div>
+    <span class="sleep-mark" data-sleepmark hidden aria-label="おやすみモード中">${icon('moon', 18)}</span>
     <p class="toast" data-toast hidden></p>
     <div class="flash" data-flash hidden></div>`;
 
@@ -101,6 +103,8 @@ export function createMenu(root, handlers) {
   const flash = $('[data-flash]');
   const sun = $('[data-sun]');
   const now = $('[data-now]');
+  const sleepNote = $('[data-sleepnote]');
+  const sleepMark = $('[data-sleepmark]');
   let started = false;
   let toastTimer = null;
   let hideTimer = null;
@@ -110,12 +114,18 @@ export function createMenu(root, handlers) {
 
   function scheduleHide() {
     clearTimeout(hideTimer);
-    hideTimer = setTimeout(() => { menu.hidden = true; volpop.hidden = true; soundBtn.setAttribute('aria-expanded', 'false'); }, MENU_HIDE_MS);
+    hideTimer = setTimeout(() => { menu.hidden = true; volpop.hidden = true; soundBtn.setAttribute('aria-expanded', 'false'); showSleepMark(); }, MENU_HIDE_MS);
   }
 
   function showMenu() {
     menu.hidden = false;
+    showSleepMark();
     scheduleHide();
+  }
+
+  // パネルを閉じているあいだも、おやすみモードなら右上に小さく暗い月を出す(夜でもまぶしくない明るさ)
+  function showSleepMark() {
+    sleepMark.hidden = !(started && current.mode === 'sleep' && menu.hidden);
   }
 
   start.addEventListener('click', () => {
@@ -132,7 +142,7 @@ export function createMenu(root, handlers) {
     if (handlers.isOverlay?.(e.target)) return;
     if (menu.contains(e.target)) scheduleHide();
     else if (menu.hidden) showMenu();
-    else menu.hidden = true;
+    else { menu.hidden = true; showSleepMark(); }
   });
   menu.addEventListener('input', scheduleHide);
 
@@ -156,16 +166,22 @@ export function createMenu(root, handlers) {
   $('[data-full]').addEventListener('click', () => handlers.onFullscreen());
   $('[data-zukan-open]').addEventListener('click', () => {
     menu.hidden = true;
+    showSleepMark();
     handlers.onZukan();
   });
   // 写真: パネルを閉じて、シャッターを切る
   $('[data-photo]').addEventListener('click', () => {
     menu.hidden = true;
+    showSleepMark();
     handlers.onPhoto();
   });
 
   function showNow() {
-    now.textContent = `${CAMERA_LABELS[current.camera] ?? ''} ・ ${TIME_LABELS[current.time] ?? ''}${current.mode === 'sleep' ? ' ・ おやすみ' : ''}`;
+    now.textContent = `${CAMERA_LABELS[current.camera] ?? ''} ・ ${TIME_LABELS[current.time] ?? ''}`;
+    const sleep = current.mode === 'sleep';
+    sleepNote.hidden = !sleep;
+    sleepBtn.setAttribute('aria-label', sleep ? 'おやすみモード(オン)。押すとクジラの声がもどります' : 'おやすみモード(オフ)。押すとクジラの声が止まります');
+    showSleepMark();
   }
 
   return {

@@ -120,6 +120,15 @@
       border: 1px solid rgba(255, 255, 255, 0.2); color: var(--text); display: inline-flex; align-items: center; justify-content: center;
       backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     .round.on { background: rgba(159, 211, 230, 0.3); border-color: rgba(159, 211, 230, 0.7); }
+    /* おやすみモード: 月のボタンは月明かりの色で光る。パネルの下に説明、閉じているあいだは右上に暗い月 */
+    .round[data-sleep].on { background: rgba(255, 214, 140, 0.22); border-color: rgba(255, 214, 140, 0.85); color: #ffd68c;
+      box-shadow: 0 0 0 3px rgba(255, 214, 140, 0.18), 0 0 16px rgba(255, 214, 140, 0.35); }
+    .sleep-note { margin: 0 auto; max-width: 100%; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 7px 12px; font-size: 12px; color: #ffe3ad; background: rgba(40, 30, 10, 0.62);
+      border: 1px solid rgba(255, 214, 140, 0.45); border-radius: 999px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+    .sleep-note[hidden], .sleep-mark[hidden] { display: none; }
+    .sleep-mark { position: fixed; top: max(18px, env(safe-area-inset-top)); right: 18px; z-index: 5; color: #ffd68c;
+      opacity: 0.35; pointer-events: none; display: inline-flex; }
     .vol-pop { position: fixed; top: calc(max(16px, env(safe-area-inset-top)) + 58px); right: 14px; width: min(260px, calc(100vw - 28px));
       box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 12px 14px; font-size: 13px;
       background: rgba(10, 18, 28, 0.82); border: 1px solid var(--line); border-radius: 14px; }

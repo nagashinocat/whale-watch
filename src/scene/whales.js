@@ -3,6 +3,7 @@ import { PATTERNS } from '../logic/patterns.js';
 import { createWhaleMesh, prepareWhaleGeometry } from './whaleModel.js';
 import { WHALE_SPECS, surfacedCenterY, bodySection, finTip } from '../logic/whaleShape.js';
 import { divingYaw } from '../logic/behavior.js';
+import { followFactor } from '../logic/quality.js';
 import { SPOT } from './cameras.js';
 
 const D2R = THREE.MathUtils.degToRad;
@@ -403,6 +404,18 @@ export async function createWhales(scene, fx) {
     for (const act of acts) {
       act.t += dt;
       act.motion.each(act.whales, act.t, act.D);
+      // 決めた姿勢へ、なめらかに追いかける(動きの急な変わり目で、がくっとならないように)
+      const k = followFactor(dt);
+      for (const w of act.whales) {
+        if (!w.smooth) {
+          w.smooth = { pos: w.group.position.clone(), quat: w.group.quaternion.clone() };
+        } else {
+          w.smooth.pos.lerp(w.group.position, k);
+          w.smooth.quat.slerp(w.group.quaternion, k);
+          w.group.position.copy(w.smooth.pos);
+          w.group.quaternion.copy(w.smooth.quat);
+        }
+      }
       act.motion.cues.forEach((c, i) => {
         if (act.t >= c.at && !act.fired.has(i)) {
           act.fired.add(i);

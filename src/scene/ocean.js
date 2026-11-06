@@ -5,6 +5,7 @@ import { sunForTime } from '../logic/sky.js';
 import { waterNormalPixels } from '../logic/waterNormals.js';
 import { createGradientSky } from './sky.js';
 import { createWhitecaps } from './whitecaps.js';
+import { nextPixelRatio } from '../logic/quality.js';
 import { skyPalette } from '../logic/skyPalette.js';
 
 // 海面の凹凸の模様は外部の画像に頼らず、その場で作る
@@ -54,8 +55,12 @@ function tuneWaterShader(material) {
 export function createOcean(canvas) {
   const lowPower = window.innerWidth < 768 || window.devicePixelRatio > 2;
 
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: !lowPower });
-  renderer.setPixelRatio(lowPower ? 1 : window.devicePixelRatio);
+  // ふちのぎざぎざをなめらかにする設定は、いつも使う。
+  // 画面のきめ細かさは、はじめは少しひかえめにして、なめらかに動いていれば上げていく
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  const deviceRatio = window.devicePixelRatio || 1;
+  let pixelRatio = Math.min(deviceRatio, 1.5);
+  renderer.setPixelRatio(pixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
 
@@ -63,8 +68,8 @@ export function createOcean(canvas) {
   const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 30000);
 
   const water = new Water(new THREE.PlaneGeometry(40000, 40000), {
-    textureWidth: lowPower ? 256 : 512,
-    textureHeight: lowPower ? 256 : 512,
+    textureWidth: 512,
+    textureHeight: 512,
     waterNormals: makeWaterNormals(lowPower ? 128 : 256),
     sunDirection: new THREE.Vector3(),
     sunColor: 0xffffff,
@@ -191,11 +196,27 @@ export function createOcean(canvas) {
     renderer.render(scene, camera);
   }
 
+  // 2秒ごとに、なめらかに動いているかを見て、画面のきめ細かさを決めなおす
+  let frames = 0, frameTime = 0;
+  function adjustQuality(dt) {
+    frames++;
+    frameTime += dt;
+    if (frameTime < 2) return;
+    const next = nextPixelRatio(pixelRatio, frames / frameTime, deviceRatio);
+    frames = 0; frameTime = 0;
+    if (next !== pixelRatio) {
+      pixelRatio = next;
+      renderer.setPixelRatio(pixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  }
+
   function loop(t) {
     if (!running) return;
     const dt = last ? Math.min(0.1, (t - last) / 1000) : 0;
     last = t;
     render(dt);
+    if (dt > 0) adjustQuality(dt);
     requestAnimationFrame(loop);
   }
 

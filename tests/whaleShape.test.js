@@ -248,3 +248,14 @@ test('胸びれの先の位置: 付け根から胸びれの長さだけ離れて
     assert.ok(Math.abs(d - fg('humpback', side).length) < 1e-9);
   }
 });
+
+test('体のしなりの傾き: 曲がり具合(陰のつけ方に使う)が、しなりの形と合っている', async () => {
+  const { swimBend, swimSlope } = await import('../src/logic/whaleShape.js');
+  for (const s of [0.2, 0.5, 0.8, 0.95]) {
+    for (const ph of [0, 1, 2.5, 4]) {
+      const h = 1e-5;
+      const numeric = (swimBend(s + h, ph, 1) - swimBend(s - h, ph, 1)) / (2 * h);
+      assert.ok(Math.abs(numeric - swimSlope(s, ph, 1)) < 1e-6, `${s} ${ph}`);
+    }
+  }
+});

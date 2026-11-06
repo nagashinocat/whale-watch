@@ -30,12 +30,11 @@ export function prepareWhaleGeometry() {
 // 1頭ぶんのクジラ。lengthMeters は体長(m)。頭は -z を向いている
 export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMeters) {
   const uniforms = { uPhase: { value: Math.random() * Math.PI * 2 }, uSwim: { value: 1 } };
-  const material = new THREE.MeshPhysicalMaterial({
+  // ぬれた肌は少しつやがある。重い描き方(二重のつや)はやめて、つるつる具合だけで出す
+  const material = new THREE.MeshStandardMaterial({
     vertexColors: true,
-    roughness: 0.42,
+    roughness: 0.34,
     metalness: 0,
-    clearcoat: 0.5,            // ぬれた肌のつや
-    clearcoatRoughness: 0.35,
     side: THREE.DoubleSide,    // ひれは薄いので両面を描く
   });
   material.onBeforeCompile = shader => {
@@ -43,6 +42,13 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     shader.uniforms.uSwim = uniforms.uSwim;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nuniform float uPhase;\nuniform float uSwim;')
+      // 体がしなった向きに合わせて、陰のつけ方も曲げる(しなりの傾きは swimSlope と同じ式)
+      .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+        float bendS = clamp(position.z + 0.5, 0.0, 1.0);
+        float bendA = uPhase - ${SWIM.wave.toFixed(2)} * bendS;
+        float bendSlope = uSwim * ${SWIM.amplitude.toFixed(4)} * (${SWIM.power.toFixed(2)} * pow(max(bendS, 1e-4), ${(SWIM.power - 1).toFixed(2)}) * sin(bendA)
+          - ${SWIM.wave.toFixed(2)} * pow(bendS, ${SWIM.power.toFixed(2)}) * cos(bendA));
+        objectNormal = normalize(vec3(objectNormal.x, objectNormal.y, objectNormal.z - bendSlope * objectNormal.y));`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         float swimS = clamp(position.z + 0.5, 0.0, 1.0);
         transformed.y += uSwim * ${SWIM.amplitude.toFixed(4)} * pow(swimS, ${SWIM.power.toFixed(2)})

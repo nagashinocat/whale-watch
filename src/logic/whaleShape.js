@@ -498,3 +498,9 @@ export function finTip(kind, side) {
   const tip = addv(addv(root, scale(axis, f.length)), scale(chordDir, f.sweep));
   return { root, tip };
 }
+
+// しなりの傾き(swimBend を s で微分したもの)。体の向きに合わせて陰をつけるのに使う
+export function swimSlope(s, phase, amount) {
+  const a = phase - SWIM.wave * s;
+  return amount * SWIM.amplitude * (SWIM.power * s ** (SWIM.power - 1) * Math.sin(a) - SWIM.wave * s ** SWIM.power * Math.cos(a));
+}

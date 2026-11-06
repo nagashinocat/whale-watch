@@ -163,7 +163,8 @@ async function handleEvent(event) {
       ? voiceSound(Math.random, { humpback: mixer.has('humpback'), 'humpback-call': mixer.has('humpback-call') })
       : sound;
     // 声はクジラの出る場所から聞こえる
-    if (voice) mixer?.playWhale(voice, { maxMs: durationMs, position: [...SPOT] });
+    // まだ読みこみ中なら、読めたときに残りの時間だけ鳴らす
+    if (voice) mixer?.playWhale(voice, { maxMs: durationMs, position: [...SPOT], wait: true });
     // 画面が隠れて描画が止まっていても、必ず決まった時間で終わらせる
     await Promise.race([
       whales.play(name, spawnPosition(Math.random)),
@@ -232,16 +233,22 @@ const menu = createMenu(document.getElementById('ui'), {
     const Ctx = window.AudioContext || window.webkitAudioContext;
     const ctx = new Ctx();
     await ctx.resume();
-    const buffers = await loadBuffers(ctx);
-    // 間近は「水面の波の音」、崖の上と上空は「遠い波の音」を使う(カメラの名前そのままのファイルはない)
-    const silent = camerasWithoutWaves(buffers);
-    if (silent.length === 3) menu.showNotice('波の音を読み込めませんでした');
-    else if (silent.length) menu.showNotice('一部のカメラの波の音を読み込めませんでした');
-    mixer = createMixer(ctx, buffers);
+    // iPhone などでは、電話や通知、ほかのアプリに切りかえたあと、音が止まったままになることがある。
+    // 画面をさわったときと、画面にもどってきたときに、音をもう一度動かす
+    const wake = () => { if (ctx.state !== 'running') ctx.resume().catch(() => {}); };
+    document.addEventListener('pointerdown', wake);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
+    // 音は読めたものから順に使う(大きな波の音を待たずに、鳴き声や水の音を鳴らせる)
+    mixer = createMixer(ctx, {});
     mixer.setMode(settings.mode);
     mixer.setVolume(settings.volume);
     mixer.start(settings.camera);
     updateListener();
+    const buffers = await loadBuffers(ctx, undefined, (name, buffer) => mixer.addBuffer(name, buffer));
+    // 間近は「水面の波の音」、崖の上と上空は「遠い波の音」を使う(カメラの名前そのままのファイルはない)
+    const silent = camerasWithoutWaves(buffers);
+    if (silent.length === 3) menu.showNotice('波の音を読み込めませんでした');
+    else if (silent.length) menu.showNotice('一部のカメラの波の音を読み込めませんでした');
   },
   onMode(mode) {
     settings.mode = mode;

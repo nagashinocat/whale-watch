@@ -22,21 +22,28 @@ export const SOUND_FILES = Object.freeze({
 });
 
 // 音ファイルをまとめて読む。読めなかったものは null。
-export async function loadBuffers(ctx, files = SOUND_FILES) {
+// onLoaded(name, buffer): 1つ読めるたびに呼ぶ(小さい鳴き声のファイルは、大きな波の音を待たずに使える)
+export async function loadBuffers(ctx, files = SOUND_FILES, onLoaded = null) {
   const entries = await Promise.all(Object.entries(files).map(async ([name, url]) => {
-    // 大きなファイル(波の音)は、電波が弱いと途中で失敗することがあるので、もう一度だけ読みなおす
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const res = await fetch(url);
-        if (!res.ok) continue;
-        return [name, await ctx.decodeAudioData(await res.arrayBuffer())];
-      } catch {
-        // もう一度
-      }
-    }
-    return [name, null];
+    const buffer = await loadOne(ctx, url);
+    if (buffer) onLoaded?.(name, buffer);
+    return [name, buffer];
   }));
   return Object.fromEntries(entries);
+}
+
+// 1つ読む。大きなファイル(波の音)は、電波が弱いと途中で失敗することがあるので、もう一度だけ読みなおす
+async function loadOne(ctx, url) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      return await ctx.decodeAudioData(await res.arrayBuffer());
+    } catch {
+      // もう一度
+    }
+  }
+  return null;
 }
 
 // カメラごとの波の音。上空は崖の上と同じ遠い波の音を使う
@@ -87,20 +94,24 @@ export function createMixer(ctx, buffers) {
   const waveGains = {};
   let listenerAt = [0, 0, 0];
 
-  function startWaves() {
-    for (const name of ['cliff', 'surface']) {
-      const buffer = buffers[`waves-${name}`];
-      if (!buffer) continue;
-      const src = ctx.createBufferSource();
-      src.buffer = buffer;
-      src.loop = true;
-      const g = ctx.createGain();
-      g.gain.value = name === waveSound(camera) ? 1 : 0;
-      src.connect(g).connect(waveBus);
-      src.start();
-      waveGains[name] = g;
-    }
+  function startWave(name) {
+    const buffer = buffers[`waves-${name}`];
+    if (!buffer || waveGains[name]) return;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    const g = ctx.createGain();
+    g.gain.value = name === waveSound(camera) ? 1 : 0;
+    src.connect(g).connect(waveBus);
+    src.start();
+    waveGains[name] = g;
   }
+  function startWaves() {
+    for (const name of ['cliff', 'surface']) startWave(name);
+  }
+
+  // まだ読みこめていなかった鳴き声(読めたら、残りの時間だけ鳴らす)
+  const pending = [];
 
   function applyLevels() {
     rampTo(waveBus.gain, ctx, waveTargetGain(volume), AUDIO.fadeMs);
@@ -135,6 +146,20 @@ export function createMixer(ctx, buffers) {
       camera = cam;
     },
 
+    // あとから読めた音を足す。波の音ならすぐ流しはじめ、待っていた鳴き声があれば鳴らす
+    addBuffer(name, buffer) {
+      buffers[name] = buffer;
+      if (!started) return;
+      if (name.startsWith('waves-')) startWave(name.slice(6));
+      for (let i = pending.length - 1; i >= 0; i--) {
+        const p = pending[i];
+        if (p.name !== name) continue;
+        pending.splice(i, 1);
+        const left = p.opts.maxMs - (ctx.currentTime - p.at) * 1000;
+        if (left > 3000) this.playWhale(name, { ...p.opts, maxMs: left });
+      }
+    },
+
     // クジラの音を鳴らす。maxMs を超える音は、そこでフェードアウトして止める。
     // その音が読み込めているか
     has(name) {
@@ -157,8 +182,13 @@ export function createMixer(ctx, buffers) {
 
     // position を渡すと、その場所から聞こえる(遠いほど小さく、左右の向きもわかる)
     // rate: 再生の速さ(1 より大きいと少し高い音)。くり返す音を、毎回少しずつちがう音にする
-    playWhale(name, { gain = 1, maxMs = Infinity, position = null, rate = 1 } = {}) {
+    // wait: まだ読みこめていなければ、読めたときに残りの時間だけ鳴らす(長い歌や鳴き声)
+    playWhale(name, { gain = 1, maxMs = Infinity, position = null, rate = 1, wait = false } = {}) {
       const buffer = buffers[name];
+      if (started && !buffer && wait && Number.isFinite(maxMs)) {
+        pending.push({ name, at: ctx.currentTime, opts: { gain, maxMs, position, rate } });
+        return;
+      }
       if (!started || !buffer) return;
       const now = ctx.currentTime;
       const length = Math.min(buffer.duration / rate, maxMs / 1000);

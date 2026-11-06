@@ -3,6 +3,7 @@ import { PATTERNS } from '../logic/patterns.js';
 import { createWhaleMesh, prepareWhaleGeometry } from './whaleModel.js';
 import { WHALE_SPECS, surfacedCenterY } from '../logic/whaleShape.js';
 import { divingYaw } from '../logic/behavior.js';
+import { SPOT } from './cameras.js';
 
 const D2R = THREE.MathUtils.degToRad;
 const clamp01 = x => Math.min(1, Math.max(0, x));
@@ -65,17 +66,20 @@ function forward(yawDeg) {
 }
 
 // 横切るように泳ぐ向き(左右どちらか ±25度)
+// カメラに体の横を見せて泳ぐ向き(左右どちらか ±10度)。
+// 横から見ると、長い胸びれや背中の形で、ひと目でクジラだとわかる
 function crossingYaw() {
-  return (Math.random() < 0.5 ? 90 : -90) + (Math.random() * 50 - 25);
+  return (Math.random() < 0.5 ? 90 : -90) + (Math.random() * 20 - 10);
 }
 
 // 横切る出方の泳ぐ速さ(m/秒)。出発点の計算に使う
-const SWIM_SPEED = { spout: 2, fluke: 2.2, motherCalf: 1.5 };
+// クジラは決まった場所に出て、画面から出ないように、その場でゆっくり泳ぐ(片側10mくらいまで)
+const SWIM_SPEED = { spout: 0.5, fluke: 0.8, motherCalf: 0.33, breach: 0.38 };
 
 // 出方ごとの動き。each: (whales, t秒) で姿勢を決める。cues: その時刻に一度だけ起きること。
 const MOTIONS = {
   spout({ start, yaw }) {
-    const speed = 2;
+    const speed = SWIM_SPEED.spout;
     return {
       whales: [{ kind: 'humpback' }],
       each([w], t, D) {
@@ -96,7 +100,7 @@ const MOTIONS = {
   },
 
   fluke({ start, yaw }) {
-    const speed = 2.2;
+    const speed = SWIM_SPEED.fluke;
     return {
       whales: [{ kind: 'humpback' }],
       each([w], t) {
@@ -120,7 +124,7 @@ const MOTIONS = {
   },
 
   motherCalf({ start, yaw }) {
-    const speed = 1.5;
+    const speed = SWIM_SPEED.motherCalf;
     // 浮いたり沈んだりの周期。子は親より頻繁に浮上する
     const breathe = (w, exposed, t, period) => surfaceY(w, exposed) - 2.4 * (0.5 - 0.5 * Math.cos((2 * Math.PI * t) / period));
     return {
@@ -177,11 +181,13 @@ const MOTIONS = {
         let y, pitch, roll;
         if (t < 8) { y = -12; pitch = 20; roll = 0; }
         else if (t < 12) {
-          y = -8 + 52 * u - 52 * u * u;   // 頂点で +5m
-          pitch = lerp(70, -10, u);
+          // 体を立てて飛び出し、いちばん高いところは水面から6mほど(ふつうは4.5m、ときには6m以上)。
+          // 体の半分以上が水から出て、横向きに倒れて着水する
+          y = -8 + 34.4 * u - 34.4 * u * u;
+          pitch = lerp(75, -10, u ** 1.6);
           roll = lerp(0, 80, u);
         } else { y = -8 - ease((t - 12) / 6) * 6; pitch = -10; roll = 80; }
-        const along = t < 8 ? t * 0.5 : 4 + (t - 8) * 2.5;
+        const along = t < 8 ? t * 0.3 : 2.4 + Math.min(t - 8, 6) * 1.2;
         w.group.position.set(start[0] + f[0] * along, y, start[2] + f[2] * along);
         w.group.rotation.set(D2R(pitch), D2R(yaw), D2R(roll));
       },
@@ -202,8 +208,8 @@ const MOTIONS = {
 
   // 呼んだクジラ: 沖から近くまで来て、止まって歌い、向きを変えて潜って帰る
   summon() {
-    const from = [120, -600];
-    const stay = [0, -180];
+    const from = [60, SPOT[2] - 220];
+    const stay = [SPOT[0], SPOT[2]];
     return {
       whales: [{ kind: 'humpback' }],
       each([w], t) {

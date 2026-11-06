@@ -4,6 +4,7 @@ import { CAMERA_PRESETS } from './cameras.js';
 import { sunForTime } from '../logic/sky.js';
 import { waterNormalPixels } from '../logic/waterNormals.js';
 import { createGradientSky } from './sky.js';
+import { createWhitecaps } from './whitecaps.js';
 import { skyPalette } from '../logic/skyPalette.js';
 
 // 海面の凹凸の模様は外部の画像に頼らず、その場で作る
@@ -66,6 +67,16 @@ export function createOcean(canvas) {
   scene.add(water);
   const tuned = tuneWaterShader(water.material);
 
+  // 白波。海に映り込むと二重に見えるので、海の映り込みを描くあいだは隠す
+  const whitecaps = createWhitecaps(lowPower);
+  scene.add(whitecaps.mesh);
+  const mirrorRender = water.onBeforeRender;
+  water.onBeforeRender = function (...args) {
+    whitecaps.mesh.visible = false;
+    mirrorRender.apply(this, args);
+    whitecaps.mesh.visible = true;
+  };
+
   // 遠くの海ほど空気でかすんで、地平線の空の色にとけこむ
   scene.fog = new THREE.Fog(0xffffff, 1500, 18000);
 
@@ -101,6 +112,7 @@ export function createOcean(canvas) {
 
   function setCamera(name) {
     preset = CAMERA_PRESETS[name] ?? CAMERA_PRESETS.cliff;
+    whitecaps.setStrength(preset.whitecaps ?? 0.5);
     placeCamera();
   }
 
@@ -117,6 +129,7 @@ export function createOcean(canvas) {
     const palette = skyPalette(hours);
     sky.setState({ palette, sun: s, sunDir, moonDir: MOON_DIRECTION });
     scene.fog.color.set(palette.horizon);
+    whitecaps.setLight(palette.light);
     water.material.uniforms.sunColor.value.set(palette.light);
     water.material.uniforms.waterColor.value.set(palette.water);
     if (tuned) {
@@ -146,6 +159,7 @@ export function createOcean(canvas) {
     elapsed += dt;
     water.material.uniforms.time.value += dt * 0.6;
     sky.update(dt);
+    whitecaps.update(dt, camera.position);
     if (preset.sway) placeCamera();
     for (const fn of updaters) fn(dt);
     renderer.render(scene, camera);

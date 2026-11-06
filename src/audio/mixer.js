@@ -7,7 +7,7 @@ export const SOUND_FILES = Object.freeze({
   'waves-surface': 'assets/audio/waves-surface.wav',
   humpback: 'assets/audio/humpback-song.mp3',
   sperm: 'assets/audio/sperm-clicks.mp3',
-  splash: 'assets/audio/splash.mp3',
+  splash: 'assets/audio/splash.wav',
 });
 
 // 音ファイルをまとめて読む。読めなかったものは null。

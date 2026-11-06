@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { existsSync, statSync } from 'node:fs';
 import { SOUND_FILES } from '../src/audio/mixer.js';
 
-test('波の音は用意したファイルを読む', () => {
-  for (const name of ['waves-cliff', 'waves-surface']) {
+test('波の音と水しぶきの音は用意したファイルを読む', () => {
+  for (const name of ['waves-cliff', 'waves-surface', 'splash']) {
     const path = SOUND_FILES[name];
     assert.ok(path.endsWith('.wav'), path);
     assert.ok(existsSync(new URL(`../${path}`, import.meta.url)), `${path} がない`);

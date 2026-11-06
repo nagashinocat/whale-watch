@@ -12,7 +12,7 @@ import { hoursFor, blendHours } from './logic/time.js';
 import { AUDIO } from './logic/config.js';
 
 // メニューに表示する素材のクレジット(assets/CREDITS.md と合わせる)
-const CREDITS = ['波の音: Rmutt, plantmonkey (Freesound / CC0)', 'クジラの声: NOAA'];
+const CREDITS = ['波と水しぶきの音: Rmutt, plantmonkey, Fission9 (Freesound / CC0)', 'クジラの声: NOAA'];
 
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has('debug');

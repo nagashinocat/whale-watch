@@ -9,7 +9,7 @@
 |---|---|---|---|---|
 | humpback-song.mp3 | ザトウクジラの歌 | NOAA Fisheries「Sounds in the Ocean」 | パブリックドメイン(米国政府著作物) | NOAA |
 | sperm-clicks.mp3 | マッコウクジラのクリック音 | (未定) | | |
-| splash.mp3 | 水しぶき | (未定) | | |
+| splash.wav | 水しぶき(ジャンプの着水) | https://freesound.org/people/Fission9/sounds/583348/ (Rock Splash) | CC0 | Fission9 |
 | waves-cliff.wav | 遠くで岩に打ちよせる波(崖の上・上空) | https://freesound.org/s/156354 (oceanwaves-9) | CC0 | Rmutt |
 | waves-surface.wav | 砂州に寄せる小さな波(水面) | https://freesound.org/people/plantmonkey/sounds/459813 (Waves on a sand bar) | CC0 | plantmonkey |
 

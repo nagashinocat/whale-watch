@@ -5,7 +5,7 @@ import { sunForTime } from '../logic/sky.js';
 import { waterNormalPixels } from '../logic/waterNormals.js';
 import { createGradientSky } from './sky.js';
 import { createWhitecaps } from './whitecaps.js';
-import { nextPixelRatio } from '../logic/quality.js';
+import { createQualityControl } from '../logic/quality.js';
 import { skyPalette } from '../logic/skyPalette.js';
 import { whaleLights, LIGHTING } from '../logic/lighting.js';
 
@@ -237,34 +237,24 @@ export function createOcean(canvas) {
     return new Promise(resolve => out.toBlob(b => resolve(b), 'image/jpeg', quality));
   }
 
-  // 2秒ごとに、なめらかに動いているかを見て、画面のきめ細かさを決めなおす
-  let frames = 0, frameTime = 0;
+  // なめらかに動いているかを見て、画面のきめ細かさを決めなおす(切りかえはなるべく少なく。quality.js)
+  const quality = createQualityControl(deviceRatio, pixelRatio);
   function adjustQuality(dt) {
-    frames++;
-    frameTime += dt;
-    if (frameTime < 2) return;
-    const next = nextPixelRatio(pixelRatio, frames / frameTime, deviceRatio);
-    frames = 0; frameTime = 0;
-    if (next !== pixelRatio) {
-      pixelRatio = next;
-      renderer.setPixelRatio(pixelRatio);
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    }
+    const next = quality.sample(dt);
+    if (next === null) return;
+    pixelRatio = next;
+    renderer.setPixelRatio(pixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
   }
 
   function loop(t) {
     if (!running) return;
     const dt = last ? Math.min(0.1, (t - last) / 1000) : 0;
+    const realDt = last ? (t - last) / 1000 : 0;
     last = t;
+    // 大きさを変えると画面がいったん消えるので、変えるのは描く前にする(描いたあとに変えると、そのコマが真っ暗になる)
+    if (realDt > 0) adjustQuality(realDt);
     render(dt);
-    if (dt > 0) adjustQuality(dt);
-    requestAnimationFrame(loop);
-  }
-
-  function start() {
-    if (running) return;
-    running = true;
-    last = 0;
     requestAnimationFrame(loop);
   }
 
@@ -276,6 +266,8 @@ export function createOcean(canvas) {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    // 大きさを変えると画面が消えるので、すぐに描きなおす
+    if (running) renderer.render(scene, camera);
   });
 
   setCamera('cliff');

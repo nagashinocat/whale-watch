@@ -225,3 +225,16 @@ test('ザトウクジラのあごの先や胸びれのまわりには、フジ�
 test('マッコウクジラ(大人のメス)の背中のこぶには白っぽいたこがある', () => {
   assert.ok(lum(skinColor('sperm', 0.66, 0)) > lum(skinColor('sperm', 0.55, 0)) + 0.08);
 });
+
+test('浮かんだときは、背中が決めた高さだけ海面から出る(体が太くても沈まない)', async () => {
+  const { surfacedCenterY } = await import('../src/logic/whaleShape.js');
+  for (const [kind, len] of [['humpback', 14], ['humpback', 5.6], ['sperm', 15]]) {
+    const y = surfacedCenterY(kind, len, 0.8);
+    let top = -Infinity;
+    for (let u = 0; u <= 1; u += 0.005) {
+      const s = bodySection(kind, u);
+      top = Math.max(top, (s.centerY + s.halfHeight) * len);
+    }
+    assert.ok(Math.abs(y + top - 0.8) < 1e-6, `${kind} ${len}m: top ${y + top}`);
+  }
+});

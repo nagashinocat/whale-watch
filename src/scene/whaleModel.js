@@ -12,12 +12,19 @@ function geometryFor(kind) {
   geo.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
   // 色は sRGB で作ってあるので、three.js の計算用の色に直す
   const linear = new Float32Array(g.colors.length);
-  for (let i = 0; i < linear.length; i++) linear[i] = THREE.SRGBToLinear(g.colors[i]);
+  const toLinear = c => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  for (let i = 0; i < linear.length; i++) linear[i] = toLinear(g.colors[i]);
   geo.setAttribute('color', new THREE.BufferAttribute(linear, 3));
   geo.setIndex(new THREE.BufferAttribute(g.indices, 1));
   geo.computeVertexNormals();
   geometries[kind] = geo;
   return geo;
+}
+
+// 形の計算には少し時間がかかるので、クジラが出てくる前にすませておく
+export function prepareWhaleGeometry() {
+  geometryFor('humpback');
+  geometryFor('sperm');
 }
 
 // 1頭ぶんのクジラ。lengthMeters は体長(m)。頭は -z を向いている

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { PATTERNS } from '../logic/patterns.js';
-import { createWhaleMesh } from './whaleModel.js';
-import { WHALE_SPECS } from '../logic/whaleShape.js';
+import { createWhaleMesh, prepareWhaleGeometry } from './whaleModel.js';
+import { WHALE_SPECS, surfacedCenterY } from '../logic/whaleShape.js';
 
 const D2R = THREE.MathUtils.degToRad;
 const clamp01 = x => Math.min(1, Math.max(0, x));
@@ -16,7 +16,15 @@ function makeWhale(kind, scale = 1, swim = 1) {
   const group = new THREE.Group();
   group.rotation.order = 'YXZ';
   group.add(whale.mesh);
-  return { group, mixer: whale, length: whale.length };
+  return { group, mixer: whale, length: whale.length, kind };
+}
+
+// 海面に浮かんだときの中心の高さ。exposed は背中が海面から出る高さ(m)
+const surfaceCache = new Map();
+function surfaceY(w, exposed) {
+  const key = `${w.kind}:${w.length}:${exposed}`;
+  if (!surfaceCache.has(key)) surfaceCache.set(key, surfacedCenterY(w.kind, w.length, exposed));
+  return surfaceCache.get(key);
 }
 
 // 体の前後の点(頭 = +0.5、尾 = -0.5)のワールド座標
@@ -47,7 +55,7 @@ const MOTIONS = {
       each([w], t, D) {
         const f = forward(yaw);
         const rise = ease(t / 5) - ease((t - (D - 8)) / 5);
-        w.group.position.set(start[0] + f[0] * speed * t, lerp(-6, -1.5, rise) + Math.sin(t * 0.8) * 0.15, start[2] + f[2] * speed * t);
+        w.group.position.set(start[0] + f[0] * speed * t, lerp(-6, surfaceY(w, 0.8), rise) + Math.sin(t * 0.8) * 0.15, start[2] + f[2] * speed * t);
         w.group.rotation.set(D2R(Math.sin(t * 0.5) * 2), D2R(yaw), 0);
       },
       cues: [
@@ -66,7 +74,8 @@ const MOTIONS = {
         const f = forward(yaw);
         const dive = ease((t - 13) / 8);
         const pitch = lerp(0, -65, dive);
-        const y = lerp(-6, -1.6, ease(t / 5)) - dive * 9 - ease((t - 21) / 5) * 8;
+        // 頭を下げて体を立てると、尾びれが海面から3mほど持ち上がる。そのあとまっすぐ沈む
+        const y = lerp(-6, surfaceY(w, 0.7), ease(t / 5)) - dive * 2.5 - ease((t - 20) / 5) * 14;
         w.group.position.set(start[0] + f[0] * speed * t, y, start[2] + f[2] * speed * t);
         w.group.rotation.set(D2R(pitch + Math.sin(t * 0.6) * 2 * (1 - dive)), D2R(yaw), 0);
       },
@@ -81,7 +90,7 @@ const MOTIONS = {
   motherCalf({ start, yaw }) {
     const speed = 1.5;
     // 浮いたり沈んだりの周期。子は親より頻繁に浮上する
-    const breathe = (t, period) => -1.4 - 2.4 * (0.5 - 0.5 * Math.cos((2 * Math.PI * t) / period));
+    const breathe = (w, exposed, t, period) => surfaceY(w, exposed) - 2.4 * (0.5 - 0.5 * Math.cos((2 * Math.PI * t) / period));
     return {
       whales: [{ kind: 'humpback' }, { kind: 'humpback', scale: 0.4 }],
       each([mom, calf], t, D) {
@@ -89,10 +98,10 @@ const MOTIONS = {
         const r = [-f[2], 0, f[0]]; // 右方向
         const env = ease(t / 6) - ease((t - (D - 8)) / 6);
         const base = [start[0] + f[0] * speed * t, start[2] + f[2] * speed * t];
-        mom.group.position.set(base[0], lerp(-7, breathe(t, 20), env), base[1]);
+        mom.group.position.set(base[0], lerp(-7, breathe(mom, 0.7, t, 20), env), base[1]);
         mom.group.rotation.set(D2R(Math.sin(t * 0.4) * 2), D2R(yaw), 0);
         // 子は親の斜め後ろ
-        calf.group.position.set(base[0] + r[0] * 5 - f[0] * 5, lerp(-5, breathe(t + 3, 12) * 0.6, env), base[1] + r[2] * 5 - f[2] * 5);
+        calf.group.position.set(base[0] + r[0] * 5 - f[0] * 5, lerp(-5, breathe(calf, 0.35, t + 3, 12), env), base[1] + r[2] * 5 - f[2] * 5);
         calf.group.rotation.set(D2R(Math.sin(t * 0.7) * 3), D2R(yaw), 0);
       },
       cues: [
@@ -153,7 +162,7 @@ const MOTIONS = {
   // 呼んだクジラ: 沖から近くまで来て、止まって歌い、向きを変えて潜って帰る
   summon() {
     const from = [120, -600];
-    const stay = [0, -250];
+    const stay = [0, -180];
     return {
       whales: [{ kind: 'humpback' }],
       each([w], t) {
@@ -165,10 +174,10 @@ const MOTIONS = {
         yaw = lerp(yawIn, 180 + yawIn, turn);
         x = lerp(from[0], stay[0], approach);
         z = lerp(from[1], stay[1], approach) - leave * 60;
-        y = lerp(-7, -1.5, ease((t - 6) / 8)) + Math.sin(t * 0.6) * 0.15;
+        y = lerp(-7, surfaceY(w, 0.9), ease((t - 6) / 8)) + Math.sin(t * 0.6) * 0.15;
         const dive = ease((t - 100) / 8);
         pitch = lerp(0, -65, dive);
-        y -= dive * 9 + ease((t - 108) / 6) * 8;
+        y -= dive * 2.5 + ease((t - 107) / 5) * 14;
         w.group.position.set(x, y, z);
         w.group.rotation.set(D2R(pitch + Math.sin(t * 0.5) * 2 * (1 - dive)), D2R(yaw), 0);
       },
@@ -191,6 +200,8 @@ const MOTIONS = {
 // クジラの形は計算で作るので、読み込みに失敗することはない
 export async function createWhales(scene, fx) {
   const models = { humpback: true, sperm: true };
+  // 画面が出たあと、ひと息おいてから形を作っておく(最初のクジラが出るときに引っかからないように)
+  setTimeout(prepareWhaleGeometry, 2000);
   const acts = new Set();
 
   // 出方を再生する。決まった時間で必ず終わる(画面が隠れて描画が止まっていても)。

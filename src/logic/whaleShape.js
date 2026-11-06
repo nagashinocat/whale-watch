@@ -476,3 +476,14 @@ export const SWIM = Object.freeze({ amplitude: 0.035, power: 2.5, wave: 5.0 });
 export function swimBend(s, phase, amount) {
   return amount * SWIM.amplitude * s ** SWIM.power * Math.sin(phase - SWIM.wave * s);
 }
+
+// 海面に浮かんだときの体の中心の高さ(m)。背中のいちばん高いところが exposedMeters だけ海面から出る。
+// 体の太さから計算するので、形を変えても浮かび方がずれない
+export function surfacedCenterY(kind, lengthMeters, exposedMeters) {
+  let top = -Infinity;
+  for (let u = 0; u <= 1; u += 0.005) {
+    const s = bodySection(kind, u);
+    top = Math.max(top, (s.centerY + s.halfHeight) * lengthMeters);
+  }
+  return exposedMeters - top;
+}

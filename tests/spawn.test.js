@@ -21,3 +21,11 @@ test('カメラは上空・崖の上・水面の3つで、上空は崖の上よ�
   assert.deepEqual(Object.keys(CAMERA_PRESETS).sort(), ['cliff', 'sky', 'surface']);
   assert.ok(CAMERA_PRESETS.sky.position[1] > CAMERA_PRESETS.cliff.position[1]);
 });
+
+test('クジラは見つけやすい距離(160〜420m先)に出る', () => {
+  let s = 7; const rng = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 500; i++) {
+    const [, , z] = spawnPosition(rng);
+    assert.ok(z <= -160 && z >= -420, `z ${z}`);
+  }
+});

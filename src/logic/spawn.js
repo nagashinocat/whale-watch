@@ -20,7 +20,7 @@ export function isVisibleFrom(preset, point, aspect = 9 / 16) {
 
 // どのカメラからも見える範囲で、ランダムな出現位置を返す。
 export function spawnPosition(rng) {
-  const z = -250 - rng() * 350;
+  const z = -160 - rng() * 260;   // 160〜420m先。遠すぎると小さくて見つけられない
   const maxX = Math.abs(z) * Math.tan(deg(14));
   const x = (rng() * 2 - 1) * maxX;
   return [x, 0, z];

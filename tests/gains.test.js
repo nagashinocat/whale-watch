@@ -33,3 +33,9 @@ test('水の音は遠いほどくぐもる(近くは高い音まで、遠くは�
   assert.ok(muffleFrequency(100) < muffleFrequency(40));
   assert.ok(muffleFrequency(5000) >= 900);
 });
+
+test('水をたたく音・ジャンプ・潮吹きは始まりの勢いを残す。歌や鳴き声はゆっくり始める', async () => {
+  const { SUDDEN_SOUNDS } = await import('../src/audio/mixer.js');
+  for (const n of ['tail-slap', 'pec-slap', 'breach', 'breach-rise', 'splash', 'blow']) assert.ok(SUDDEN_SOUNDS.has(n), n);
+  for (const n of ['humpback', 'humpback-call', 'sperm', 'bubbles']) assert.ok(!SUDDEN_SOUNDS.has(n), n);
+});

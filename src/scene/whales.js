@@ -437,7 +437,8 @@ const MOTIONS = {
           const tip = finWorld(w, 1);
           fx.effects.splash(onWater(tip), 'small', headingOf(w));
           fx.impact?.(onWater(tip), 0.4);
-          fx.playSound('splash', { gain: 0.6, position: onWater(tip) });
+          // 胸びれが水面を打つ「ベチャン」(毎回少しずつちがう音)
+          fx.playSound('pec-slap', { gain: 0.9, rate: 0.9 + Math.random() * 0.2, position: onWater(tip) });
         },
       });
     }
@@ -468,7 +469,8 @@ const MOTIONS = {
           fx.effects.splash(tail, 'small', headingOf(w));
           fx.effects.splash(tail, 'small', headingOf(w));
           fx.impact?.(tail, 0.7);
-          fx.playSound('splash', { gain: 0.8, position: tail });
+          // 尾びれが水面を打つ「バシーン」(鋭い音で、遠くまで届く)
+          fx.playSound('tail-slap', { gain: 1, rate: 0.92 + Math.random() * 0.16, position: tail });
         },
       });
     }

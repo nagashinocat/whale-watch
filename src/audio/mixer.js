@@ -14,6 +14,9 @@ export const SOUND_FILES = Object.freeze({
   // ジャンプの着水の「ドーン」と、飛び出すときの「ザバァ」(合成。tools/audio/make_breach.py)
   breach: 'assets/audio/breach.wav',
   'breach-rise': 'assets/audio/breach-rise.wav',
+  // 尾びれ・胸びれで水面をたたく「バシーン」「ベチャン」(合成。tools/audio/make_slap.py)
+  'tail-slap': 'assets/audio/tail-slap.wav',
+  'pec-slap': 'assets/audio/pec-slap.wav',
   // 泡の網の泡がはじける音(合成。tools/audio/make_bubbles.py)
   bubbles: 'assets/audio/bubbles.wav',
 });
@@ -36,7 +39,9 @@ export async function loadBuffers(ctx, files = SOUND_FILES) {
 const waveSound = camera => (camera === 'near' ? 'surface' : 'cliff');   // 間近は水面の近くの波の音
 
 // 水しぶきやジャンプの音。距離に合わせてくぐもらせる
-const WATER_SOUNDS = new Set(['splash', 'breach', 'breach-rise']);
+const WATER_SOUNDS = new Set(['splash', 'breach', 'breach-rise', 'tail-slap', 'pec-slap']);
+// 始まりの勢いが大事な音(ゆっくり始めない)
+export const SUDDEN_SOUNDS = new Set([...WATER_SOUNDS, 'blow']);
 // 距離 d(m)のときの、くぐもらせる高さ(Hz)。30mで約1万6千、100mで約5千、いちばん低くても900
 export const muffleFrequency = d => Math.min(16000, Math.max(900, (16000 * 30) / Math.max(30, d)));
 
@@ -142,20 +147,27 @@ export function createMixer(ctx, buffers) {
     },
 
     // position を渡すと、その場所から聞こえる(遠いほど小さく、左右の向きもわかる)
-    playWhale(name, { gain = 1, maxMs = Infinity, position = null } = {}) {
+    // rate: 再生の速さ(1 より大きいと少し高い音)。くり返す音を、毎回少しずつちがう音にする
+    playWhale(name, { gain = 1, maxMs = Infinity, position = null, rate = 1 } = {}) {
       const buffer = buffers[name];
       if (!started || !buffer) return;
       const now = ctx.currentTime;
-      const length = Math.min(buffer.duration, maxMs / 1000);
+      const length = Math.min(buffer.duration / rate, maxMs / 1000);
+      // 歌や鳴き声は、急に大きくならないようにゆっくり始める。
+      // 水をたたく音・ジャンプの音・潮吹きは、始まりの勢いが大事なので、そのまま鳴らす
+      const sudden = SUDDEN_SOUNDS.has(name);
       const fade = Math.min(2, length / 3);
+      const fadeIn = sudden ? 0.004 : fade;
+      const fadeOut = sudden && length >= buffer.duration / rate - 0.01 ? 0.05 : fade;
 
       const src = ctx.createBufferSource();
       src.buffer = buffer;
+      src.playbackRate.value = rate;
       const env = ctx.createGain();
       const level = (name === 'splash' ? 0.6 : 1) * Math.min(1, Math.max(0, gain));
       env.gain.setValueAtTime(0, now);
-      env.gain.linearRampToValueAtTime(level, now + fade);
-      env.gain.setValueAtTime(level, now + length - fade);
+      env.gain.linearRampToValueAtTime(level, now + fadeIn);
+      env.gain.setValueAtTime(level, now + length - fadeOut);
       env.gain.linearRampToValueAtTime(0, now + length);
 
       let node = src;

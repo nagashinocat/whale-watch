@@ -17,6 +17,8 @@
 | bubbles.wav | 泡の網の泡がはじける音(約10秒) | このアプリで合成 `tools/audio/make_bubbles.py` | 自作(素材なし) | — |
 | breach.wav | ジャンプの着水の「ドーン」と水しぶき・降ってくる水(約4秒) | このアプリで合成 `tools/audio/make_breach.py` | 自作(素材なし) | — |
 | breach-rise.wav | ジャンプで水を割って体が出てくる音(約1.5秒) | このアプリで合成 `tools/audio/make_breach.py` | 自作(素材なし) | — |
+| tail-slap.wav | 尾びれで水面をたたく「バシーン」(約2.5秒) | このアプリで合成 `tools/audio/make_slap.py` | 自作(素材なし) | — |
+| pec-slap.wav | 胸びれで水面をたたく「ベチャン」(約1.8秒) | このアプリで合成 `tools/audio/make_slap.py` | 自作(素材なし) | — |
 
 ## 3Dモデル
 

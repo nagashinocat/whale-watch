@@ -52,8 +52,13 @@
     .full { padding: 6px 10px; min-height: 32px; font-size: 12px; }
     .notice { margin: 0; font-size: 12px; color: #ffd28a; }
 
-    .debug { position: fixed; top: 12px; right: 12px; display: grid; gap: 6px; z-index: 10; }
-    .debug button { background: var(--glass); font-size: 12px; min-height: 30px; padding: 4px 10px; }
+    .debug { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px));
+      width: 176px; display: grid; gap: 6px; z-index: 10; padding: 10px; border: 1px solid var(--line); border-radius: 14px;
+      background: var(--glass); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+    .debug button { background: rgba(255, 255, 255, 0.04); font-size: 13px; min-height: 34px; padding: 6px 10px; text-align: left; }
+    .debug button:active { background: rgba(159, 211, 230, 0.22); }
+    .debug-title { margin: 0 0 2px; font-size: 12px; letter-spacing: 0.08em; color: var(--accent); }
+    .debug-status { margin: 4px 0 0; font-size: 11px; line-height: 1.5; color: var(--muted); }
   </style>
   <script type="importmap">
     {

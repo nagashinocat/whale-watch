@@ -25,3 +25,14 @@ export function voiceSound(rng, available) {
   if (song && call) return rng() < 0.4 ? 'humpback-call' : 'humpback';
   return call && !song ? 'humpback-call' : 'humpback';
 }
+
+// 出方の日本語の名前(動作確認ボタンに使う)
+export const PATTERN_LABELS = Object.freeze({
+  voice: '鳴き声だけ',
+  spout: '潮吹きと背中',
+  fluke: '尾びれを上げて潜る',
+  motherCalf: '親子で泳ぐ',
+  sleeping: '寝ているクジラ',
+  breach: 'ジャンプ',
+  summon: '呼んだクジラ',
+});

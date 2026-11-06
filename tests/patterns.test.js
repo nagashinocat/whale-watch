@@ -41,3 +41,10 @@ test('片方の音しかなければ、ある方を使う', () => {
   assert.equal(voiceSound(rng, { humpback: true, 'humpback-call': false }), 'humpback');
   assert.equal(voiceSound(() => 0, { humpback: false, 'humpback-call': true }), 'humpback-call');
 });
+
+test('動作確認ボタン用に、すべての出方に日本語の名前がある', async () => {
+  const { PATTERN_LABELS } = await import('../src/logic/patterns.js');
+  for (const k of Object.keys(PATTERNS)) {
+    assert.ok(typeof PATTERN_LABELS[k] === 'string' && /[ぁ-んァ-ン一-龥]/.test(PATTERN_LABELS[k]), k);
+  }
+});

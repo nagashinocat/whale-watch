@@ -2,7 +2,7 @@ import { createOcean } from './scene/ocean.js';
 import { createWhales } from './scene/whales.js';
 import { createEffects } from './scene/effects.js';
 import { createFootprints } from './scene/footprints.js';
-import { PATTERNS, resolvePattern, voiceSound } from './logic/patterns.js';
+import { PATTERNS, PATTERN_LABELS, resolvePattern, voiceSound } from './logic/patterns.js';
 import { spawnPosition } from './logic/spawn.js';
 import { createMixer, loadBuffers } from './audio/mixer.js';
 import { createMenu } from './ui/menu.js';
@@ -16,7 +16,8 @@ const CREDITS = ['波と水しぶきの音: Rmutt, plantmonkey, Fission9 (Freeso
 
 const params = new URLSearchParams(location.search);
 // 確認用: ?debug=1(&fast=1) か、公開ページではアドレスの最後に #debug(#debug-fast)
-const DEBUG = params.has('debug') || location.hash.startsWith('#debug');
+// 動作確認用のページでは window.WHALE_DEBUG = true にしてある
+const DEBUG = window.WHALE_DEBUG === true || params.has('debug') || location.hash.startsWith('#debug');
 const FAST = params.has('fast') || location.hash === '#debug-fast';
 
 const settings = loadSettings(safeStorage());
@@ -108,13 +109,27 @@ async function handleEvent(event) {
 if (DEBUG) {
   const panel = document.createElement('div');
   panel.className = 'debug';
+  const title = document.createElement('p');
+  title.className = 'debug-title';
+  title.textContent = '動作確認';
+  const status = document.createElement('p');
+  status.className = 'debug-status';
+  status.textContent = 'ボタンを押すと、すぐにクジラが出ます。音も聞くときは、先に画面をタップしてはじめてください';
+  panel.append(title);
+  let playing = 0;
   for (const name of Object.keys(PATTERNS)) {
     const b = document.createElement('button');
-    b.textContent = name;
+    b.textContent = PATTERN_LABELS[name];
     b.addEventListener('pointerdown', e => e.stopPropagation());
-    b.addEventListener('click', () => handleEvent({ kind: 'debug', pattern: name }));
+    b.addEventListener('click', async () => {
+      playing++;
+      status.textContent = `再生中: ${PATTERN_LABELS[name]}(約${Math.round(PATTERNS[name].durationMs / 1000)}秒)`;
+      await handleEvent({ kind: 'debug', pattern: name });
+      if (--playing === 0) status.textContent = '終わりました。ほかのボタンも試せます';
+    });
     panel.append(b);
   }
+  panel.append(status);
   document.body.append(panel);
 }
 

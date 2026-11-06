@@ -1,6 +1,7 @@
 import { MENU_HIDE_MS } from '../logic/config.js';
 import { drawFluke } from './flukeCanvas.js';
-import { FLUKE_ID } from '../logic/flukeId.js';
+import { FLUKE_ID, NAME_MAX } from '../logic/flukeId.js';
+import { traitsText } from '../logic/traits.js';
 
 // 日付を「11月6日」の形に
 const day = ms => { const d = new Date(ms); return `${d.getMonth() + 1}月${d.getDate()}日`; };
@@ -86,12 +87,55 @@ export function createMenu(root, handlers) {
       c.setAttribute('aria-hidden', 'true');
       drawFluke(c, e);
       const text = document.createElement('div');
-      text.innerHTML = `<b></b><span></span>`;
-      text.querySelector('b').textContent = e.name;
-      text.querySelector('span').textContent = `${e.count}回 ・ さいご ${day(e.last)}`;
+      text.className = 'zukan-text';
+      const name = document.createElement('b');
+      name.textContent = e.displayName;
+      const sub = document.createElement('span');
+      // 自分で名前を付けたら、模様から付けた名前も小さく出す
+      sub.textContent = `${e.count}回 ・ さいご ${day(e.last)}${e.nickname ? ` ・ ${e.autoName}` : ''}`;
+      const traits = traitsText(e);
+      const feat = document.createElement('small');
+      feat.className = 'zukan-traits';
+      feat.textContent = traits.length ? traits.join('・') : 'とくに目立つところはない';
+      const rename = document.createElement('button');
+      rename.className = 'full zukan-rename';
+      rename.textContent = '名前を付ける';
+      rename.addEventListener('click', () => startRename(text, e));
+      text.append(name, sub, feat, rename);
       li.append(c, text);
       list.append(li);
     }
+  }
+
+  // 名前を入力する欄を出す
+  function startRename(box, e) {
+    const form = document.createElement('form');
+    form.className = 'zukan-form';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.maxLength = NAME_MAX;
+    input.value = e.nickname ?? '';
+    input.placeholder = e.autoName;
+    input.setAttribute('aria-label', `${e.displayName}の名前`);
+    const ok = document.createElement('button');
+    ok.className = 'full';
+    ok.type = 'submit';
+    ok.textContent = '決める';
+    const cancel = document.createElement('button');
+    cancel.className = 'full';
+    cancel.type = 'button';
+    cancel.textContent = 'やめる';
+    cancel.addEventListener('click', renderZukan);
+    form.addEventListener('submit', ev => {
+      ev.preventDefault();
+      handlers.onRename?.(e.id, input.value);
+    });
+    const hint = document.createElement('small');
+    hint.className = 'zukan-traits';
+    hint.textContent = `${NAME_MAX}文字まで。空にすると「${e.autoName}」にもどります`;
+    form.append(input, ok, cancel);
+    box.replaceChildren(form, hint);
+    input.focus();
   }
   let hideTimer = null;
 

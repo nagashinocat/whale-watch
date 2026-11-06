@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { buildWhaleGeometry, SWIM, WHALE_SPECS, jawHinge, POUCH_SWELL } from '../logic/whaleShape.js';
+import { buildWhaleGeometry, SWIM, WHALE_SPECS, jawHinge, POUCH_SWELL, BODY_GRID, ringU, aroundTheta, bodyPoint, flukeOutline } from '../logic/whaleShape.js';
+import { traitBodyColor, traitFinColor, flukeBite } from '../logic/traits.js';
 import { eyePatch, applyLid, eyeballPlacement, blinkOpen, EYE } from '../logic/eyeShape.js';
 import { flukeWhiteness } from '../logic/flukeId.js';
 
@@ -68,9 +69,25 @@ function eyeMaterial() {
 
 // 色は sRGB で作ってあるので、体と同じように three.js の計算用の色に直す(左右それぞれ一度だけ)
 const toLinear = c => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
-function linearColors(patch) {
-  if (!patch.linear) patch.linear = Float32Array.from(patch.colors, toLinear);
-  return patch.linear;
+function linearColors(patch, ind = null) {
+  if (!ind || !ind.traits) {
+    if (!patch.linear) patch.linear = Float32Array.from(patch.colors, toLinear);
+    return patch.linear;
+  }
+  patch.byIndividual ??= new Map();
+  if (!patch.byIndividual.has(ind.id)) {
+    const c = Float32Array.from(patch.colors);
+    for (let k = 0; k < c.length / 3; k++) {
+      const rgb = [c[k * 3], c[k * 3 + 1], c[k * 3 + 2]];
+      // まぶたの奥の暗い影はそのまま
+      if (rgb[0] + rgb[1] + rgb[2] < 0.1 && ind.traits.coat !== 'white') continue;
+      const out = traitBodyColor(ind, patch.uv[k * 2], patch.uv[k * 2 + 1], rgb);
+      const shade = rgb[0] + rgb[1] + rgb[2] < 0.1 ? 0.35 : 1;   // 白い子も、まぶたの奥は少し暗く
+      c.set(out.map(v => v * shade), k * 3);
+    }
+    patch.byIndividual.set(ind.id, Float32Array.from(c, toLinear));
+  }
+  return patch.byIndividual.get(ind.id);
 }
 
 // 目のまわりの肌(左右)。形の計算に時間がかかるので、一度だけ作って使い回す
@@ -81,12 +98,12 @@ function patchesFor() {
 }
 
 // 1頭ぶんの目(左右)。まぶたは頭の肌と同じ material で描く(泳ぐしなりもいっしょ)
-function createEyes(parent, skinMaterial) {
+function createEyes(parent, skinMaterial, individual = null) {
   const eyes = patchesFor().map(({ patch, place }) => {
     const geo = new THREE.BufferGeometry();
     const pos = new THREE.BufferAttribute(applyLid(new Float32Array(patch.base.length), patch, EYE.relaxedOpen), 3);
     geo.setAttribute('position', pos);
-    geo.setAttribute('color', new THREE.BufferAttribute(linearColors(patch), 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(linearColors(patch, individual), 3));
     geo.setAttribute('aJaw', new THREE.BufferAttribute(patch.jaw, 4));
     geo.setIndex(new THREE.BufferAttribute(patch.indices, 1));
     geo.computeVertexNormals();
@@ -160,29 +177,67 @@ function geometryFor(kind) {
   geo.setIndex(new THREE.BufferAttribute(g.indices, 1));
   geo.setAttribute('aJaw', new THREE.BufferAttribute(g.jaw, 4));
   geo.computeVertexNormals();
-  geo.userData = { fluke: g.fluke };
+  geo.userData = { fluke: g.fluke, fins: g.fins, bodyCount: g.bodyCount, srgb: g.colors };
   geometries[kind] = geo;
   return geo;
 }
 
-// 1頭ずつちがう尾びれの裏の模様を入れた形。色だけちがい、形は同じものを使い回す
+// 1頭ずつちがう形と色(尾びれの裏の模様、体の色、胸びれの色、背びれの形、尾びれの欠け)。
+// 形は同じものを使い回し、ちがうところだけ作りなおす。一度作ったら覚えておく
 const individualGeometries = new Map();
 const HB_WHITE = [0xe6 / 255, 0xe8 / 255, 0xea / 255], HB_BACK = [0x16 / 255, 0x18 / 255, 0x1b / 255];
+const ALBINO = [0.93, 0.92, 0.9];
 function geometryForIndividual(kind, ind) {
   const base = geometryFor(kind);
   if (!ind || kind !== 'humpback') return base;
   if (individualGeometries.has(ind.id)) return individualGeometries.get(ind.id);
+  const t = ind.traits ?? {};
+  const { fluke, fins, bodyCount, srgb } = base.userData;
+  const reshape = (t.dorsal && t.dorsal !== 'normal') || t.fluke === 'bite';
   const geo = new THREE.BufferGeometry();
   geo.setIndex(base.index);
-  for (const [name, attr] of Object.entries(base.attributes)) if (name !== 'color') geo.setAttribute(name, attr);
-  const colors = Float32Array.from(base.attributes.color.array);
-  const { fluke } = base.userData;
-  for (let k = 0; k < fluke.s.length; k++) {
-    if (!fluke.under[k]) continue;
-    const w = flukeWhiteness(ind, fluke.s[k], fluke.c[k]);
-    for (let m = 0; m < 3; m++) colors[(fluke.start + k) * 3 + m] = toLinear(HB_BACK[m] + (HB_WHITE[m] - HB_BACK[m]) * w);
+  for (const [name, attr] of Object.entries(base.attributes)) {
+    if (name === 'color' || (reshape && (name === 'position' || name === 'normal'))) continue;
+    geo.setAttribute(name, attr);
   }
-  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  // 色(sRGB で決めてから、計算用の色に直す)
+  const c = Float32Array.from(srgb);
+  const put = (k, rgb) => { c[k * 3] = rgb[0]; c[k * 3 + 1] = rgb[1]; c[k * 3 + 2] = rgb[2]; };
+  const get = k => [c[k * 3], c[k * 3 + 1], c[k * 3 + 2]];
+  const A = BODY_GRID.around;
+  for (let k = 0; k < bodyCount; k++) put(k, traitBodyColor(ind, ringU(Math.floor(k / A)), aroundTheta(k % A), get(k)));
+  if (t.coat === 'white') put(bodyCount, ALBINO), put(bodyCount + 1, ALBINO);
+  for (const f of fins) for (let k = 0; k < f.s.length; k++) put(f.start + k, traitFinColor(ind, f.s[k], !!f.top[k], get(f.start + k)));
+  for (let k = 0; k < fluke.s.length; k++) {
+    if (fluke.under[k]) {
+      const w = flukeWhiteness(ind, fluke.s[k], fluke.c[k]);
+      put(fluke.start + k, HB_BACK.map((v, m) => v + (HB_WHITE[m] - v) * w));
+    } else if (t.coat === 'white') put(fluke.start + k, ALBINO);
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(c.map(toLinear), 3));
+  // 形: 背びれの形と、尾びれのうしろのふちの欠け
+  if (reshape) {
+    const p = Float32Array.from(base.attributes.position.array);
+    if (t.dorsal && t.dorsal !== 'normal') {
+      for (let k = 0; k < bodyCount; k++) {
+        const u = ringU(Math.floor(k / A));
+        if (u < 0.56 || u > 0.72) continue;
+        p.set(bodyPoint(kind, u, aroundTheta(k % A), t.dorsal), k * 3);
+      }
+    }
+    if (t.fluke === 'bite') {
+      for (let k = 0; k < fluke.s.length; k++) {
+        const s = fluke.s[k], bite = flukeBite(ind, s);
+        if (bite <= 0.0005) continue;
+        const o = flukeOutline(kind, Math.min(1, Math.abs(s)));
+        const lead = o.leading, trail = Math.max(lead, o.trailing);
+        const trail2 = Math.max(lead + 0.003, trail - bite);
+        p[(fluke.start + k) * 3 + 2] = lead + fluke.c[k] * (trail2 - lead);
+      }
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(p, 3));
+    geo.computeVertexNormals();
+  }
   individualGeometries.set(ind.id, geo);
   return geo;
 }
@@ -282,7 +337,7 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
   const mesh = new THREE.Mesh(geometryForIndividual(kind, individual), material);
   mesh.scale.setScalar(lengthMeters);
   // ザトウクジラは、目のまわりを細かく作った部品をはめこむ(体の網目のその部分は抜いてある)
-  const eyes = kind === 'humpback' ? createEyes(mesh, material) : null;
+  const eyes = kind === 'humpback' ? createEyes(mesh, material, individual) : null;
 
   // 大きいクジラほどゆっくり尾をあおぐ(14mでおよそ5秒に1回)
   const strokesPerSecond = 0.2 * Math.sqrt(14 / lengthMeters);

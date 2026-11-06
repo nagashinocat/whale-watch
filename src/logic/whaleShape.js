@@ -14,6 +14,8 @@
 
 const TAU = Math.PI * 2;
 const clamp01 = x => Math.min(1, Math.max(0, x));
+import { dorsalRiseFor } from './traits.js';
+
 const smoothstep = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 const mix = (a, b, t) => a + (b - a) * t;
 const bump = (x, center, width) => Math.exp(-(((x - center) / width) ** 2));
@@ -91,18 +93,16 @@ function interpolate(points, u, k) {
 }
 
 // 背中の出っぱり(ザトウクジラの背びれ、マッコウクジラのこぶとでこぼこ)
-function dorsalRise(kind, u) {
-  if (kind === 'humpback') {
-    const fin = u < 0.665 ? smoothstep(0.6, 0.665, u) : 1 - smoothstep(0.665, 0.69, u);
-    return 0.02 * fin + 0.005 * bump(u, 0.645, 0.04);
-  }
+// dorsal: ザトウクジラの背びれの形(1頭ずつの個性。traits.js)
+function dorsalRise(kind, u, dorsal = 'normal') {
+  if (kind === 'humpback') return dorsalRiseFor(dorsal, u);
   let knuckles = 0;
   for (let k = 0; k < 6; k++) knuckles += 0.005 * bump(u, 0.72 + k * 0.028, 0.006);
   return 0.016 * bump(u, 0.66, 0.05) + knuckles;
 }
 
 // u の位置の輪切りの形
-export function bodySection(kind, u) {
+export function bodySection(kind, u, dorsal = 'normal') {
   const s = WHALE_SPECS[kind].sections;
   const squareness = kind === 'sperm' ? mix(3.6, 2.2, smoothstep(0.28, 0.38, u)) : 2.2;
   // ザトウクジラの頭は上が平ら
@@ -113,7 +113,7 @@ export function bodySection(kind, u) {
     centerY: interpolate(s, u, 3),
     squareness,
     squarenessTop,
-    dorsal: dorsalRise(kind, u),
+    dorsal: dorsalRise(kind, u, dorsal),
   };
 }
 
@@ -284,8 +284,8 @@ export function skinColor(kind, u, theta) {
 }
 
 // 体の表面の点
-export function bodyPoint(kind, u, theta) {
-  const s = bodySection(kind, u);
+export function bodyPoint(kind, u, theta, dorsal = 'normal') {
+  const s = bodySection(kind, u, dorsal);
   const sx = Math.sin(theta), cy = Math.cos(theta);
   const e = 2 / (cy > 0 ? s.squarenessTop : s.squareness);
   let x = s.halfWidth * Math.sign(sx) * Math.abs(sx) ** e;
@@ -448,6 +448,8 @@ export function finGeometry(kind, side, out = meshBuilder()) {
   const steps = 48, around = 14;
   // ひれは、のどがふくらむとつけ根といっしょに動く(体からはなれない)。あごといっしょには回らない
   const rootJaw = [0, 0, jawWeights(kind, f.root, side * f.theta)[2], 0];
+  // 頂点ごとのひれの上の場所(s: つけ根 0 〜 先 1、top: 上の面か)。1頭ずつの色に使う
+  const map = { start: first, s: [], top: [] };
   let tip = root;
   for (let i = 0; i <= steps; i++) {
     const s = i / steps;
@@ -475,6 +477,8 @@ export function finGeometry(kind, side, out = meshBuilder()) {
         color = SP_BODY;
       }
       out.add(p, color, rootJaw);
+      map.s.push(s);
+      map.top.push(kind === 'humpback' && Math.sin(phi) * Math.sign(dot(thickDir, [0, 1, 0])) > 0 ? 1 : 0);
     }
   }
   for (let i = 0; i < steps; i++) {
@@ -483,7 +487,7 @@ export function finGeometry(kind, side, out = meshBuilder()) {
       out.indices.push(a, a + around, b, b, a + around, b + around);
     }
   }
-  return { ...out, length: Math.hypot(...sub(tip, root)), leadingEdgeKnobs: f.knobs };
+  return { ...out, length: Math.hypot(...sub(tip, root)), leadingEdgeKnobs: f.knobs, map };
 }
 
 // 尾びれの前のふちとうしろのふちの位置(a は 0 がまん中、1 が先)
@@ -563,10 +567,12 @@ export function flukeGeometry(kind, out = meshBuilder()) {
 export function buildWhaleGeometry(kind) {
   const out = meshBuilder();
   bodyMesh(kind, out);
-  finGeometry(kind, 1, out);
-  finGeometry(kind, -1, out);
+  const fins = [finGeometry(kind, 1, out).map, finGeometry(kind, -1, out).map]
+    .map(m => ({ start: m.start, s: Float32Array.from(m.s), top: Uint8Array.from(m.top) }));
   const { map } = flukeGeometry(kind, out);
   return {
+    bodyCount: BODY_GRID.rings * BODY_GRID.around,
+    fins,
     fluke: { start: map.start, s: Float32Array.from(map.s), c: Float32Array.from(map.c), under: Uint8Array.from(map.under) },
     positions: Float32Array.from(out.positions), colors: Float32Array.from(out.colors),
     indices: Uint32Array.from(out.indices), jaw: Float32Array.from(out.jaw),

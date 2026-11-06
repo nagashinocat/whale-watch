@@ -10,7 +10,8 @@ const whiteFraction = ind => {
 };
 
 test('尾びれの裏の白さは5段階(1: ほぼ白 〜 5: ほぼ黒)。段階どおりの白さになる', () => {
-  for (const ind of population()) {
+  // (真っ白なクジラは尾びれの裏も真っ白なので、ここでは別あつかい)
+  for (const ind of population().filter(i => i.traits.coat !== 'white')) {
     const f = whiteFraction(ind);
     const target = FLUKE_ID.whiteness[ind.category];
     assert.ok(Math.abs(f - target) < 0.12, `${ind.name} cat ${ind.category}: ${f.toFixed(2)} vs ${target}`);
@@ -87,4 +88,24 @@ test('図鑑の保存と読みこみ。こわれた保存は空にもどす', as
   const bad = { getItem() { throw new Error('x'); }, setItem() { throw new Error('x'); } };
   assert.deepEqual(loadBook(bad), {});
   assert.doesNotThrow(() => saveBook(bad, {}));
+});
+
+test('自分で名前を付けられる。前後の空白はとり、長すぎる名前は12文字まで。空にすると、もとの名前にもどる', async () => {
+  const { setNickname, displayName, loadBook, saveBook, recordSighting } = await import('../src/logic/flukeId.js');
+  let book = recordSighting({}, 3, 1000).book;
+  book = setNickname(book, 3, '  ポチ  ');
+  assert.equal(displayName(3, book), 'ポチ');
+  book = setNickname(book, 3, 'あいうえおかきくけこさしすせそ');
+  assert.equal(displayName(3, book).length, 12);
+  // また来ても、付けた名前は消えない
+  book = recordSighting(book, 3, 2000).book;
+  assert.equal(displayName(3, book), 'あいうえおかきくけこさし');
+  // 保存して読みこんでも残る
+  const d = {}; const mem = { getItem: k => d[k] ?? null, setItem: (k, v) => { d[k] = v; } };
+  saveBook(mem, book);
+  assert.equal(displayName(3, loadBook(mem)), 'あいうえおかきくけこさし');
+  book = setNickname(book, 3, '   ');
+  assert.equal(displayName(3, book), population().find(i => i.id === 3).name);
+  // 見たことのないクジラには付けられない
+  assert.equal(setNickname({}, 4, 'タロウ')[4], undefined);
 });

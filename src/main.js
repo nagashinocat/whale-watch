@@ -14,7 +14,7 @@ import { loadSettings, saveSettings } from './logic/settings.js';
 import { hoursFor, blendHours } from './logic/time.js';
 import { realSky } from './logic/places.js';
 import { AUDIO } from './logic/config.js';
-import { loadBook, saveBook, nextVisitor, recordSighting, bookEntries, individual } from './logic/flukeId.js';
+import { loadBook, saveBook, nextVisitor, recordSighting, bookEntries, setNickname, displayName } from './logic/flukeId.js';
 
 // メニューに表示する素材のクレジット(assets/CREDITS.md と合わせる)
 const CREDITS = ['波と水しぶきの音: Rmutt, plantmonkey, Fission9 (Freesound / CC0)', 'クジラの声: NOAA Fisheries, NOAA PMEL Acoustics Program (pmel.noaa.gov/acoustics/multimedia.html)'];
@@ -64,9 +64,9 @@ const whalesReady = createWhales(ocean.scene, {
     book = r.book;
     saveBook(safeStorage(), book);
     menu.setZukan(bookEntries(book));
-    const name = individual(w.individual.id).name;
+    const name = displayName(w.individual.id, book);
     menu.showToast(r.first
-      ? `はじめて見るクジラです。尾びれの模様から「${name}」と名前を付けて、図鑑にのせました`
+      ? `はじめて見るクジラです。「${name}」と仮の名前で図鑑にのせました。図鑑で好きな名前を付けられます`
       : `「${name}」がまた来ました(${r.count}回目)`);
   },
 });
@@ -237,6 +237,12 @@ const menu = createMenu(document.getElementById('ui'), {
       menu.setSummonStatus('呼んでいます…');
       menu.setSummonEnabled(false);
     }
+  },
+  // 図鑑のクジラに名前を付ける
+  onRename(id, name) {
+    book = setNickname(book, id, name);
+    saveBook(safeStorage(), book);
+    menu.setZukan(bookEntries(book));
   },
   onFullscreen() {
     if (document.fullscreenElement) document.exitFullscreen?.();

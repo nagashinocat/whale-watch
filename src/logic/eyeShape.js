@@ -120,7 +120,8 @@ export function eyePatch(side, nu = 150, nt = 130) {
   const lid = new Float32Array(count * 2);     // 目の中心からの x, y(m)
   const weight = new Float32Array(count);      // ふちで 0、内側で 1
   const colors = new Float32Array(count * 3);
-  const jaw = new Float32Array(count * 4);     // あごの重み(体と同じ式。口を開けてもつなぎ目がずれない)
+  const jaw = new Float32Array(count * 4);
+  const uv = new Float32Array(count * 2);      // 頂点ごとの体の上の場所 (u, θ)(1頭ずつの色に使う)     // あごの重み(体と同じ式。口を開けてもつなぎ目がずれない)
   for (let i = 0; i < nu; i++) {
     const a = 0.5 + 0.5 * dense((2 * i) / (nu - 1) - 1);
     const fi = cells.i0 + a * (cells.i1 - cells.i0);
@@ -140,6 +141,7 @@ export function eyePatch(side, nu = 150, nt = 130) {
       lid[k * 2 + 1] = dot(rel, f.up) * REF;
       weight[k] = w;
       jaw.set(jawWeights('humpback', u, theta), k * 4);
+      uv[k * 2] = u; uv[k * 2 + 1] = theta;
       // 肌の色。目の開きの奥(まぶたの裏側)は暗い影
       let c = skinColor('humpback', u, theta);
       const q = edgeDistance(lid[k * 2], lid[k * 2 + 1], EYE.relaxedOpen);
@@ -158,7 +160,7 @@ export function eyePatch(side, nu = 150, nt = 130) {
     Math.hypot(...sub(P(ringU(cells.i1), f.theta), P(ringU(cells.i0), f.theta))) * REF,
     (aroundTheta(j1) - aroundTheta(j0)) * 1.8,
   ];
-  return { base, lid, weight, colors, jaw, indices: Uint32Array.from(indices), normal: f.normal, nu, nt, sizeMeters: size };
+  return { base, lid, weight, colors, jaw, uv, indices: Uint32Array.from(indices), normal: f.normal, nu, nt, sizeMeters: size };
 }
 
 // まぶたの開きに合わせて、網目の頂点の位置を out に書く

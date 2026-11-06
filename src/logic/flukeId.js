@@ -8,6 +8,8 @@
 //
 // 尾びれの上の場所: s は左のはし -1 〜 右のはし 1、c は前のふち 0 〜 うしろのふち 1
 
+import { rollTraits, traitWord, traitFlukeWhite, TRAITS, traitsText } from './traits.js';
+
 const clamp01 = x => Math.min(1, Math.max(0, x));
 const smoothstep = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 
@@ -17,7 +19,8 @@ export const FLUKE_ID = Object.freeze({
   whiteness: Object.freeze({ 1: 0.9, 2: 0.7, 3: 0.5, 4: 0.28, 5: 0.07 }),
   // 段階の出やすさ(北太平洋は黒っぽいほうが多い)
   categoryWeights: Object.freeze([0.1, 0.15, 0.25, 0.25, 0.25]),
-  returnChance: 0.45,   // 図鑑にのっているクジラが、もう一度来る割合
+  returnChance: 0.45,
+  whiteId: 17,          // 真っ白なクジラの番号   // 図鑑にのっているクジラが、もう一度来る割合
   calvesNamed: false,
 });
 
@@ -63,7 +66,8 @@ export function flukeWhiteness(ind, s, c) {
   }
   // フジツボのあとの白い点(黒いところに目立つ)
   for (const d of ind.spots) if (Math.hypot(s - d[0], (c - d[1]) * 0.5) < 0.022) w = Math.max(w, 0.95);
-  return w;
+  // 真っ白な子、尾びれの先にフジツボがたくさんの子
+  return ind.traits ? traitFlukeWhite(ind, s, c, w) : w;
 }
 
 const COLOR_WORDS = { 1: 'シロ', 2: 'ハナ', 3: 'マダラ', 4: 'クロ', 5: 'スミ' };
@@ -95,9 +99,17 @@ function makeIndividual(id) {
   for (let s = -0.95; s <= 0.95; s += 0.05) for (let c = 0.02; c <= 0.98; c += 0.04) values.push(field(ind, s, c));
   values.sort((a, b) => a - b);
   ind.threshold = values[Math.min(values.length - 1, Math.floor((1 - FLUKE_ID.whiteness[category]) * values.length))];
-  const mark = scars[0]?.type === 'rake' ? 'ツメ' : scars[0]?.type === 'line' ? 'イナズマ' : spots.length >= 3 ? 'ホシ' : '';
-  ind.baseName = mark + COLOR_WORDS[category];
+  // ひと目でわかる個性(尾びれの模様を決めたあとに決めるので、模様はこれまでと変わらない)
+  ind.traits = rollTraits(rng);
+  ind.mark = scars[0]?.type === 'rake' ? 'ツメ' : scars[0]?.type === 'line' ? 'イナズマ' : spots.length >= 3 ? 'ホシ' : '';
   return ind;
+}
+
+// 名前: いちばん目立つ個性(なければ尾びれの傷の形)と、尾びれの白さから付ける。真っ白な子は「ユキ」
+function autoName(ind) {
+  const word = traitWord(ind);
+  if (ind.traits.coat === 'white') return word;
+  return (word || ind.mark) + COLOR_WORDS[ind.category];
 }
 
 let cache = null;
@@ -105,8 +117,22 @@ let cache = null;
 export function population() {
   if (cache) return cache;
   const list = Array.from({ length: FLUKE_ID.size }, (_, k) => makeIndividual(k + 1));
+  // 真っ白な子は1頭だけ。ほかの個性も、この海に1頭以上はいるようにする(個性の少ない子に足す)
+  for (const ind of list) if (ind.traits.coat === 'white') ind.traits.coat = 'normal';
+  const plain = () => [...list].sort((a, b) => traitsText(a).length - traitsText(b).length || a.id - b.id);
+  const white = list[FLUKE_ID.whiteId - 1];
+  white.traits = { ...white.traits, coat: 'white', pec: 'normal', scars: 'normal', barnacles: 'normal' };
+  white.category = 1;   // 尾びれの裏も真っ白
+  for (const [key, values] of Object.entries(TRAITS)) {
+    for (const v of values) {
+      if (v === 'normal' || v === 'white' || list.some(i => i.traits[key] === v)) continue;
+      const target = plain().find(i => i !== white && i.traits[key] === 'normal');
+      if (target) target.traits[key] = v;
+    }
+  }
   const used = {};
   for (const ind of list) {
+    ind.baseName = autoName(ind);
     used[ind.baseName] = (used[ind.baseName] ?? 0) + 1;
     ind.name = used[ind.baseName] === 1 ? ind.baseName : `${ind.baseName}${used[ind.baseName]}`;
   }
@@ -148,7 +174,11 @@ export function loadBook(storage) {
     const book = {};
     for (const [k, v] of Object.entries(raw)) {
       const id = Number(k);
-      if (ids.has(id) && v && Number.isFinite(v.count) && v.count > 0) book[id] = { count: v.count, first: Number(v.first) || 0, last: Number(v.last) || 0 };
+      if (ids.has(id) && v && Number.isFinite(v.count) && v.count > 0) {
+        book[id] = { count: v.count, first: Number(v.first) || 0, last: Number(v.last) || 0 };
+        const nick = cleanName(v.nickname);
+        if (nick) book[id].nickname = nick;
+      }
     }
     return book;
   } catch {
@@ -162,10 +192,33 @@ export function saveBook(storage, book) {
   } catch { /* 保存できなくても動きつづける */ }
 }
 
+// ---- 自分で付ける名前 ----
+export const NAME_MAX = 12;
+
+// 名前をきれいにする(前後の空白と、見えない文字をとる。長すぎる名前は切る)
+function cleanName(name) {
+  if (typeof name !== 'string') return '';
+  return Array.from(name.replace(/[\u0000-\u001f\u007f]/g, '').trim()).slice(0, NAME_MAX).join('');
+}
+
+// 図鑑のクジラに名前を付ける(空にすると、模様から付けた名前にもどる)。見たことのないクジラには付けない
+export function setNickname(book, id, name) {
+  if (!book?.[id]) return book;
+  const entry = { ...book[id] };
+  const nick = cleanName(name);
+  if (nick) entry.nickname = nick; else delete entry.nickname;
+  return { ...book, [id]: entry };
+}
+
+// 表示する名前(自分で付けた名前があれば、それ)
+export function displayName(id, book) {
+  return book?.[id]?.nickname || individual(id)?.name || '';
+}
+
 // 図鑑にのせる順番(最後に見た順)
 export function bookEntries(book) {
   return Object.entries(book)
-    .map(([id, e]) => ({ ...individual(Number(id)), ...e }))
+    .map(([id, e]) => ({ ...individual(Number(id)), ...e, autoName: individual(Number(id))?.name, displayName: displayName(Number(id), book) }))
     .filter(e => e.name)
     .sort((a, b) => b.last - a.last);
 }

@@ -6,6 +6,7 @@ import { FEEDING, feedingPose, BUBBLE_NET, bubbleNetGroup } from '../logic/feedi
 import { BREATH, diveSurfacing, calfBreaths } from '../logic/breathing.js';
 import { SLEEP, sleepingGroup, headBob } from '../logic/sleep.js';
 import { individual as individualById } from '../logic/flukeId.js';
+import { sizeOf } from '../logic/traits.js';
 import { BREACH, breachPose, groupBreachPlan, calfBreachPlan, POD, podPlan, groupSpyhopPlan } from '../logic/breach.js';
 import { divingYaw } from '../logic/behavior.js';
 import { followFactor } from '../logic/quality.js';
@@ -21,7 +22,9 @@ const lerp = (a, b, t) => a + (b - a) * t;
 // swim: 0 で体をしならせない(寝ているクジラ)、1 でふつうに泳ぐ
 // individual: 尾びれの裏の模様で見分けられる1頭(おとなのザトウクジラだけ)
 function makeWhale(kind, scale = 1, swim = 1, individual = null) {
-  const whale = createWhaleMesh(kind, WHALE_SPECS[kind].lengthMeters * scale, { individual });
+  // 大きい子・小さめの子(個性)
+  const size = individual ? sizeOf(individual) : 1;
+  const whale = createWhaleMesh(kind, WHALE_SPECS[kind].lengthMeters * scale * size, { individual });
   whale.setSwim(swim);
   const group = new THREE.Group();
   group.rotation.order = 'YXZ';

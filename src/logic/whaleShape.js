@@ -30,16 +30,16 @@ export const WHALE_SPECS = Object.freeze({
     lengthMeters: 14,
     // [u, 横の半分の幅, 縦の半分の高さ, 中心の高さ] — 体長に対する比率
     sections: [
-      [0.0, 0.006, 0.004, -0.004],
-      [0.03, 0.034, 0.022, -0.008],   // 口先は細く平たい
-      [0.10, 0.062, 0.046, -0.014],
-      [0.20, 0.086, 0.074, -0.022],   // のどがふくらんでいる
-      [0.32, 0.100, 0.094, -0.014],   // いちばん太い
-      [0.42, 0.098, 0.098, -0.002],
-      [0.55, 0.083, 0.088, 0.004],
-      [0.68, 0.058, 0.068, 0.006],
-      [0.80, 0.032, 0.048, 0.004],
-      [0.90, 0.016, 0.034, 0.0],      // 尾の付け根は横からつぶれている
+      [0.0, 0.010, 0.006, -0.006],
+      [0.03, 0.040, 0.026, -0.010],   // 口先は細く平たい
+      [0.10, 0.068, 0.052, -0.018],
+      [0.20, 0.098, 0.084, -0.026],   // ほお骨のあたりで横に広がり、のどがふくらむ
+      [0.32, 0.116, 0.108, -0.016],   // いちばん太い(ほかのナガスクジラの仲間よりずっとがっしり)
+      [0.42, 0.114, 0.112, -0.004],
+      [0.55, 0.096, 0.100, 0.004],
+      [0.68, 0.066, 0.076, 0.006],
+      [0.80, 0.034, 0.052, 0.004],
+      [0.90, 0.016, 0.036, 0.0],      // 尾の付け根は横からつぶれている
       [0.96, 0.011, 0.020, 0.0],
       [1.0, 0.004, 0.006, 0.0],
     ],
@@ -47,7 +47,7 @@ export const WHALE_SPECS = Object.freeze({
     grooves: { count: 18, from: 0.02, to: 0.52, span: 0.38 },
     fin: { root: 0.3, theta: 1.95, length: 0.31, chord: 0.075, thickness: 0.014, knobs: 10,
            axis: [0.75, -0.45, 0.48], sweep: 0.04 },
-    fluke: { span: 0.33, serration: 0.0035, notchDepth: 0.022, notchWidth: 0.05 },
+    fluke: { span: 0.33, serration: 0.004, notchDepth: 0.03, notchWidth: 0.05 },
   },
   sperm: {
     lengthMeters: 15,
@@ -105,14 +105,20 @@ function dorsalRise(kind, u) {
 export function bodySection(kind, u) {
   const s = WHALE_SPECS[kind].sections;
   const squareness = kind === 'sperm' ? mix(3.6, 2.2, smoothstep(0.28, 0.38, u)) : 2.2;
+  // ザトウクジラの頭は上が平ら
+  const squarenessTop = kind === 'humpback' ? mix(3.4, 2.2, smoothstep(0.22, 0.36, u)) : squareness;
   return {
     halfWidth: Math.max(0.002, interpolate(s, u, 1)),
     halfHeight: Math.max(0.002, interpolate(s, u, 2)),
     centerY: interpolate(s, u, 3),
     squareness,
+    squarenessTop,
     dorsal: dorsalRise(kind, u),
   };
 }
+
+// 角度の差(-π〜π)
+const angleDiff = (a, b) => ((((a - b + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
 
 // のどの畝(0〜1。1 が溝のまん中)
 export function ventralGroove(kind, u, theta) {
@@ -126,29 +132,98 @@ export function ventralGroove(kind, u, theta) {
 }
 
 // ザトウクジラの頭のこぶの位置(u と θ)。まん中の列と、その両わきの列、あごの先
+// size は大きさの倍率。こぶは頭の上だけでなく下あごにもあり、あごの先にはひとつ丸く大きなこぶがある
 export function headKnobs(kind) {
   if (kind !== 'humpback') return [];
   const knobs = [];
   for (let i = 0; i < 10; i++) {
     const u = 0.03 + i * 0.018;
-    knobs.push({ u, theta: 0 });
-    knobs.push({ u: u + 0.008, theta: 0.38 });
-    knobs.push({ u: u + 0.008, theta: -0.38 });
+    knobs.push({ u, theta: 0, size: 1 });
+    knobs.push({ u: u + 0.008, theta: 0.38, size: 1 });
+    knobs.push({ u: u + 0.008, theta: -0.38, size: 1 });
   }
-  for (let i = 0; i < 4; i++) knobs.push({ u: 0.012 + i * 0.014, theta: Math.PI });
+  for (let i = 0; i < 9; i++) {
+    const u = 0.02 + i * 0.018;
+    knobs.push({ u, theta: 2.3, size: 0.9 });
+    knobs.push({ u, theta: -2.3, size: 0.9 });
+  }
+  knobs.push({ u: 0.015, theta: Math.PI, size: 2.5 });
+  for (let i = 1; i < 4; i++) knobs.push({ u: 0.012 + i * 0.014, theta: Math.PI, size: 1 });
   return knobs;
 }
-const KNOBS = { humpback: headKnobs('humpback'), sperm: [] };
 
-// 角度の差(-π〜π)
-const angleDiff = (a, b) => ((a - b + Math.PI * 3) % TAU) - Math.PI;
+// 口の線・目・鼻の穴の位置。θ は右側の値(左右対称に使う)。鼻の穴は左寄りなので θ が負
+export function faceFeatures(kind) {
+  if (kind === 'humpback') {
+    // 口の線は口先から少し持ち上がり、口の端で下がる。目は口の端のすぐ上・うしろ
+    const mouth = [];
+    for (let i = 0; i <= 12; i++) {
+      const u = 0.01 + (i / 12) * 0.25;
+      mouth.push({ u, theta: 1.9 - 0.2 * Math.sin((Math.PI * u) / 0.3) });
+    }
+    return { mouth, eye: { u: 0.285, theta: 1.6 }, blowhole: null };
+  }
+  // マッコウクジラ: 口の線は頭の下を後ろへまっすぐ。目は口の端のすぐ上。鼻の穴はS字で、頭の前の左寄り
+  const mouth = [];
+  for (let i = 0; i <= 12; i++) mouth.push({ u: 0.06 + (i / 12) * 0.24, theta: 2.62 - 0.12 * (i / 12) });
+  return { mouth, eye: { u: 0.32, theta: 2.0 }, blowhole: { u: 0.012, theta: -0.45 } };
+}
+const KNOBS = { humpback: headKnobs('humpback'), sperm: [] };
+const FACES = { humpback: faceFeatures('humpback'), sperm: faceFeatures('sperm') };
+
+// 口の線からの近さ(1 が線の上)
+function mouthLine(kind, u, side) {
+  const m = FACES[kind].mouth;
+  if (u < m[0].u || u > m[m.length - 1].u + 0.006) return 0;
+  let i = 0;
+  while (i < m.length - 2 && m[i + 1].u < u) i++;
+  const t = clamp01((u - m[i].u) / (m[i + 1].u - m[i].u));
+  const theta = mix(m[i].theta, m[i + 1].theta, t);
+  const end = 1 - smoothstep(m[m.length - 1].u, m[m.length - 1].u + 0.006, u);
+  return bump(side, theta, 0.022) * end;
+}
+
+// 目(1 がまん中)
+function eyeSpot(kind, u, side) {
+  const e = FACES[kind].eye;
+  return bump(u, e.u, 0.006) * bump(side, e.theta, 0.05);
+}
+
+// マッコウクジラのS字の鼻の穴
+function blowholeSlit(kind, u, theta) {
+  const b = FACES[kind].blowhole;
+  if (!b) return 0;
+  let best = 0;
+  for (let v = -1; v <= 1; v += 0.1) {
+    const cu = b.u + 0.006 * v, ct = b.theta + 0.08 * Math.sin(Math.PI * v);
+    best = Math.max(best, bump(u, cu, 0.0025) * bump(angleDiff(theta, ct), 0, 0.02));
+  }
+  return best;
+}
+
+// フジツボの白い点(ザトウクジラのあごの先、頭のこぶ)
+function barnacles(kind, u, theta) {
+  if (kind !== 'humpback') return 0;
+  const p = Math.sin(180 * u + 11 * theta) * Math.sin(140 * u - 13 * theta + 1);
+  const spot = smoothstep(0.78, 0.86, 0.5 + 0.5 * p);
+  const chin = (1 - smoothstep(0.05, 0.08, u)) * smoothstep(0.2, 0.6, -Math.cos(theta));
+  let knob = 0;
+  for (const k of KNOBS[kind]) knob = Math.max(knob, bump(u, k.u, 0.008) * bump(angleDiff(theta, k.theta), 0, 0.06));
+  return spot * Math.max(chin, 0.6 * knob);
+}
+
 
 // 体の表面を外側に押し出す量(こぶ、畝、しわ、下あご)
 function surfaceOffset(kind, u, theta) {
   let d = -0.0015 * ventralGroove(kind, u, theta);
   for (const k of KNOBS[kind]) {
-    d += 0.004 * bump(u, k.u, 0.01) * bump(angleDiff(theta, k.theta), 0, 0.08);
+    const w = Math.sqrt(k.size);
+    d += 0.004 * k.size * bump(u, k.u, 0.01 * w) * bump(angleDiff(theta, k.theta), 0, 0.08 * w);
   }
+  const side = Math.abs(angleDiff(theta, 0));
+  d -= 0.0015 * mouthLine(kind, u, side);
+  d += 0.0015 * eyeSpot(kind, u, side);
+  d -= 0.002 * blowholeSlit(kind, u, theta);
   if (kind === 'sperm') {
     // しわしわの肌(頭より後ろ)
     const wrinkleZone = smoothstep(0.33, 0.4, u) * (1 - smoothstep(0.85, 0.93, u));
@@ -169,7 +244,18 @@ function mottle(u, theta, seed = 0) {
 }
 
 const HB_BACK = hex(0x16181b), HB_WHITE = hex(0xe6e8ea), HB_GROOVE = hex(0x8a9096);
-const SP_BODY = hex(0x423e3a), SP_LIGHT = hex(0x8a857e), SP_WHITE = hex(0xdcdad6);
+const SP_BODY = hex(0x423e3a), SP_LIGHT = hex(0x8a857e), SP_WHITE = hex(0xdcdad6), SP_CALLUS = hex(0xb0aba1);
+const EYE = hex(0x050506), LINE = hex(0x0b0c0d), BARNACLE = hex(0xd9d4c8);
+
+// 顔のつくり(口の線・目・鼻の穴)とフジツボを、体の色の上に重ねる
+function faceColor(kind, u, theta, c) {
+  const side = Math.abs(angleDiff(theta, 0));
+  c = mixColor(c, BARNACLE, barnacles(kind, u, theta));
+  c = mixColor(c, LINE, 0.85 * mouthLine(kind, u, side));
+  c = mixColor(c, EYE, 0.95 * smoothstep(0.35, 0.8, eyeSpot(kind, u, side)));
+  c = mixColor(c, EYE, 0.9 * smoothstep(0.3, 0.7, blowholeSlit(kind, u, theta)));
+  return c;
+}
 
 // 体の色(sRGB の 0〜1)
 export function skinColor(kind, u, theta) {
@@ -179,7 +265,7 @@ export function skinColor(kind, u, theta) {
     const white = smoothstep(0.2, 0.55, down + 0.25 * (mottle(u, theta) - 0.5)) * zone;
     let c = mixColor(HB_BACK, HB_WHITE, white);
     c = mixColor(c, HB_GROOVE, 0.3 * ventralGroove(kind, u, theta) * white);
-    return c;
+    return faceColor(kind, u, theta, c);
   }
   let c = mixColor(SP_BODY, SP_LIGHT, 0.15 * mottle(u, theta, 4));
   // 頭のひっかき傷(白い筋)
@@ -191,14 +277,16 @@ export function skinColor(kind, u, theta) {
   c = mixColor(c, SP_WHITE, bump(angleDiff(theta, Math.PI), 0, 0.3) * mouth);
   // おなかの白っぽいところ
   c = mixColor(c, SP_LIGHT, 0.4 * bump(u, 0.52, 0.06) * smoothstep(0.6, 0.95, down));
-  return c;
+  // 多くの大人のメスは、背中のこぶに白っぽいたこがある
+  c = mixColor(c, SP_CALLUS, 0.75 * bump(u, 0.66, 0.025) * bump(angleDiff(theta, 0), 0, 0.3));
+  return faceColor(kind, u, theta, c);
 }
 
 // 体の表面の点
 export function bodyPoint(kind, u, theta) {
   const s = bodySection(kind, u);
-  const e = 2 / s.squareness;
   const sx = Math.sin(theta), cy = Math.cos(theta);
+  const e = 2 / (cy > 0 ? s.squarenessTop : s.squareness);
   let x = s.halfWidth * Math.sign(sx) * Math.abs(sx) ** e;
   let yScale = s.halfHeight;
   if (cy > 0) yScale += s.dorsal * cy ** 24;
@@ -302,17 +390,32 @@ export function finGeometry(kind, side, out = meshBuilder()) {
   return { ...out, length: Math.hypot(...sub(tip, root)), leadingEdgeKnobs: f.knobs };
 }
 
+// 尾びれの前のふちとうしろのふちの位置(a は 0 がまん中、1 が先)
+export function flukeOutline(kind, a) {
+  const f = WHALE_SPECS[kind].fluke;
+  const notch = f.notchDepth * bump(a, 0, f.notchWidth);
+  if (kind === 'humpback') {
+    // うしろのふちには丸いこぶが並び、波のような形になる。先はとがる
+    const knobs = f.serration * Math.abs(Math.sin(a * 38)) ** 0.6 * smoothstep(0.1, 0.3, a) * (1 - a);
+    return { leading: 0.415 + 0.055 * a ** 1.4, trailing: 0.498 - 0.028 * a * a - notch + knobs };
+  }
+  // マッコウクジラ: 三角形で、うしろのふちはほぼまっすぐ。先は丸い
+  const lead = 0.42 + 0.06 * a, trail = 0.498 - 0.018 * a;
+  const mid = (lead + trail) / 2;
+  let half = (trail - lead) / 2;
+  if (a > 0.75) {
+    const at = (0.498 - 0.018 * 0.75 - (0.42 + 0.06 * 0.75)) / 2;
+    half = at * Math.sqrt(Math.max(0, 1 - ((a - 0.75) / 0.25) ** 2));
+  }
+  return { leading: mid - half, trailing: mid + half - notch };
+}
+
 // 尾びれ
 export function flukeGeometry(kind, out = meshBuilder()) {
   const f = WHALE_SPECS[kind].fluke;
   const first = out.positions.length / 3;
-  const leading = a => (kind === 'humpback' ? 0.415 + 0.055 * a ** 1.4 : 0.42 + 0.06 * a);
-  const trailing = a => {
-    const base = kind === 'humpback' ? 0.498 - 0.028 * a * a : 0.498 - 0.018 * a;
-    const notch = f.notchDepth * bump(a, 0, f.notchWidth);
-    const serration = f.serration * Math.sin(a * 55) * smoothstep(0.1, 0.3, a) * (1 - a);
-    return base - notch + serration;
-  };
+  const leading = a => flukeOutline(kind, a).leading;
+  const trailing = a => flukeOutline(kind, a).trailing;
   const steps = 64, around = 12;
   const edges = [];
   for (let i = 0; i <= steps; i++) {

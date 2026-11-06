@@ -142,3 +142,86 @@ test('泳ぐときは、頭はほとんど動かず、尾ほど大きく上下�
   assert.ok(tail > 0.02 && tail < 0.06, `tail ${tail}`);
   assert.equal(swimBend(1, 1.2, 0), 0);
 });
+
+// ---- 本物の資料とくらべて足した特徴 ----
+import { faceFeatures, flukeOutline, WHALE_SPECS as SPECS2 } from '../src/logic/whaleShape.js';
+
+test('ザトウクジラはがっしりした胴体(ほかのナガスクジラの仲間より太い)', () => {
+  let best = 0;
+  for (let u = 0; u <= 1; u += 0.01) {
+    const s = bodySection('humpback', u);
+    best = Math.max(best, s.halfWidth + s.halfHeight);
+  }
+  assert.ok(best > 0.22, `girth ${best}`);
+});
+
+test('ザトウクジラの頭は上が平ら(上半分のほうが角ばっている)', () => {
+  const s = bodySection('humpback', 0.15);
+  assert.ok(s.squarenessTop > s.squareness + 0.6, `${s.squarenessTop} vs ${s.squareness}`);
+  assert.ok(bodySection('humpback', 0.6).squarenessTop < s.squarenessTop, 'body is rounder');
+});
+
+test('ザトウクジラのこぶは下あごにもあり、あごの先にひとつ大きなこぶがある', () => {
+  const knobs = headKnobs('humpback');
+  const jawSides = knobs.filter(k => Math.abs(Math.abs(k.theta) - 2.3) < 0.35);
+  assert.ok(jawSides.length >= 8, `jaw ${jawSides.length}`);
+  const chin = knobs.filter(k => k.u < 0.03 && Math.abs(Math.abs(k.theta) - Math.PI) < 0.1);
+  assert.ok(chin.some(k => k.size >= 2), 'big chin knob');
+});
+
+test('口の線と目: 目は口の端のすぐ上・すぐうしろにある', () => {
+  for (const kind of ['humpback', 'sperm']) {
+    const f = faceFeatures(kind);
+    const corner = f.mouth[f.mouth.length - 1];
+    assert.ok(f.eye.u > corner.u && f.eye.u < corner.u + 0.05, `${kind} eye u ${f.eye.u} corner ${corner.u}`);
+    assert.ok(Math.abs(f.eye.theta) < Math.abs(corner.theta), `${kind} eye is above the mouth corner`);
+    // 目と口の線は、まわりより暗い
+    const eye = lum(skinColor(kind, f.eye.u, f.eye.theta));
+    const near = lum(skinColor(kind, f.eye.u, f.eye.theta - 0.3));
+    assert.ok(eye < near * 0.8 + 0.01, `${kind} eye ${eye} near ${near}`);
+    const m = f.mouth[Math.floor(f.mouth.length / 2)];
+    assert.ok(lum(skinColor(kind, m.u, m.theta)) < lum(skinColor(kind, m.u, m.theta + 0.25)), `${kind} mouth line`);
+  }
+});
+
+test('マッコウクジラの鼻の穴はひとつで、頭の前の左寄りにある', () => {
+  const b = faceFeatures('sperm').blowhole;
+  assert.ok(b.u < 0.05, `u ${b.u}`);
+  assert.ok(b.theta < 0 && b.theta > -1.0, `theta ${b.theta}`);   // 左(-x)寄りの上
+  assert.ok(lum(skinColor('sperm', b.u, b.theta)) < lum(skinColor('sperm', b.u, b.theta + 0.4)));
+  assert.equal(faceFeatures('humpback').blowhole, null);
+});
+
+test('尾びれ: ザトウクジラはうしろのふちに丸いこぶが並び、切れこみが深い', () => {
+  // 先から先までのあいだで、うしろのふちのでっぱりを数える
+  let peaks = 0;
+  for (let a = 0.25; a < 0.9; a += 0.002) {
+    const p = flukeOutline('humpback', a - 0.002).trailing, c = flukeOutline('humpback', a).trailing, n = flukeOutline('humpback', a + 0.002).trailing;
+    if (c > p && c > n) peaks++;
+  }
+  assert.ok(peaks >= 6, `knobs ${peaks}`);
+  assert.ok(SPECS2.humpback.fluke.notchDepth >= 0.025);
+});
+
+test('尾びれ: マッコウクジラの先は丸い', () => {
+  const chord = (k, a) => flukeOutline(k, a).trailing - flukeOutline(k, a).leading;
+  assert.ok(chord('sperm', 0.95) > 0.45 * chord('sperm', 0.8), 'sperm tips rounded');
+});
+
+test('ザトウクジラのあごの先や胸びれのまわりには、フジツボの白い点がある', () => {
+  let spots = 0, n = 0;
+  for (let i = 0; i < 400; i++) {
+    const u = 0.005 + (i % 20) * 0.002, theta = Math.PI - 0.6 + (Math.floor(i / 20) / 20) * 1.2;
+    const c = skinColor('humpback', u, theta);
+    n++; if (lum(c) > 0.55 && c[2] < c[0] + 0.05) spots++;
+  }
+  assert.ok(spots / n > 0.05, `chin ${spots / n}`);
+  // 背中にはほとんどない
+  let back = 0;
+  for (let i = 0; i < 200; i++) if (lum(skinColor('humpback', 0.4 + i * 0.001, (i % 10 - 5) * 0.05)) > 0.4) back++;
+  assert.ok(back / 200 < 0.02, `back ${back / 200}`);
+});
+
+test('マッコウクジラ(大人のメス)の背中のこぶには白っぽいたこがある', () => {
+  assert.ok(lum(skinColor('sperm', 0.66, 0)) > lum(skinColor('sperm', 0.55, 0)) + 0.08);
+});

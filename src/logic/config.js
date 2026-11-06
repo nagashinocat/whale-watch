@@ -32,6 +32,11 @@ export const SCHEDULE = Object.freeze({
     motherCalf: 10,
     sleeping: 10,
     breach: 20,
+    // 子育ての海でよく見られる群れ(母親・子ども・付きそい)と、子どものジャンプの練習
+    pod: 10,
+    calfBreach: 6,
+    // 群れでならんで跳ぶのは、まれ
+    groupBreach: 3,
     // 近くで見ると迫力のある出方(ときどき)
     spyhop: 5,
     pecSlap: 5,

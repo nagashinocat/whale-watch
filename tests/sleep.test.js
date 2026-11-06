@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SLEEP, sleepingGroup } from '../src/logic/sleep.js';
+import { SLEEP, sleepingGroup, headBob } from '../src/logic/sleep.js';
 import { PATTERNS } from '../src/logic/patterns.js';
 
 const seeded = s => () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
@@ -18,6 +18,17 @@ test('マッコウクジラは5〜6頭の群れで、縦になって眠る', () 
     // 群れは画面に入る広さ
     for (const w of g) assert.ok(Math.hypot(...w.offset) <= 10);
   }
+});
+
+test('見やすさ: はじめは水面に横になって潮を吹き、眠っているあいだも、ときどき頭が水面に出る', () => {
+  const g = sleepingGroup(seeded(5));
+  for (const w of g) {
+    assert.ok(w.logBlows.length >= 1 && w.logBlows.every(b => b < SLEEP.logEnd));
+    let hi = -Infinity;
+    for (let t = SLEEP.sleepAt; t < w.wake; t += 0.2) hi = Math.max(hi, w.top + headBob(w, t));
+    assert.ok(hi >= w.top + 0.3 && hi <= 1.4, `head ${hi}`);
+  }
+  assert.ok(SLEEP.slicks.every(t => t > SLEEP.sleepAt && t < g[0].wake));
 });
 
 test('眠っているあいだは音を出さない。目をさますと、ひとりずつ横になって息をし、カチカチ鳴きはじめる', () => {

@@ -6,8 +6,14 @@ export const PATTERNS = Object.freeze({
   fluke: { durationMs: 88000, needs: 'humpback', sound: null },
   motherCalf: { durationMs: 60000, needs: 'humpback', sound: null },
   // 眠っているあいだは音を出さない(目をさますとカチカチ鳴く。音は動きの中で鳴らす)
-  sleeping: { durationMs: 100000, needs: 'sperm', sound: null },
+  sleeping: { durationMs: 110000, needs: 'sperm', sound: null },
   breach: { durationMs: 25000, needs: 'humpback', sound: null },
+  // 群れでジャンプ: 2〜3頭がならんで、少しずつずれて跳ぶ
+  groupBreach: { durationMs: 28000, needs: 'humpback', sound: null },
+  // 親子でジャンプ: 子どもが何度も練習して跳び、最後は母親といっしょに跳ぶ
+  calfBreach: { durationMs: 52000, needs: 'humpback', sound: null },
+  // 群れで泳ぐ: 母親・子ども・付きそいのオスなどが、ばらばらに息をしながらゆっくり進む
+  pod: { durationMs: 68000, needs: 'humpback', sound: null },
   // 呼んだクジラは近くに着いてから(songAtMs)歌い始める
   // スパイホップ: 体を縦にしてゆっくり上がり、頭だけを出してまわりを見回す
   spyhop: { durationMs: 32000, needs: 'humpback', sound: null },
@@ -48,6 +54,9 @@ export const PATTERN_LABELS = Object.freeze({
   motherCalf: '親子で泳ぐ',
   sleeping: '寝ているクジラ',
   breach: 'ジャンプ',
+  groupBreach: '群れでジャンプ',
+  calfBreach: '親子でジャンプ',
+  pod: '群れで泳ぐ',
   spyhop: 'スパイホップ(顔を出す)',
   pecSlap: '胸びれで水面をたたく',
   lobtail: '尾びれで水面をたたく',

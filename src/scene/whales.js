@@ -4,8 +4,9 @@ import { createWhaleMesh, prepareWhaleGeometry } from './whaleModel.js';
 import { WHALE_SPECS, surfacedCenterY, bodySection, finTip, jawPoint, faceFeatures } from '../logic/whaleShape.js';
 import { FEEDING, feedingPose, BUBBLE_NET, bubbleNetGroup } from '../logic/feeding.js';
 import { BREATH, diveSurfacing, calfBreaths } from '../logic/breathing.js';
-import { SLEEP, sleepingGroup } from '../logic/sleep.js';
+import { SLEEP, sleepingGroup, headBob } from '../logic/sleep.js';
 import { individual as individualById } from '../logic/flukeId.js';
+import { BREACH, breachPose, groupBreachPlan, calfBreachPlan, POD, podPlan } from '../logic/breach.js';
 import { divingYaw } from '../logic/behavior.js';
 import { followFactor } from '../logic/quality.js';
 import { SPOT, CAMERA_PRESETS } from './cameras.js';
@@ -110,7 +111,38 @@ function crossingYaw() {
 // 横切る出方の泳ぐ速さ(m/秒)。出発点の計算に使う
 // クジラは決まった場所に出て、画面から出ないように、その場でゆっくり泳ぐ(片側10mくらいまで)
 // 尾びれの出方は何回か潮を吹くので長い。ゆっくり進んで、画面の外へ出ないようにする
-const SWIM_SPEED = { spout: 0.5, fluke: 0.3, motherCalf: 0.33, breach: 0.38 };
+const SWIM_SPEED = { spout: 0.5, fluke: 0.3, motherCalf: 0.33, breach: 0.38, groupBreach: 0.38, pod: POD.speed };
+
+// 1頭のジャンプ(launch 秒に飛び出す)。start から yaw の向きへ跳ぶ。rollSign は倒れる向き(1 か -1)
+function breachAt(w, t, launch, start, yaw, rollSign = 1) {
+  const p = breachPose(t - launch, w.length / 14);
+  const f = forward(yaw);
+  w.group.position.set(start[0] + f[0] * p.along, p.y, start[2] + f[2] * p.along);
+  w.group.rotation.set(D2R(p.pitch), D2R(yaw), D2R(p.roll * rollSign));
+}
+
+// ジャンプの水しぶきと音(i 番目のクジラ)。小さいクジラは小さなしぶき
+function breachCues(i, launch) {
+  return [
+    { at: launch + 0.4, run: (fx, ws) => fx.effects.splash(onWater(bodyPoint(ws[i], 0.4)), 'small', headingOf(ws[i])) },
+    {
+      at: launch + BREACH.air * BREACH.splashAt,
+      run: (fx, ws) => {
+        const w = ws[i], k = w.length / 14;
+        const p = onWater(bodyPoint(w, 0));
+        fx.effects.splash(p, k > 0.6 ? 'large' : 'small', headingOf(w));
+        if (k <= 0.6) fx.effects.splash(p, 'small', headingOf(w));
+        fx.impact?.(p, k);
+        fx.effects.foam(p, 12000 * Math.max(0.5, k), { radius: 6 * Math.max(0.5, k) });
+        fx.playSound('splash', { gain: 0.35 + 0.65 * k, position: p });
+      },
+    },
+  ];
+}
+
+// 右の向き(向き f に対して)
+const rightOf = f => [-f[2], 0, f[0]];
+const offsetBy = (p, r, side) => [p[0] + r[0] * side, 0, p[2] + r[2] * side];
 
 // 出方ごとの動き。each: (whales, t秒) で姿勢を決める。cues: その時刻に一度だけ起きること。
 const MOTIONS = {
@@ -206,32 +238,44 @@ const MOTIONS = {
     };
   },
 
-  // マッコウクジラの群れの眠り: 5〜6頭が縦になって、頭を水面すれすれにしてじっと浮かぶ。
-  // しばらくすると、ひとりずつ目をさまして横になり、息をして、カチカチ鳴きながらゆっくり泳ぎ去る
+  // マッコウクジラの休み方と眠り: はじめは水面に丸太のように横になって浮かび、ときどき潮を吹く。
+  // それから5〜6頭がそろって縦になり、頭を水面すれすれにしてじっと眠る(ときどき頭が水面に出る)。
+  // 眠っている頭のまわりは、水面がなめらかになる。しばらくすると、ひとりずつ目をさまして横になり、
+  // 息をして、カチカチ鳴きながらゆっくり泳ぎ去る
   sleeping({ start }) {
     const group = sleepingGroup();
+    const headPos = (w, g) => [start[0] + g.offset[0], 0, start[2] + g.offset[1]];
     return {
       whales: group.map(g => ({ kind: 'sperm', swim: 0, scale: g.scale })),
       each(ws, t, D) {
         ws.forEach((w, i) => {
           const g = group[i];
-          const arrive = ease((t - i * 1.5) / 10);
+          const arrive = ease((t - i * 1.2) / 6);
+          const stand = ease((t - (SLEEP.logEnd + i * 0.6)) / (SLEEP.sleepAt - SLEEP.logEnd - 2));
           const wake = ease((t - g.wake) / SLEEP.wakeTurn);
+          const upright = stand * (1 - wake);
           const away = Math.max(0, t - g.wake - SLEEP.wakeTurn);
           const leave = ease((t - (D - 8)) / 8);
-          // 眠っているあいだは、ほとんど動かない(波でわずかにゆれるだけ)
-          const top = lerp(-6, g.top, arrive) + Math.sin(t * 0.3 + i) * 0.12;
-          const pitch = lerp(84, 0, wake);
-          const upright = top - (w.length / 2) * Math.sin(D2R(pitch));
-          const y = lerp(upright, surfaceY(w, 0.6), wake) - leave * 6;
+          const pitch = 84 * upright - 10 * leave;
+          // 横になっているときは背中が水面から少し出る。縦のときは頭のてっぺんが水面すれすれ
+          const lying = surfaceY(w, 0.6);
+          const sleepingTop = g.top + headBob(g, t) + Math.sin(t * 0.3 + i) * 0.08;
+          // 頭を水面の近くにおいたまま、体を立てたり寝かせたりする(頭が急に持ち上がらない)
+          const head = lerp(lerp(-6, lying, arrive), sleepingTop, upright);
+          const y = head - (w.length / 2) * Math.sin(D2R(pitch)) - leave * 6;
           const f = forward(g.yaw);
+          const drift = away * 0.8;
           w.mixer.setSwim(0.4 * wake);
-          w.group.position.set(start[0] + g.offset[0] + f[0] * away * 0.8, y, start[2] + g.offset[1] + f[2] * away * 0.8);
-          w.group.rotation.set(D2R(pitch - 10 * leave), D2R(g.yaw), D2R(Math.sin(t * 0.2 + i) * 3 * (1 - wake)));
+          w.group.position.set(start[0] + g.offset[0] + f[0] * drift, y, start[2] + g.offset[1] + f[2] * drift);
+          w.group.rotation.set(D2R(pitch), D2R(g.yaw), D2R(Math.sin(t * 0.2 + i) * 3 * upright));
         });
       },
       cues: [
-        // 目をさまして横になったら、頭の前の左寄りから、ななめ前へ潮を吹く
+        // 横になって休んでいるあいだの潮吹き(頭の前の左寄りから、ななめ前へ)
+        ...group.flatMap((g, i) => g.logBlows.map(at => ({ at, run: (fx, ws) => blow(fx, ws[i]) }))),
+        // 眠っている頭のまわりの、なめらかな水面
+        ...SLEEP.slicks.flatMap(at => group.map((g, i) => ({ at: at + i * 0.4, run: (fx, ws) => fx.footprint?.(headPos(ws[i], g), g.yaw) }))),
+        // 目をさまして横になったら、息をする
         ...group.map((g, i) => ({ at: g.wake + SLEEP.wakeTurn - 0.5, run: (fx, ws) => blow(fx, ws[i]) })),
         // 起きると、カチカチという音で話しはじめる
         { at: Math.min(...group.map(g => g.wake)) + 3, run: fx => fx.playSound('sperm', { maxMs: 12000, position: [start[0], -4, start[2]] }) },
@@ -240,39 +284,92 @@ const MOTIONS = {
   },
 
   breach({ start, yaw }) {
+    const launch = BREACH.approach;
     return {
       whales: [{ kind: 'humpback' }],
-      each([w], t) {
-        const f = forward(yaw);
-        const u = clamp01((t - 8) / 4);
-        let y, pitch, roll;
-        if (t < 8) { y = -12; pitch = 20; roll = 0; }
-        else if (t < 12) {
-          // 体を立てて飛び出し、いちばん高いところは水面から6mほど(ふつうは4.5m、ときには6m以上)。
-          // 体の半分以上が水から出て、横向きに倒れて着水する
-          y = -8 + 34.4 * u - 34.4 * u * u;
-          pitch = lerp(75, -10, u ** 1.6);
-          roll = lerp(0, 80, u);
-        } else { y = -8 - ease((t - 12) / 6) * 6; pitch = -10; roll = 80; }
-        const along = t < 8 ? t * 0.3 : 2.4 + Math.min(t - 8, 6) * 1.2;
-        w.group.position.set(start[0] + f[0] * along, y, start[2] + f[2] * along);
-        w.group.rotation.set(D2R(pitch), D2R(yaw), D2R(roll));
+      each([w], t) { breachAt(w, t, launch, start, yaw); },
+      cues: breachCues(0, launch),
+    };
+  },
+
+  // 群れでジャンプ: 2〜3頭が横にならび、少しずつずれて跳ぶ。外側の2頭は鏡に映したように反対へ倒れる
+  groupBreach({ start, yaw }) {
+    const plan = groupBreachPlan();
+    const r = rightOf(forward(yaw));
+    return {
+      whales: plan.map(() => ({ kind: 'humpback' })),
+      each(ws, t) { ws.forEach((w, i) => breachAt(w, t, plan[i].launch, offsetBy(start, r, plan[i].side), yaw, plan[i].rollSign)); },
+      cues: plan.flatMap((p, i) => breachCues(i, p.launch)),
+    };
+  },
+
+  // 親子でジャンプ: 母親は水面でゆっくり息をしている。そのそばで子どもが何度も跳んで練習し、
+  // 最後は母親が子どもとならんで、鏡に映したようにいっしょに跳ぶ
+  calfBreach({ start, yaw }) {
+    const plan = calfBreachPlan();
+    const r = rightOf(forward(yaw));
+    const momAt = offsetBy(start, r, -4.5), calfAt = offsetBy(start, r, 4);
+    return {
+      whales: [{ kind: 'humpback' }, { kind: 'humpback', scale: 0.4 }],
+      each([mom, calf], t) {
+        // 母親: はじめは水面でただよって息をし、跳ぶ前に深くもぐって勢いをつける
+        const before = plan.mother - BREACH.approach;
+        if (t < before) {
+          const sink = ease((t - (before - 4)) / 4);
+          const y = lerp(lerp(-6, surfaceY(mom, 0.7), ease(t / 5)) + Math.sin(t * 0.7) * 0.12, -12, sink);
+          mom.group.position.set(momAt[0], y, momAt[2]);
+          mom.group.rotation.set(D2R(lerp(Math.sin(t * 0.5) * 2, 20, sink)), D2R(yaw), 0);
+        } else breachAt(mom, t, plan.mother, momAt, yaw, -1);
+        // 子ども: いまの(またはつぎの)ジャンプ
+        const launch = plan.calf.find(l => t < l + BREACH.air + 3) ?? plan.calf[plan.calf.length - 1];
+        breachAt(calf, t, launch, calfAt, yaw + 8 * Math.sin(launch), 1);
       },
       cues: [
-        { at: 8.4, run: (fx, [w]) => fx.effects.splash(onWater(bodyPoint(w, 0.4)), 'small', headingOf(w)) },
-        {
-          at: 8 + 0.82 * 4,
-          run: (fx, [w]) => {
-            const p = bodyPoint(w, 0);
-            fx.effects.splash([p[0], 0, p[2]], 'large', headingOf(w));
-            fx.impact?.([p[0], 0, p[2]], 1);
-            fx.effects.foam([p[0], 0, p[2]], 12000);
-            fx.playSound('splash', { position: [p[0], 0, p[2]] });
-          },
-        },
+        ...plan.motherBlows.map(at => ({ at, run: (fx, [mom]) => blow(fx, mom) })),
+        ...plan.calf.flatMap(l => breachCues(1, l)),
+        ...breachCues(0, plan.mother),
       ],
     };
   },
+
+  // 群れで泳ぐ: 母親がペースを決め、子どもはぴったりくっつき、付きそいのオスはうしろから。
+  // ほかのおとなも少しはなれてついてくる。みんなばらばらに浮かんで息をし、最後は1頭ずつ尾びれを上げて潜る
+  pod({ start, yaw }) {
+    const plan = podPlan();
+    const near = (t, times, width) => Math.max(0, ...times.map(b => 1 - Math.min(1, Math.abs(t - b) / width)));
+    const cues = [];
+    plan.forEach((p, i) => {
+      const calf = p.role === 'calf';
+      for (const b of p.blows) cues.push({ at: b, run: (fx, ws) => blow(fx, ws[i], { calf }) });
+      if (!calf) {
+        cues.push({ at: p.dive + 4, run: (fx, ws) => fx.sighted?.(ws[i]) });
+        cues.push({ at: p.dive + 6.5, run: (fx, ws) => fx.effects.splash(onWater(bodyPoint(ws[i], -0.5)), 'small', headingOf(ws[i])) });
+        cues.push({ at: p.dive + 10, run: (fx, ws) => fx.footprint?.(bodyPoint(ws[i], -0.5), headingYaw(ws[i])) });
+      }
+    });
+    return {
+      whales: plan.map(p => ({ kind: 'humpback', scale: p.scale })),
+      each(ws, t) {
+        const f = forward(yaw), r = rightOf(f);
+        const lead = [start[0] + f[0] * POD.speed * t, start[2] + f[2] * POD.speed * t];
+        ws.forEach((w, i) => {
+          const p = plan[i];
+          const calf = p.role === 'calf';
+          const env = ease((t - i * 0.8) / 6);
+          const up = ease(near(t, p.blows, calf ? 3 : 5));
+          const round = calf ? 0 : ease((t - (p.dive - 3)) / 3);
+          const dive = ease((t - p.dive) / 7);
+          let y = lerp(-7, surfaceY(w, calf ? 0.35 : 0.7) - (calf ? 1.6 : 2.2) * (1 - up) * (1 - round), env);
+          y += 0.5 * round * (1 - dive) - dive * (calf ? 8 : 3) - ease((t - (p.dive + 7.5)) / 5) * 14;
+          const pitch = calf ? -20 * dive : -14 * round * (1 - dive) + lerp(0, -80, dive);
+          w.group.position.set(lead[0] + r[0] * p.offset[0] - f[0] * p.offset[1], y, lead[1] + r[2] * p.offset[0] - f[2] * p.offset[1]);
+          w.group.rotation.set(D2R(pitch + Math.sin(t * 0.5 + i) * 2 * (1 - dive) - 5 * (1 - up) * (1 - dive)), D2R(yaw), 0);
+        });
+      },
+      cues,
+    };
+  },
+
 
   // スパイホップ: 体を縦にしてゆっくり上がり、頭だけを出して、こちらを見ながらまわりを見回す
   spyhop({ start }) {
@@ -620,6 +717,8 @@ export async function createWhales(scene, fx) {
     // 捕食は、斜め前を向けて飛び出す(開いた口の中と、ふくらんだのどの両方が見える)
     const yaw = name === 'fluke' || name === 'lobtail' ? divingYaw(Math.random)
       : name === 'feeding' || name === 'bubbleNet' ? (Math.random() < 0.5 ? 135 : -135) + (Math.random() * 20 - 10)
+      // 群れで泳ぐのは、ななめ奥へ(体の横も、潜るときの尾びれの裏も見える)
+      : name === 'pod' ? (Math.random() < 0.5 ? 40 : -40) + (Math.random() * 20 - 10)
       : crossingYaw();
     const back = (SWIM_SPEED[name] ?? 0) * (durationMs / 1000) / 2;
     const f = forward(yaw);

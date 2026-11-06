@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildWhaleGeometry, SWIM, WHALE_SPECS } from '../logic/whaleShape.js';
+import { buildWhaleGeometry, SWIM, WHALE_SPECS, jawHinge, POUCH_SWELL } from '../logic/whaleShape.js';
 import { eyePatch, applyLid, eyeballPlacement, blinkOpen, EYE } from '../logic/eyeShape.js';
 
 // 目の玉に映る空と海の色(時刻で変わる。setEyeLight で変える)
@@ -86,6 +86,7 @@ function createEyes(parent, skinMaterial) {
     const pos = new THREE.BufferAttribute(applyLid(new Float32Array(patch.base.length), patch, EYE.relaxedOpen), 3);
     geo.setAttribute('position', pos);
     geo.setAttribute('color', new THREE.BufferAttribute(linearColors(patch), 3));
+    geo.setAttribute('aJaw', new THREE.BufferAttribute(patch.jaw, 4));
     geo.setIndex(new THREE.BufferAttribute(patch.indices, 1));
     geo.computeVertexNormals();
     const skin = new THREE.Mesh(geo, skinMaterial);
@@ -156,6 +157,7 @@ function geometryFor(kind) {
   for (let i = 0; i < linear.length; i++) linear[i] = toLinear(g.colors[i]);
   geo.setAttribute('color', new THREE.BufferAttribute(linear, 3));
   geo.setIndex(new THREE.BufferAttribute(g.indices, 1));
+  geo.setAttribute('aJaw', new THREE.BufferAttribute(g.jaw, 4));
   geo.computeVertexNormals();
   geometries[kind] = geo;
   return geo;
@@ -170,7 +172,13 @@ export function prepareWhaleGeometry() {
 
 // 1頭ぶんのクジラ。lengthMeters は体長(m)。頭は -z を向いている
 export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMeters) {
-  const uniforms = { uPhase: { value: Math.random() * Math.PI * 2 }, uSwim: { value: 1 } };
+  const uniforms = {
+    uPhase: { value: Math.random() * Math.PI * 2 }, uSwim: { value: 1 },
+    // 口の開き(下あご・上あごの角度、ラジアン)と、のどのふくらみ(0〜1)
+    uLowerJaw: { value: 0 }, uUpperJaw: { value: 0 }, uPouch: { value: 0 },
+  };
+  const [hingeY, hingeZ] = kind === 'humpback' ? jawHinge(kind) : [0, 0];
+  const f = v => v.toFixed(5);
   // ぬれた肌は少しつやがある。重い描き方(二重のつや)はやめて、つるつる具合だけで出す
   const material = new THREE.MeshStandardMaterial({
     vertexColors: true,
@@ -181,20 +189,71 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
   material.onBeforeCompile = shader => {
     shader.uniforms.uPhase = uniforms.uPhase;
     shader.uniforms.uSwim = uniforms.uSwim;
+    shader.uniforms.uLowerJaw = uniforms.uLowerJaw;
+    shader.uniforms.uUpperJaw = uniforms.uUpperJaw;
+    shader.uniforms.uPouch = uniforms.uPouch;
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform float uPhase;\nuniform float uSwim;')
+      .replace('#include <common>', `#include <common>
+        uniform float uPhase;
+        uniform float uSwim;
+        uniform float uLowerJaw;
+        uniform float uUpperJaw;
+        uniform float uPouch;
+        attribute vec4 aJaw;
+        varying vec4 vJaw;
+        // あごの軸(口の端)のまわりに回す。前(-z)が下がる向き
+        vec3 jawTurn(vec3 p, float a) {
+          float c = cos(a), s = sin(a);
+          float y = p.y - ${f(hingeY)}, z = p.z - ${f(hingeZ)};
+          return vec3(p.x, ${f(hingeY)} + y * c + z * s, ${f(hingeZ)} - y * s + z * c);
+        }`)
       // 体がしなった向きに合わせて、陰のつけ方も曲げる(しなりの傾きは swimSlope と同じ式)
       .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
         float bendS = clamp(position.z + 0.5, 0.0, 1.0);
         float bendA = uPhase - ${SWIM.wave.toFixed(2)} * bendS;
         float bendSlope = uSwim * ${SWIM.amplitude.toFixed(4)} * (${SWIM.power.toFixed(2)} * pow(max(bendS, 1e-4), ${(SWIM.power - 1).toFixed(2)}) * sin(bendA)
           - ${SWIM.wave.toFixed(2)} * pow(bendS, ${SWIM.power.toFixed(2)}) * cos(bendA));
-        objectNormal = normalize(vec3(objectNormal.x, objectNormal.y, objectNormal.z - bendSlope * objectNormal.y));`)
+        objectNormal = normalize(vec3(objectNormal.x, objectNormal.y, objectNormal.z - bendSlope * objectNormal.y));
+        float jawA = uLowerJaw * aJaw.x - uUpperJaw * aJaw.y;
+        objectNormal = vec3(objectNormal.x, objectNormal.y * cos(jawA) + objectNormal.z * sin(jawA), -objectNormal.y * sin(jawA) + objectNormal.z * cos(jawA));
+        vJaw = aJaw;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
+        // のみこんだ水で、のどがふくらむ(下へ大きく、横へも少し)
+        if (uPouch > 0.0 && aJaw.z > 0.0) {
+          vec2 r = vec2(transformed.x, transformed.y + 0.02);
+          vec3 d = normalize(vec3(r.x / max(length(r), 1e-4) * 0.7, r.y / max(length(r), 1e-4) - 0.4, 0.0));
+          transformed += d * ${f(POUCH_SWELL)} * uPouch * aJaw.z;
+        }
+        transformed = jawTurn(transformed, jawA);
         float swimS = clamp(position.z + 0.5, 0.0, 1.0);
         transformed.y += uSwim * ${SWIM.amplitude.toFixed(4)} * pow(swimS, ${SWIM.power.toFixed(2)})
           * sin(uPhase - ${SWIM.wave.toFixed(2)} * swimS);`);
   };
+  const baseCompile = material.onBeforeCompile;
+  material.onBeforeCompile = shader => {
+    baseCompile(shader);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+        uniform float uLowerJaw;
+        uniform float uPouch;
+        varying vec4 vJaw;`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        {
+          float opened = smoothstep(0.02, 0.25, uLowerJaw);
+          // 口の中(あごのあいだにのびた面と、頭の内側): 上はひげ板の暗い色、下は舌のうすいピンク
+          // (あごの重みがないところ、たとえば口の端よりうしろの線は、口の中にしない)
+          float jawPart = clamp((vJaw.x + vJaw.y) * 3.0, 0.0, 1.0);
+          float inMouth = (1.0 - abs(2.0 * vJaw.w - 1.0)) * jawPart;
+          float inside = gl_FrontFacing ? inMouth : jawPart;
+          vec3 baleen = vec3(0.035, 0.034, 0.033);
+          vec3 tongue = vec3(0.42, 0.24, 0.23);
+          vec3 mouthCol = mix(baleen, tongue, smoothstep(0.35, 0.75, vJaw.w));
+          diffuseColor.rgb = mix(diffuseColor.rgb, mouthCol, clamp(inside, 0.0, 1.0) * opened);
+          // のびた畝のあいだの肌は、うすいピンクがかった白に見える
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.5, 0.48), 0.45 * uPouch * vJaw.z * vJaw.w);
+        }`);
+  };
+  material.customProgramCacheKey = () => `whale-${kind}`;
   const mesh = new THREE.Mesh(geometryFor(kind), material);
   mesh.scale.setScalar(lengthMeters);
   // ザトウクジラは、目のまわりを細かく作った部品をはめこむ(体の網目のその部分は抜いてある)
@@ -209,6 +268,12 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     // 0 で止まる(寝ているクジラ)、1 でふつうに泳ぐ
     setSwim(amount) {
       uniforms.uSwim.value = amount;
+    },
+    // 口とのど(捕食)。lower・upper はあごの角度(ラジアン)、pouch はのどのふくらみ(0〜1)
+    setJaw(lower, upper, pouch) {
+      uniforms.uLowerJaw.value = lower;
+      uniforms.uUpperJaw.value = upper;
+      uniforms.uPouch.value = pouch;
     },
     // 目(ザトウクジラだけ)。alive にすると、まばたきと目の動きをする
     eyes,

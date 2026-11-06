@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { PATTERNS } from '../logic/patterns.js';
 import { createWhaleMesh, prepareWhaleGeometry } from './whaleModel.js';
-import { WHALE_SPECS, surfacedCenterY, bodySection, finTip } from '../logic/whaleShape.js';
+import { WHALE_SPECS, surfacedCenterY, bodySection, finTip, jawPoint, faceFeatures } from '../logic/whaleShape.js';
+import { FEEDING, feedingPose } from '../logic/feeding.js';
 import { divingYaw } from '../logic/behavior.js';
 import { followFactor } from '../logic/quality.js';
 import { SPOT, CAMERA_PRESETS } from './cameras.js';
@@ -320,6 +321,80 @@ const MOTIONS = {
         const y = lerp(-6, -2.4, ease(t / 4)) - 10 * ease((t - (D - 5)) / 5);
         w.group.position.set(start[0], y, start[2]);
         w.group.rotation.set(D2R(pitch), D2R(yaw), 0);
+      },
+      cues,
+    };
+  },
+
+  // 捕食(突進して水ごとのみこむ): 泡の輪ができ、そのまん中から口を大きく開けて飛び出す。
+  // のどをふくらませて水をのみこみ、口を閉じて沈む。水面に横になって水をこし出し、最後に潮吹きをして潜る
+  feeding({ start, yaw }) {
+    const F = FEEDING;
+    const c = [start[0], start[2]];
+    const f = forward(yaw);
+    let pose = feedingPose(0);
+    const mouth = faceFeatures('humpback').mouth;
+    // あごのふちの点(口を開けた形で)のワールド座標
+    const lip = (w, u, below, side) => {
+      const m = mouth.reduce((a, b) => (Math.abs(b.u - u) < Math.abs(a.u - u) ? b : a));
+      const theta = m.theta + (below ? 0.12 : -0.12);
+      const p = jawPoint('humpback', u, side > 0 ? theta : 2 * Math.PI - theta,
+        pose.gape * F.lowerJaw, pose.gape * F.upperJaw, pose.pouch);
+      return w.group.localToWorld(new THREE.Vector3(...p).multiplyScalar(w.length)).toArray();
+    };
+    const cues = [];
+    // 泡の輪: うずを巻きながら輪がとじていく
+    const N = 28;
+    for (let k = 0; k < N; k++) {
+      const a = (k / N) * Math.PI * 2 * 1.15 + yaw * 0.017;
+      const r = F.ringRadius * (1.25 - 0.25 * (k / N));
+      const at = F.ringStart + (k / N) * (F.ringEnd - F.ringStart);
+      const p = [c[0] + Math.cos(a) * r, 0, c[1] + Math.sin(a) * r];
+      cues.push({ at, run: fx => { fx.effects.foam(p, (F.surface + 8 - at) * 1000); fx.effects.cascade([p[0], 0.05, p[2]], 2); } });
+    }
+    cues.push({ at: F.call, run: fx => fx.playSound('humpback-call', { gain: 0.7, maxMs: 6000, position: [c[0], -5, c[1]] }) });
+    cues.push({
+      at: F.surface,
+      run: fx => {
+        fx.effects.splash([c[0], 0, c[1]], 'small', f);
+        fx.effects.foam([c[0], 0, c[1]], 16000);
+        fx.playSound('splash', { gain: 0.6, position: [c[0], 0, c[1]] });
+      },
+    });
+    // 開いた口から、のみきれない水があふれ落ちる
+    for (let t = F.surface + 0.3; t < F.closed; t += 0.25) {
+      cues.push({ at: t, run: (fx, [w]) => {
+        for (const side of [1, -1]) for (const u of [0.06, 0.13, 0.2]) fx.effects.cascade(lip(w, u, true, side), 3);
+        fx.effects.cascade(lip(w, 0.04, false, Math.random() < 0.5 ? 1 : -1), 2);
+      } });
+    }
+    cues.push({ at: F.fall + 1.5, run: fx => { fx.effects.splash([c[0], 0, c[1]], 'small', f); fx.effects.foam([c[0], 0, c[1]], 14000); } });
+    // 水面に横になって、口のわきから水を押し出す
+    for (let t = F.filterStart + 1; t < F.filterEnd - 4; t += 1.3) {
+      cues.push({ at: t, run: (fx, [w]) => {
+        const side = Math.random() < 0.5 ? 1 : -1;
+        const p = lip(w, 0.12 + Math.random() * 0.12, false, side);
+        if (p[1] > -0.3) fx.effects.cascade([p[0], Math.max(0.05, p[1]), p[2]], 3);
+      } });
+    }
+    cues.push({ at: F.blow, run: (fx, [w]) => blow(fx, w) });
+    cues.push({ at: F.blow + 8, run: (fx, [w]) => fx.footprint?.(bodyPoint(w, -0.5), headingYaw(w)) });
+
+    return {
+      whales: [{ kind: 'humpback' }],
+      each([w], t) {
+        pose = feedingPose(t);
+        w.mixer.setJaw(pose.gape * F.lowerJaw, pose.gape * F.upperJaw, pose.pouch);
+        // 突進するときは尾びれを強くあおぎ、横になってこし出すときはほとんど動かない
+        w.mixer.setSwim(t < F.fall + 6 ? 1 : 0.3 + 0.7 * pose.dive);
+        const pitch = pose.pitch - 20 * pose.dive;
+        const upright = pose.tipY - (w.length / 2) * Math.sin(D2R(pose.pitch));
+        let y = lerp(upright, surfaceY(w, 0.6), pose.float);
+        y -= pose.dive * 10;
+        // 横になってからは、ゆっくり前へ進む(秒速0.2mくらい)
+        const along = Math.max(0, t - (F.fall + 8)) * 0.2 + pose.dive * 8;
+        w.group.position.set(c[0] + f[0] * along, y, c[1] + f[2] * along);
+        w.group.rotation.set(D2R(pitch), D2R(yaw), D2R(3 * Math.sin(t * 0.4) * pose.float));
       },
       cues,
     };

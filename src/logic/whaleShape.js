@@ -299,13 +299,72 @@ export function bodyPoint(kind, u, theta) {
   return [x, y, bodyZ(u)];
 }
 
-// 形を入れる入れもの
+// 形を入れる入れもの。jaw は頂点ごとのあごの重み [下あご, 上あご, のど, 口の線より下か]
 function meshBuilder() {
-  const positions = [], colors = [], indices = [];
+  const positions = [], colors = [], indices = [], jaw = [];
   return {
-    positions, colors, indices,
-    add(p, c) { positions.push(...p); colors.push(...c); return positions.length / 3 - 1; },
+    positions, colors, indices, jaw,
+    add(p, c, j = NO_JAW) { positions.push(...p); colors.push(...c); jaw.push(...j); return positions.length / 3 - 1; },
   };
+}
+const NO_JAW = [0, 0, 0, 0];
+
+// ---- 口を開ける(ザトウクジラの捕食) ----
+// 下あごは口の端のつけ根を軸に下へ開き、上あご(頭)は少し持ち上がる。
+// のどからおなかの畝(うね)が広がって、のみこんだ水で大きくふくらむ。
+
+// u の位置の口の線の θ(口先より前・口の端よりうしろは、はしの値)
+function mouthTheta(kind, u) {
+  const m = FACES[kind].mouth;
+  if (u <= m[0].u) return m[0].theta;
+  if (u >= m[m.length - 1].u) return m[m.length - 1].theta;
+  let i = 0;
+  while (m[i + 1].u < u) i++;
+  return mix(m[i].theta, m[i + 1].theta, (u - m[i].u) / (m[i + 1].u - m[i].u));
+}
+
+// 頂点のあごの重み [下あご, 上あご, のど, 口の線より下か](0〜1)
+export function jawWeights(kind, u, theta) {
+  if (kind !== 'humpback') return NO_JAW;
+  const side = Math.abs(angleDiff(theta, 0));
+  const below = smoothstep(mouthTheta(kind, u) - 0.03, mouthTheta(kind, u) + 0.03, side);
+  // 下あごの関節は口の端。そこまでに動きを弱め、うしろはのどの皮がのびてつながる
+  const lower = below * (1 - smoothstep(0.17, 0.29, u));
+  // 上あごは目より前だけ(目は動かさない)
+  const upper = (1 - below) * (1 - smoothstep(0.16, 0.25, u));
+  // のど: 畝のある、おなか側の下半分。おへそ(体の半分くらい)まで
+  const pouch = smoothstep(1.75, 2.35, side) * smoothstep(0.02, 0.07, u) * (1 - smoothstep(0.42, 0.54, u));
+  return [lower, upper, pouch, below];
+}
+
+// あごの軸(口の端)の [y, z](体長1の大きさ)。軸は左右(x)の向き
+export function jawHinge(kind) {
+  const c = FACES[kind].mouth[FACES[kind].mouth.length - 1];
+  const p = bodyPoint(kind, c.u, c.theta);
+  return [p[1], p[2]];
+}
+
+// のどのふくらむ向きと大きさ(体長1)。下へ大きく、横へも少し
+export const POUCH_SWELL = 0.11;
+export function pouchDirection(p) {
+  const r = Math.hypot(p[0], p[1] + 0.02) || 1;
+  const d = [(p[0] / r) * 0.7, (p[1] + 0.02) / r - 0.4, 0];
+  const n = Math.hypot(...d) || 1;
+  return d.map(v => v / n);
+}
+
+// あごを開いたときの、体の点の位置(体長1)。lower・upper はあごの角度(ラジアン)、pouch はのどのふくらみ(0〜1)
+export function jawPoint(kind, u, theta, lower, upper = 0, pouch = 0) {
+  const [wl, wu, wp] = jawWeights(kind, u, theta);
+  let p = bodyPoint(kind, u, theta);
+  const d = pouchDirection(p);
+  p = p.map((v, i) => v + d[i] * POUCH_SWELL * pouch * wp);
+  const [hy, hz] = jawHinge(kind);
+  const a = lower * wl - upper * wu;   // 下あごは前が下がる向き、上あごはその反対
+  const y = p[1] - hy, z = p[2] - hz;
+  const c = Math.cos(a), s = Math.sin(a);
+  // 頭は -z の向き。前(-z)が下がる回転
+  return [p[0], hy + y * c + z * s, hz - y * s + z * c];
 }
 
 // 体の網目の細かさ。頭と尾の近くほど細かい
@@ -347,7 +406,7 @@ function bodyMesh(kind, out, rings = BODY_GRID.rings, around = BODY_GRID.around)
     const u = ringU(i); // 頭と尾の近くを細かく
     for (let j = 0; j < around; j++) {
       const theta = aroundTheta(j);
-      out.add(bodyPoint(kind, u, theta), skinColor(kind, u, theta));
+      out.add(bodyPoint(kind, u, theta), skinColor(kind, u, theta), jawWeights(kind, u, theta));
     }
   }
   for (let i = 0; i < rings - 1; i++) {
@@ -359,7 +418,7 @@ function bodyMesh(kind, out, rings = BODY_GRID.rings, around = BODY_GRID.around)
     }
   }
   // 頭の先と尾の先をふさぐ
-  const front = out.add([0, bodySection(kind, 0).centerY, bodyZ(0)], skinColor(kind, 0, 0));
+  const front = out.add([0, bodySection(kind, 0).centerY, bodyZ(0)], skinColor(kind, 0, 0), jawWeights(kind, 0, Math.PI / 2));
   const back = out.add([0, 0, bodyZ(1)], skinColor(kind, 1, 0));
   const last = first + (rings - 1) * around;
   for (let j = 0; j < around; j++) {
@@ -387,6 +446,8 @@ export function finGeometry(kind, side, out = meshBuilder()) {
   const chordDir = norm(sub(back, scale(axis, dot(back, axis))));
   const thickDir = norm(cross(axis, chordDir));
   const steps = 48, around = 14;
+  // ひれは、のどがふくらむとつけ根といっしょに動く(体からはなれない)。あごといっしょには回らない
+  const rootJaw = [0, 0, jawWeights(kind, f.root, side * f.theta)[2], 0];
   let tip = root;
   for (let i = 0; i <= steps; i++) {
     const s = i / steps;
@@ -413,7 +474,7 @@ export function finGeometry(kind, side, out = meshBuilder()) {
       } else {
         color = SP_BODY;
       }
-      out.add(p, color);
+      out.add(p, color, rootJaw);
     }
   }
   for (let i = 0; i < steps; i++) {
@@ -501,7 +562,10 @@ export function buildWhaleGeometry(kind) {
   finGeometry(kind, 1, out);
   finGeometry(kind, -1, out);
   flukeGeometry(kind, out);
-  return { positions: Float32Array.from(out.positions), colors: Float32Array.from(out.colors), indices: Uint32Array.from(out.indices) };
+  return {
+    positions: Float32Array.from(out.positions), colors: Float32Array.from(out.colors),
+    indices: Uint32Array.from(out.indices), jaw: Float32Array.from(out.jaw),
+  };
 }
 
 // 泳ぐときの体のしなり。s は頭(0)から尾(1)までの位置、phase は動きの進み具合。

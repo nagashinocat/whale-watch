@@ -13,6 +13,8 @@ export const PATTERNS = Object.freeze({
   pecSlap: { durationMs: 36000, needs: 'humpback', sound: null },
   // 尾びれを持ち上げて、水面に強く打ちつける
   lobtail: { durationMs: 32000, needs: 'humpback', sound: null },
+  // 捕食: 泡の輪の中から口を開けて飛び出し、水ごとのみこむ。水をこし出して、潮吹きで終わる
+  feeding: { durationMs: 88000, needs: 'humpback', sound: null },
   // 目が合う: 間近のカメラのすぐ前で頭を出し、目が画面いっぱいになる近さで、こちらをじっと見る
   eyeContact: { durationMs: 46000, needs: 'humpback', sound: null },
   summon: { durationMs: 120000, needs: 'humpback', sound: null, songAtMs: 40000 },
@@ -45,6 +47,7 @@ export const PATTERN_LABELS = Object.freeze({
   spyhop: 'スパイホップ(顔を出す)',
   pecSlap: '胸びれで水面をたたく',
   lobtail: '尾びれで水面をたたく',
+  feeding: '捕食(水ごとのみこむ)',
   eyeContact: '目が合う(すぐ目の前)',
   summon: '呼んだクジラ',
 });

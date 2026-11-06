@@ -38,6 +38,8 @@ export const SCHEDULE = Object.freeze({
     lobtail: 5,
     // 間近のカメラのすぐ前まで来て、目が合う(めったにない)
     eyeContact: 3,
+    // 捕食。沖縄の海は子育ての場所で、ザトウクジラはほとんど食べない(えさは夏に北の海で食べる)ので、ごくまれ
+    feeding: 2,
   }),
 });
 

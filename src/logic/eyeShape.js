@@ -10,7 +10,7 @@
 //
 // 長さの単位: EYE はメートル。網目は体長を1とした大きさ(体長14mのおとなのザトウクジラ基準)
 
-import { bodyPoint, skinColor, faceFeatures, WHALE_SPECS, ringU, aroundTheta, eyeCells, bodySection, BODY_GRID } from './whaleShape.js';
+import { bodyPoint, skinColor, faceFeatures, WHALE_SPECS, ringU, aroundTheta, eyeCells, bodySection, BODY_GRID, jawWeights } from './whaleShape.js';
 
 const REF = WHALE_SPECS.humpback.lengthMeters;
 const TAU = Math.PI * 2;
@@ -120,6 +120,7 @@ export function eyePatch(side, nu = 150, nt = 130) {
   const lid = new Float32Array(count * 2);     // 目の中心からの x, y(m)
   const weight = new Float32Array(count);      // ふちで 0、内側で 1
   const colors = new Float32Array(count * 3);
+  const jaw = new Float32Array(count * 4);     // あごの重み(体と同じ式。口を開けてもつなぎ目がずれない)
   for (let i = 0; i < nu; i++) {
     const a = 0.5 + 0.5 * dense((2 * i) / (nu - 1) - 1);
     const fi = cells.i0 + a * (cells.i1 - cells.i0);
@@ -138,6 +139,7 @@ export function eyePatch(side, nu = 150, nt = 130) {
       lid[k * 2] = dot(rel, f.along) * REF;
       lid[k * 2 + 1] = dot(rel, f.up) * REF;
       weight[k] = w;
+      jaw.set(jawWeights('humpback', u, theta), k * 4);
       // 肌の色。目の開きの奥(まぶたの裏側)は暗い影
       let c = skinColor('humpback', u, theta);
       const q = edgeDistance(lid[k * 2], lid[k * 2 + 1], EYE.relaxedOpen);
@@ -156,7 +158,7 @@ export function eyePatch(side, nu = 150, nt = 130) {
     Math.hypot(...sub(P(ringU(cells.i1), f.theta), P(ringU(cells.i0), f.theta))) * REF,
     (aroundTheta(j1) - aroundTheta(j0)) * 1.8,
   ];
-  return { base, lid, weight, colors, indices: Uint32Array.from(indices), normal: f.normal, nu, nt, sizeMeters: size };
+  return { base, lid, weight, colors, jaw, indices: Uint32Array.from(indices), normal: f.normal, nu, nt, sizeMeters: size };
 }
 
 // まぶたの開きに合わせて、網目の頂点の位置を out に書く

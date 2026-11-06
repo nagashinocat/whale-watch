@@ -78,3 +78,14 @@ test('タブを裏にしていたときの長い止まりは、かくつきに�
   for (let k = 0; k < 10; k++) c.sample(2.5);
   assert.equal(c.ratio, r);
 });
+
+test('海の描画で外へ渡す処理(はじめる・止めるなど)が、すべて中で作られている(消えると起動しなくなる)', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const src = await readFile(new URL('../src/scene/ocean.js', import.meta.url), 'utf8');
+  const ret = src.slice(src.lastIndexOf('  return {'));
+  const names = [...ret.matchAll(/^\s{4}(\w+),\s*$/gm)].map(m => m[1]);
+  assert.ok(names.includes('start') && names.includes('stop'));
+  for (const n of names) {
+    assert.ok(new RegExp(`function ${n}\\(|const ${n} =|let ${n} =`).test(src), `${n} が見つからない`);
+  }
+});

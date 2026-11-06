@@ -258,6 +258,13 @@ export function createOcean(canvas) {
     requestAnimationFrame(loop);
   }
 
+  function start() {
+    if (running) return;
+    running = true;
+    last = 0;
+    requestAnimationFrame(loop);
+  }
+
   function stop() {
     running = false;
   }

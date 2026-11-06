@@ -399,6 +399,7 @@ const MOTIONS = {
       at: F.surface,
       run: fx => {
         fx.effects.splash([c[0], 0, c[1]], 'small', f);
+        fx.effects.leap([c[0], 0, c[1]], 40, 3.5);
         fx.effects.foam([c[0], 0, c[1]], 16000);
         fx.playSound('splash', { gain: 0.6, position: [c[0], 0, c[1]] });
       },
@@ -472,7 +473,8 @@ const MOTIONS = {
     cues.push({ at: F.surface, run: fx => fx.playSound('splash', { gain: 0.9, position: [c[0], 0, c[1]] }) });
     group.forEach((g, i) => {
       const p = () => [c[0] + g.offset[0], 0, c[1] + g.offset[1]];
-      cues.push({ at: F.surface + g.delay, run: fx => fx.effects.splash(p(), 'small', forward(yaw)) });
+      cues.push({ at: F.surface + g.delay, run: fx => { fx.effects.splash(p(), 'small', forward(yaw)); fx.effects.leap(p(), 12, 2.5);
+        fx.playSound('splash', { gain: 0.45, position: p() }); } });
       // 開いた口から、水があふれ落ちる
       for (let t = F.surface + 0.5; t < F.closed; t += 0.4) {
         cues.push({ at: t + g.delay, run: (fx, ws) => fx.effects.cascade(bodyPoint(ws[i], 0.42, -1.2), 3) });
@@ -615,7 +617,10 @@ export async function createWhales(scene, fx) {
 
     // 渡された位置を中ほどで通るように、出発点を進む向きの反対へずらす
     // 尾びれを見せる出方は、カメラから遠ざかる向き(尾びれの裏がこちらを向き、画面のまんなかに来る)
-    const yaw = name === 'fluke' || name === 'lobtail' ? divingYaw(Math.random) : crossingYaw();
+    // 捕食は、斜め前を向けて飛び出す(開いた口の中と、ふくらんだのどの両方が見える)
+    const yaw = name === 'fluke' || name === 'lobtail' ? divingYaw(Math.random)
+      : name === 'feeding' || name === 'bubbleNet' ? (Math.random() < 0.5 ? 135 : -135) + (Math.random() * 20 - 10)
+      : crossingYaw();
     const back = (SWIM_SPEED[name] ?? 0) * (durationMs / 1000) / 2;
     const f = forward(yaw);
     const start = [position[0] - f[0] * back, 0, position[2] - f[2] * back];

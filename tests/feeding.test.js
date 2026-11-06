@@ -74,13 +74,15 @@ test('水面を割るときは、秒速2〜4mで上がってくる(調べた突�
   assert.ok(top > 3.5 && top < 7, `head out ${top}m`);
 });
 
-test('バブルネット: 5〜7頭で、直径15〜30mの泡の輪のまん中から、ほぼいっしょに飛び出す', async () => {
+test('バブルネット: 5〜7頭で、直径15〜30mの泡の輪のまん中から、少しずつずれて次々に飛び出す', async () => {
   const { BUBBLE_NET, bubbleNetGroup } = await import('../src/logic/feeding.js');
   const g = bubbleNetGroup(() => 0.5);
   assert.ok(g.length >= 5 && g.length <= 7);
   assert.ok(BUBBLE_NET.ringRadius * 2 >= 15 && BUBBLE_NET.ringRadius * 2 <= 30);
-  const delays = g.map(w => w.delay);
-  assert.ok(Math.max(...delays) - Math.min(...delays) <= 1.2, 'together');
+  const delays = g.map(w => w.delay).sort((a, b) => a - b);
+  const spread = delays.at(-1) - delays[0];
+  assert.ok(spread >= 1.2 && spread <= 4.5, `spread ${spread}`);
+  for (let i = 1; i < delays.length; i++) assert.ok(delays[i] - delays[i - 1] >= 0.3, 'one after another');
   for (const w of g) assert.ok(Math.hypot(...w.offset) < BUBBLE_NET.ringRadius * 0.6, 'inside the ring');
   for (let i = 0; i < g.length; i++) for (let j = i + 1; j < g.length; j++) {
     assert.ok(Math.hypot(g[i].offset[0] - g[j].offset[0], g[i].offset[1] - g[j].offset[1]) >= 3.2, 'mouths do not overlap');

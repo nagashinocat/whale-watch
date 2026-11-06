@@ -23,13 +23,13 @@ export const FEEDING = Object.freeze({
   lunge: 9,           // 下から突進しはじめる
   open: 11.5,         // 水の中で口を開けはじめる
   surface: 13.2,      // 水面を割る
-  closeStart: 16.5,   // 口を閉じはじめる
-  closed: 19.5,
-  fall: 18,           // 立った体が沈みはじめる
-  filterStart: 30,    // 水面に横になって、水をこし出しはじめる
-  filterEnd: 76,
-  blow: 77,           // 潮吹き
-  end: 88,
+  closeStart: 18.3,   // 口を閉じはじめる(水面で口を開けたまま、しばらく見せる)
+  closed: 21,
+  fall: 20,           // 立った体が沈みはじめる
+  filterStart: 32,    // 水面に横になって、水をこし出しはじめる
+  filterEnd: 78,
+  blow: 79,           // 潮吹き
+  end: 90,
   ringRadius: 5,      // 泡の輪の半径(m)
   lowerJaw: 55 * D2R, // 下あごの開き
   upperJaw: 25 * D2R, // 上あご(頭)の持ち上がり
@@ -45,14 +45,14 @@ export function feedingPose(t) {
   const pouch = fill * (1 - ease((t - F.filterStart) / (F.filterEnd - F.filterStart - 2)));
   // 下から突進して水面を割り、頭を5mほど出して止まり、それから沈む
   let tipY;
-  const peak = F.surface + 1.6;
+  const peak = F.surface + 1.8;
   if (t < F.lunge) tipY = -16;
   else if (t < peak) {
     const k = (t - F.lunge) / (peak - F.lunge);
     // だんだん速度を落としながら上がる(水面で秒速3mくらい)
-    tipY = lerp(-16, 5, 1 - (1 - k) ** 2);
-  } else if (t < F.fall) tipY = 5 - 0.5 * ease((t - peak) / (F.fall - peak));
-  else tipY = lerp(4.5, -9, ease((t - F.fall) / 6));
+    tipY = lerp(-16, 6.2, 1 - (1 - k) ** 2);
+  } else if (t < F.fall) tipY = 6.2 - 0.6 * ease((t - peak) / (F.fall - peak));
+  else tipY = lerp(5.6, -9, ease((t - F.fall) / 6));
   // 沈みながら体を横にして、水面に浮かんでくる
   const pitch = lerp(82, 0, ease((t - (F.fall + 4)) / 6));
   const float = ease((t - (F.fall + 8)) / 4);   // 0 で水の中、1 で水面に浮かぶ
@@ -64,16 +64,17 @@ export function feedingPose(t) {
 // 調べてわかったこと
 //   ・ふつうは5〜7頭がいっしょに飛び出す(10頭くらいの群れも、40頭の記録もある)
 //   ・泡の輪は直径20mほど。輪ができるときは、泡が水面ではじける「シュワシュワ」という音がする
-//   ・飛び出すのは8秒ほど。小魚があちこちへ跳ね、カモメが集まってくる
+//   ・飛び出すのは8秒ほど。1頭ずつ少しずつずれて、次々に水面を割る
+//   ・小魚があちこちへ跳ね、カモメが集まってくる
 //   ・飛び出したあとは何回か潮を吹き、背中を丸めて1頭ずつ潜っていく
 export const BUBBLE_NET = Object.freeze({
   whales: [5, 7],
   ringRadius: 10,
   surface: FEEDING.surface,
   filterEnd: 48,     // 群れのときは、こし出しを短くして、潜るところまで見せる
-  firstDive: 54,
+  firstDive: 58,
   diveGap: [2, 2.8],
-  end: 86,
+  end: 90,
 });
 
 // 群れの1頭ずつ。offset は輪のまん中からの [x, z](m)、delay は飛び出すずれ(秒)、
@@ -86,8 +87,12 @@ export function bubbleNetGroup(rng = Math.random) {
   for (let i = 0; i < n; i++) {
     const a = (i / Math.max(1, n - 1)) * Math.PI * 2 + rng() * 0.15;
     const r = i === 0 ? 0 : 4 + rng() * 1.2;
-    group.push({ offset: [Math.cos(a) * r, Math.sin(a) * r], delay: (rng() - 0.5) * 1.0, scale: 0.85 + rng() * 0.2 });
+    group.push({ offset: [Math.cos(a) * r, Math.sin(a) * r], delay: 0, scale: 0.85 + rng() * 0.2 });
   }
+  // 飛び出す順番はばらばらで、0.3〜0.7秒ずつずれる(全体で2〜3秒くらい)
+  const lunge = group.map((_, i) => i).sort(() => rng() - 0.5);
+  let d = 0;
+  for (const i of lunge) { group[i].delay = d; d += 0.3 + rng() * 0.4; }
   let t = BUBBLE_NET.firstDive;
   const order = group.map((_, i) => i).sort(() => rng() - 0.5);
   for (const i of order) {

@@ -32,3 +32,21 @@ test('どの時刻でも1分の差で大きく変わらない', () => {
     assert.ok(Math.abs(sunForTime(h).exposure - sunForTime(h + 1 / 60).exposure) < 0.02);
   }
 });
+
+test('星は日が沈んでしばらくしてから見え始め、夜にいちばん多い', () => {
+  assert.equal(sunForTime(12).starlight, 0);
+  assert.equal(sunForTime(18).starlight, 0);
+  const dusk = sunForTime(18.6).starlight;
+  assert.ok(dusk > 0 && dusk < 0.6, `dusk ${dusk}`);
+  assert.equal(sunForTime(23).starlight, 1);
+});
+
+test('月は日没後に見え始める', () => {
+  assert.equal(sunForTime(15).moonlight, 0);
+  assert.equal(sunForTime(22).moonlight, 1);
+});
+
+test('夕日と朝日はカメラの正面寄り(海に光の道ができる向き)に沈む・昇る', () => {
+  // カメラは方位180度(-Z)を向いている。縦長画面でも見えるよう、正面から12度以内
+  for (const h of [6, 18]) assert.ok(Math.abs(sunForTime(h).azimuth - 180) <= 12, `${h}`);
+});

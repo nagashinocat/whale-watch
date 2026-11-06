@@ -163,7 +163,8 @@ setInterval(() => {
   const event = scheduler.tick(Date.now());
   if (event) handleEvent(event);
 }, 1000);
-setInterval(updateTime, 60 * 1000);
+// 空はなめらかに変わるよう10秒ごとに合わせる
+setInterval(updateTime, 10 * 1000);
 
 // 見えていないときは描画を止めて電池を節約する
 document.addEventListener('visibilitychange', () => {

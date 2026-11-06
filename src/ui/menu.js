@@ -2,6 +2,8 @@ import { MENU_HIDE_MS } from '../logic/config.js';
 
 const CAMERA_LABELS = { sky: '上空', cliff: '崖の上', surface: '水面' };
 const TIME_LABELS = { auto: '自動', morning: '朝', day: '昼', evening: '夕方', night: '夜' };
+// 特別にきれいな時間
+const SPECIAL_LABELS = { golden: 'ゴールデンアワー', blue: 'ブルーアワー' };
 
 // 起動画面とメニュー。
 export function createMenu(root, handlers) {
@@ -24,6 +26,12 @@ export function createMenu(root, handlers) {
       </div>
       <div class="seg times" role="group" aria-label="時間">
         ${Object.entries(TIME_LABELS).map(([k, v]) => `<button data-time="${k}">${v}</button>`).join('')}
+      </div>
+      <div class="special">
+        <span class="label">特別な時間</span>
+        <div class="seg" role="group" aria-label="特別な時間">
+          ${Object.entries(SPECIAL_LABELS).map(([k, v]) => `<button data-time="${k}">${v}</button>`).join('')}
+        </div>
       </div>
       <div class="row foot">
         <small class="credits" data-credits></small>

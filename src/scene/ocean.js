@@ -17,7 +17,28 @@ function makeWaterNormals(size) {
   return texture;
 }
 
-const MOON_DIRECTION = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(65), THREE.MathUtils.degToRad(200));
+// 月はカメラの正面やや左、高さ20度。正面にあると海に月の光の道(ムーンロード)が手前までのびる
+const MOON_DIRECTION = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(70), THREE.MathUtils.degToRad(186));
+
+// 海面のきらめきを時間帯ごとに変えられるよう、three.js の海のシェーダーを少しだけ書き換える。
+// 書き換える場所が見つからなければ何もしない(元の見た目のまま動く)。
+function tuneWaterShader(material) {
+  let shader = material.fragmentShader;
+  const before = shader;
+  shader = shader.replace(
+    /sunLight\(\s*surfaceNormal,\s*eyeDirection,\s*100\.0,\s*2\.0,/,
+    'sunLight( surfaceNormal, eyeDirection, uShiny, uSpec,',
+  );
+  // きらめきを空の映り込みの明るさに関係なく光らせる(夜の月の光の道が暗くならないように)
+  shader = shader.replace(/reflectionSample \* specularLight/, 'reflectionSample * specularLight + specularLight * uGlint');
+  if (shader === before) return false;
+  material.fragmentShader = 'uniform float uShiny;\nuniform float uSpec;\nuniform float uGlint;\n' + shader;
+  material.uniforms.uShiny = { value: 100 };
+  material.uniforms.uSpec = { value: 2 };
+  material.uniforms.uGlint = { value: 0 };
+  material.needsUpdate = true;
+  return true;
+}
 
 // 海・空・カメラ・描画ループ。
 export function createOcean(canvas) {
@@ -39,22 +60,18 @@ export function createOcean(canvas) {
     sunColor: 0xffffff,
     waterColor: 0x0a4f8a,
     distortionScale: 3.7,
-    fog: false,
+    fog: true,
   });
   water.rotation.x = -Math.PI / 2;
   scene.add(water);
+  const tuned = tuneWaterShader(water.material);
+
+  // 遠くの海ほど空気でかすんで、地平線の空の色にとけこむ
+  scene.fog = new THREE.Fog(0xffffff, 1500, 18000);
 
   // 時刻に合わせて色が変わる空(昼の青空、夕焼け、夜)
   const sky = createGradientSky();
   scene.add(sky.mesh);
-
-  // 夜に見える月
-  const moon = new THREE.Mesh(
-    new THREE.SphereGeometry(60, 24, 12),
-    new THREE.MeshBasicMaterial({ color: 0xf4f1e6 }),
-  );
-  moon.position.copy(MOON_DIRECTION).multiplyScalar(5000);
-  scene.add(moon);
 
   // クジラ用の光
   const ambient = new THREE.HemisphereLight(0xbfd8ff, 0x0b2030, 0.8);
@@ -98,20 +115,37 @@ export function createOcean(canvas) {
     water.material.uniforms.sunDirection.value.copy(lightDir).normalize();
     // 空・海・光の色は時刻ごとの色見本から決める
     const palette = skyPalette(hours);
-    sky.setColors(palette);
+    sky.setState({ palette, sun: s, sunDir, moonDir: MOON_DIRECTION });
+    scene.fog.color.set(palette.horizon);
     water.material.uniforms.sunColor.value.set(palette.light);
     water.material.uniforms.waterColor.value.set(palette.water);
+    if (tuned) {
+      const u = water.material.uniforms;
+      const lerp = (a, b, t) => a + (b - a) * t;
+      if (s.isNight) {
+        // 月の光の道: 細くまっすぐ、くっきり
+        u.uShiny.value = 220;
+        u.uSpec.value = 2.6 * s.moonlight;
+        u.uGlint.value = 0.8;
+      } else {
+        // 太陽が低いほど光の道が太く、金色に強く光る
+        const up = THREE.MathUtils.smoothstep(s.elevation, -1, 1.5);
+        u.uShiny.value = lerp(60, 140, s.daylight);
+        u.uSpec.value = lerp(3.2, 1.6, s.daylight) * up;
+        u.uGlint.value = lerp(0.5, 0.15, s.daylight);
+      }
+    }
     sunLight.position.copy(lightDir).multiplyScalar(1000);
     sunLight.color.set(palette.light);
     sunLight.intensity = s.isNight ? 0.4 : 1.5;
     ambient.intensity = s.isNight ? 0.25 : 0.8;
-    moon.visible = s.isNight;
     renderer.toneMappingExposure = s.exposure + 0.12 * s.daylight;
   }
 
   function render(dt) {
     elapsed += dt;
     water.material.uniforms.time.value += dt * 0.6;
+    sky.update(dt);
     if (preset.sway) placeCamera();
     for (const fn of updaters) fn(dt);
     renderer.render(scene, camera);

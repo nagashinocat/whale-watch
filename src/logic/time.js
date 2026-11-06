@@ -4,7 +4,7 @@ import { TIME_PRESETS } from './config.js';
 export function hoursFor(setting, date) {
   const fixed = TIME_PRESETS[setting];
   if (typeof fixed === 'number') return fixed;
-  return date.getHours() + date.getMinutes() / 60;
+  return date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
 }
 
 // 時刻 from から to へ、近い方向に t(0〜1)だけ進んだ時刻。0時をまたげる。

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { hoursFor, blendHours } from '../src/logic/time.js';
+import { SKY_MOMENTS } from '../src/logic/skyPalette.js';
 
 test('自動なら実際の時刻', () => {
   assert.equal(hoursFor('auto', new Date(2026, 10, 6, 3, 30)), 3.5);
@@ -10,7 +11,9 @@ test('時間帯を選ぶとその時刻に固定', () => {
   const d = new Date(2026, 10, 6, 3, 30);
   assert.equal(hoursFor('morning', d), 7);
   assert.equal(hoursFor('day', d), 12);
-  assert.equal(hoursFor('evening', d), 17.5);
+  assert.equal(hoursFor('evening', d), SKY_MOMENTS.sunset);
+  assert.equal(hoursFor('golden', d), SKY_MOMENTS.golden);
+  assert.equal(hoursFor('blue', d), SKY_MOMENTS.blue);
   assert.equal(hoursFor('night', d), 22);
 });
 
@@ -27,4 +30,8 @@ test('切り替えは近い方向に移り変わる(0時をまたげる)', () =>
     const h = blendHours(23, 1, t);
     assert.ok(h >= 0 && h < 24);
   }
+});
+
+test('自動のときは秒まで反映する(空がなめらかに変わる)', () => {
+  assert.equal(hoursFor('auto', new Date(2026, 10, 6, 18, 0, 36)), 18.01);
 });

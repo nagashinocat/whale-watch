@@ -24,19 +24,28 @@ export const SOUND_FILES = Object.freeze({
 // 音ファイルをまとめて読む。読めなかったものは null。
 export async function loadBuffers(ctx, files = SOUND_FILES) {
   const entries = await Promise.all(Object.entries(files).map(async ([name, url]) => {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) return [name, null];
-      return [name, await ctx.decodeAudioData(await res.arrayBuffer())];
-    } catch {
-      return [name, null];
+    // 大きなファイル(波の音)は、電波が弱いと途中で失敗することがあるので、もう一度だけ読みなおす
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) continue;
+        return [name, await ctx.decodeAudioData(await res.arrayBuffer())];
+      } catch {
+        // もう一度
+      }
     }
+    return [name, null];
   }));
   return Object.fromEntries(entries);
 }
 
 // カメラごとの波の音。上空は崖の上と同じ遠い波の音を使う
-const waveSound = camera => (camera === 'near' ? 'surface' : 'cliff');   // 間近は水面の近くの波の音
+export const waveSound = camera => (camera === 'near' ? 'surface' : 'cliff');   // 間近は水面の近くの波の音
+
+// 読めなかった波の音のカメラ(どのカメラでも、使う波の音が読めていれば空)
+export function camerasWithoutWaves(buffers, cameras = ['cliff', 'sky', 'near']) {
+  return cameras.filter(c => !buffers[`waves-${waveSound(c)}`]);
+}
 
 // 水しぶきやジャンプの音。距離に合わせてくぐもらせる
 const WATER_SOUNDS = new Set(['splash', 'breach', 'breach-rise', 'tail-slap', 'pec-slap']);

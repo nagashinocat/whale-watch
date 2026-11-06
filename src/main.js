@@ -7,7 +7,7 @@ import { setEyeLight } from './scene/whaleModel.js';
 import { cameraShake } from './logic/behavior.js';
 import { PATTERNS, PATTERN_LABELS, resolvePattern, voiceSound } from './logic/patterns.js';
 import { spawnPosition } from './logic/spawn.js';
-import { createMixer, loadBuffers } from './audio/mixer.js';
+import { createMixer, loadBuffers, camerasWithoutWaves } from './audio/mixer.js';
 import { createMenu } from './ui/menu.js';
 import { createScheduler } from './logic/scheduler.js';
 import { loadSettings, saveSettings } from './logic/settings.js';
@@ -233,7 +233,10 @@ const menu = createMenu(document.getElementById('ui'), {
     const ctx = new Ctx();
     await ctx.resume();
     const buffers = await loadBuffers(ctx);
-    if (!buffers[`waves-${settings.camera}`]) menu.showNotice('波の音を読み込めませんでした');
+    // 間近は「水面の波の音」、崖の上と上空は「遠い波の音」を使う(カメラの名前そのままのファイルはない)
+    const silent = camerasWithoutWaves(buffers);
+    if (silent.length === 3) menu.showNotice('波の音を読み込めませんでした');
+    else if (silent.length) menu.showNotice('一部のカメラの波の音を読み込めませんでした');
     mixer = createMixer(ctx, buffers);
     mixer.setMode(settings.mode);
     mixer.setVolume(settings.volume);

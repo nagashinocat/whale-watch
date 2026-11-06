@@ -9,6 +9,10 @@ export const SOUND_FILES = Object.freeze({
   'humpback-call': 'assets/audio/humpback-call.wav',
   sperm: 'assets/audio/sperm-clicks.wav',
   splash: 'assets/audio/splash.wav',
+  // 潮吹きの息の音(合成。tools/audio/make_blow.py)
+  blow: 'assets/audio/blow.wav',
+  // 泡の網の泡がはじける音(合成。tools/audio/make_bubbles.py)
+  bubbles: 'assets/audio/bubbles.wav',
 });
 
 // 音ファイルをまとめて読む。読めなかったものは null。

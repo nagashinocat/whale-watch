@@ -1,4 +1,9 @@
 import { MENU_HIDE_MS } from '../logic/config.js';
+import { drawFluke } from './flukeCanvas.js';
+import { FLUKE_ID } from '../logic/flukeId.js';
+
+// 日付を「11月6日」の形に
+const day = ms => { const d = new Date(ms); return `${d.getMonth() + 1}月${d.getDate()}日`; };
 
 const CAMERA_LABELS = { sky: '上空', cliff: '崖の上', near: '間近' };
 const TIME_LABELS = { auto: '自動', morning: '朝', day: '昼', evening: '夕方', night: '夜' };
@@ -35,10 +40,20 @@ export function createMenu(root, handlers) {
       </div>
       <div class="row foot">
         <small class="credits" data-credits></small>
+        <button class="full" data-zukan-open>クジラ図鑑</button>
         <button class="full" data-full>全画面</button>
       </div>
       <p class="notice" data-notice hidden></p>
-    </div>`;
+    </div>
+    <section class="zukan" data-zukan hidden aria-label="クジラ図鑑">
+      <div class="zukan-head">
+        <h2>クジラ図鑑</h2>
+        <button class="full" data-zukan-close>閉じる</button>
+      </div>
+      <p class="zukan-note">尾びれの裏の模様は1頭ずつちがいます。尾びれを上げて潜ったクジラが、ここにのります。<span data-zukan-count></span></p>
+      <ol class="zukan-list" data-zukan-list></ol>
+    </section>
+    <p class="toast" data-toast hidden></p>`;
 
   const $ = sel => root.querySelector(sel);
   const start = $('[data-start]');
@@ -47,7 +62,37 @@ export function createMenu(root, handlers) {
   const status = $('[data-status]');
   const volume = $('[data-volume]');
   const notice = $('[data-notice]');
+  const zukan = $('[data-zukan]');
+  const toast = $('[data-toast]');
   let started = false;
+  let toastTimer = null;
+  let entries = [];
+
+  function renderZukan() {
+    const list = $('[data-zukan-list]');
+    list.innerHTML = '';
+    $('[data-zukan-count]').textContent = ` いままでに ${entries.length} / ${FLUKE_ID.size} 頭`;
+    if (!entries.length) {
+      const li = document.createElement('li');
+      li.className = 'zukan-empty';
+      li.textContent = 'まだだれものっていません。クジラが尾びれを上げて潜るのを待ちましょう';
+      list.append(li);
+      return;
+    }
+    for (const e of entries) {
+      const li = document.createElement('li');
+      const c = document.createElement('canvas');
+      c.width = 176; c.height = 48;
+      c.setAttribute('aria-hidden', 'true');
+      drawFluke(c, e);
+      const text = document.createElement('div');
+      text.innerHTML = `<b></b><span></span>`;
+      text.querySelector('b').textContent = e.name;
+      text.querySelector('span').textContent = `${e.count}回 ・ さいご ${day(e.last)}`;
+      li.append(c, text);
+      list.append(li);
+    }
+  }
   let hideTimer = null;
 
   const fullscreenSupported = !!document.documentElement.requestFullscreen;
@@ -73,6 +118,7 @@ export function createMenu(root, handlers) {
   // 海をタップするとメニューが出る。メニューを触っている間は隠さない。
   document.addEventListener('pointerdown', e => {
     if (!started) return;
+    if (zukan.contains(e.target)) return;
     if (menu.contains(e.target)) scheduleHide();
     else if (menu.hidden) showMenu();
     else menu.hidden = true;
@@ -88,6 +134,12 @@ export function createMenu(root, handlers) {
   summon.addEventListener('click', () => handlers.onSummon());
   volume.addEventListener('input', () => handlers.onVolume(Number(volume.value)));
   $('[data-full]').addEventListener('click', () => handlers.onFullscreen());
+  $('[data-zukan-open]').addEventListener('click', () => {
+    renderZukan();
+    zukan.hidden = false;
+    menu.hidden = true;
+  });
+  $('[data-zukan-close]').addEventListener('click', () => { zukan.hidden = true; });
 
   return {
     setValues({ mode, camera, volume: v, time }) {
@@ -109,6 +161,18 @@ export function createMenu(root, handlers) {
     showNotice(text) {
       notice.hidden = false;
       notice.textContent = text;
+    },
+    // 図鑑の中身(最後に見た順)
+    setZukan(list) {
+      entries = list;
+      if (!zukan.hidden) renderZukan();
+    },
+    // 画面の上に、しばらくお知らせを出す
+    showToast(text) {
+      toast.textContent = text;
+      toast.hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toast.hidden = true; }, 7000);
     },
     showCredits(lines) {
       $('[data-credits]').textContent = lines.join(' / ');

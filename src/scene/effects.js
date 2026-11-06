@@ -83,13 +83,14 @@ export function createEffects(scene) {
     // 上に6〜9mほど噴き上がり、風に流れて3秒で消える霧
     // 潮吹き。ザトウクジラはまっすぐ上へ、もこもこと3〜5m。マッコウクジラは左前へ45度かたむく。
     // forward はクジラが向いている水平の向き
-    spout(position, { kind = 'humpback', forward = [0, 0, -1] } = {}) {
+    // scale: 潮吹きの大きさ(子クジラは小さい)。高さは scale 倍になる
+    spout(position, { kind = 'humpback', forward = [0, 0, -1], scale = 1 } = {}) {
       const [x, y, z] = position;
       const b = BLOW[kind];
       const dir = blowDirection(kind, forward);
-      const speed = blowSpeed(kind);
-      for (let k = 0; k < 300; k++) {
-        const a = Math.random() * Math.PI * 2, r = Math.random() * b.spread;
+      const speed = blowSpeed(kind) * Math.sqrt(scale);
+      for (let k = 0; k < 300 * Math.min(1, scale + 0.2); k++) {
+        const a = Math.random() * Math.PI * 2, r = Math.random() * b.spread * Math.sqrt(scale);
         // 速さを少しずつばらつかせて、上まで届く粒と途中で広がる粒をまぜる(もこもこした形になる)
         const s = speed * rand(0.75, 1.0);
         emit([x + Math.cos(a) * 0.3, y + 0.3, z + Math.sin(a) * 0.3],
@@ -115,16 +116,38 @@ export function createEffects(scene) {
       }
     },
 
+    // 泡が水面ではじける小さなしぶき(泡の網)
+    bubbles(point, n = 6) {
+      for (let k = 0; k < n; k++) {
+        const a = Math.random() * Math.PI * 2;
+        emit([point[0] + rand(-0.8, 0.8), 0.05, point[2] + rand(-0.8, 0.8)],
+          [Math.cos(a) * 0.3, rand(0.8, 2.0), Math.sin(a) * 0.3],
+          { life: rand(0.5, 0.9), size: rand(0.12, 0.25), alpha: 0.8, gravity: 9.8, grow: 1.1 });
+      }
+    },
+
+    // 追いつめられた小魚が、水面からあちこちへ跳ねる(小さくきらっと光る粒)
+    leap(point, n = 20, radius = 4) {
+      for (let k = 0; k < n; k++) {
+        const a = Math.random() * Math.PI * 2, r = Math.random() * radius;
+        const out = rand(1.5, 3.5);
+        emit([point[0] + Math.cos(a) * r, 0.1, point[2] + Math.sin(a) * r],
+          [Math.cos(a) * out, rand(2.5, 4.5), Math.sin(a) * out],
+          { life: rand(0.8, 1.1), size: rand(0.1, 0.18), alpha: 1, gravity: 9.8, grow: 1, delay: rand(0, 1.5) });
+      }
+    },
+
     // 太陽や月の光の色に合わせる(夕方は金色、夜は青白く暗く)
     setLight(hex) {
       material.uniforms.uColor.value.set(hex).multiplyScalar(1.5);
     },
 
     // 海面に白い泡を円状に広げ、durationMs かけて薄くする
-    foam(position, durationMs = 8000) {
+    // radius: 泡の広がり(m)、count: 粒の数。泡の輪は、小さな泡のかたまりをたくさん並べて作る
+    foam(position, durationMs = 8000, { radius = 6, count = 400 } = {}) {
       const [x, , z] = position;
-      for (let k = 0; k < 400; k++) {
-        const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 6;
+      for (let k = 0; k < count; k++) {
+        const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * radius;
         emit([x + Math.cos(a) * r, 0.25, z + Math.sin(a) * r],
           [Math.cos(a) * 0.35, 0, Math.sin(a) * 0.35],
           { life: (durationMs / 1000) * rand(0.7, 1), size: rand(1, 1.8), alpha: 0.5, gravity: 0, floor: 0, grow: 1.3 });

@@ -13,6 +13,8 @@
 | splash.wav | 水しぶき(ジャンプの着水) | https://freesound.org/people/Fission9/sounds/583348/ (Rock Splash) | CC0 | Fission9 |
 | waves-cliff.wav | 遠くで岩に打ちよせる波(崖の上・上空) | https://freesound.org/s/156354 (oceanwaves-9) | CC0 | Rmutt |
 | waves-surface.wav | 砂州に寄せる小さな波(水面) | https://freesound.org/people/plantmonkey/sounds/459813 (Waves on a sand bar) | CC0 | plantmonkey |
+| blow.wav | 潮吹きの息の音(吐く・吸う、約3秒) | このアプリで合成 `tools/audio/make_blow.py` | 自作(素材なし) | — |
+| bubbles.wav | 泡の網の泡がはじける音(約10秒) | このアプリで合成 `tools/audio/make_bubbles.py` | 自作(素材なし) | — |
 
 ## 3Dモデル
 

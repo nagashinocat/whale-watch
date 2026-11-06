@@ -73,3 +73,28 @@ test('水面を割るときは、秒速2〜4mで上がってくる(調べた突�
   const top = Math.max(...Array.from({ length: 400 }, (_, i) => feedingPose(i * 0.1).tipY));
   assert.ok(top > 3.5 && top < 7, `head out ${top}m`);
 });
+
+test('バブルネット: 5〜7頭で、直径15〜30mの泡の輪のまん中から、ほぼいっしょに飛び出す', async () => {
+  const { BUBBLE_NET, bubbleNetGroup } = await import('../src/logic/feeding.js');
+  const g = bubbleNetGroup(() => 0.5);
+  assert.ok(g.length >= 5 && g.length <= 7);
+  assert.ok(BUBBLE_NET.ringRadius * 2 >= 15 && BUBBLE_NET.ringRadius * 2 <= 30);
+  const delays = g.map(w => w.delay);
+  assert.ok(Math.max(...delays) - Math.min(...delays) <= 1.2, 'together');
+  for (const w of g) assert.ok(Math.hypot(...w.offset) < BUBBLE_NET.ringRadius * 0.6, 'inside the ring');
+  for (let i = 0; i < g.length; i++) for (let j = i + 1; j < g.length; j++) {
+    assert.ok(Math.hypot(g[i].offset[0] - g[j].offset[0], g[i].offset[1] - g[j].offset[1]) >= 3.2, 'mouths do not overlap');
+  }
+});
+
+test('バブルネットのあとは、何回か潮を吹いて、1頭ずつ潜っていく', async () => {
+  const { BUBBLE_NET, bubbleNetGroup } = await import('../src/logic/feeding.js');
+  const g = bubbleNetGroup(Math.random);
+  const dives = g.map(w => w.dive).sort((a, b) => a - b);
+  for (let i = 1; i < dives.length; i++) assert.ok(dives[i] - dives[i - 1] >= 2, 'one by one');
+  for (const w of g) {
+    assert.ok(w.blows.length >= 2 && w.blows.every(b => b < w.dive && b > FEEDING.closed));
+  }
+  assert.ok(dives.at(-1) + 12 <= PATTERNS.bubbleNet.durationMs / 1000);
+  assert.equal(BUBBLE_NET.surface, FEEDING.surface);
+});

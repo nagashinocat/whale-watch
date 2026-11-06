@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { buildWhaleGeometry, SWIM, WHALE_SPECS, jawHinge, POUCH_SWELL } from '../logic/whaleShape.js';
 import { eyePatch, applyLid, eyeballPlacement, blinkOpen, EYE } from '../logic/eyeShape.js';
+import { flukeWhiteness } from '../logic/flukeId.js';
 
 // 目の玉に映る空と海の色(時刻で変わる。setEyeLight で変える)
 const eyeUniforms = {
@@ -159,7 +160,30 @@ function geometryFor(kind) {
   geo.setIndex(new THREE.BufferAttribute(g.indices, 1));
   geo.setAttribute('aJaw', new THREE.BufferAttribute(g.jaw, 4));
   geo.computeVertexNormals();
+  geo.userData = { fluke: g.fluke };
   geometries[kind] = geo;
+  return geo;
+}
+
+// 1頭ずつちがう尾びれの裏の模様を入れた形。色だけちがい、形は同じものを使い回す
+const individualGeometries = new Map();
+const HB_WHITE = [0xe6 / 255, 0xe8 / 255, 0xea / 255], HB_BACK = [0x16 / 255, 0x18 / 255, 0x1b / 255];
+function geometryForIndividual(kind, ind) {
+  const base = geometryFor(kind);
+  if (!ind || kind !== 'humpback') return base;
+  if (individualGeometries.has(ind.id)) return individualGeometries.get(ind.id);
+  const geo = new THREE.BufferGeometry();
+  geo.setIndex(base.index);
+  for (const [name, attr] of Object.entries(base.attributes)) if (name !== 'color') geo.setAttribute(name, attr);
+  const colors = Float32Array.from(base.attributes.color.array);
+  const { fluke } = base.userData;
+  for (let k = 0; k < fluke.s.length; k++) {
+    if (!fluke.under[k]) continue;
+    const w = flukeWhiteness(ind, fluke.s[k], fluke.c[k]);
+    for (let m = 0; m < 3; m++) colors[(fluke.start + k) * 3 + m] = toLinear(HB_BACK[m] + (HB_WHITE[m] - HB_BACK[m]) * w);
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  individualGeometries.set(ind.id, geo);
   return geo;
 }
 
@@ -171,7 +195,8 @@ export function prepareWhaleGeometry() {
 }
 
 // 1頭ぶんのクジラ。lengthMeters は体長(m)。頭は -z を向いている
-export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMeters) {
+// individual: 尾びれの裏の模様で見分けられる1頭(flukeId.js)。なければ、ふつうの模様
+export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMeters, { individual = null } = {}) {
   const uniforms = {
     uPhase: { value: Math.random() * Math.PI * 2 }, uSwim: { value: 1 },
     // 口の開き(下あご・上あごの角度、ラジアン)と、のどのふくらみ(0〜1)
@@ -254,7 +279,7 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
         }`);
   };
   material.customProgramCacheKey = () => `whale-${kind}`;
-  const mesh = new THREE.Mesh(geometryFor(kind), material);
+  const mesh = new THREE.Mesh(geometryForIndividual(kind, individual), material);
   mesh.scale.setScalar(lengthMeters);
   // ザトウクジラは、目のまわりを細かく作った部品をはめこむ(体の網目のその部分は抜いてある)
   const eyes = kind === 'humpback' ? createEyes(mesh, material) : null;

@@ -2,9 +2,11 @@
 export const PATTERNS = Object.freeze({
   voice: { durationMs: 60000, needs: null, sound: 'humpback' },
   spout: { durationMs: 40000, needs: 'humpback', sound: null },
-  fluke: { durationMs: 30000, needs: 'humpback', sound: null },
+  // 何回か潮を吹いてから、尾びれを上げて潜る(潮吹きの回数で長さが変わるので、いちばん長いときに合わせる)
+  fluke: { durationMs: 88000, needs: 'humpback', sound: null },
   motherCalf: { durationMs: 60000, needs: 'humpback', sound: null },
-  sleeping: { durationMs: 90000, needs: 'sperm', sound: 'sperm' },
+  // 眠っているあいだは音を出さない(目をさますとカチカチ鳴く。音は動きの中で鳴らす)
+  sleeping: { durationMs: 100000, needs: 'sperm', sound: null },
   breach: { durationMs: 25000, needs: 'humpback', sound: null },
   // 呼んだクジラは近くに着いてから(songAtMs)歌い始める
   // スパイホップ: 体を縦にしてゆっくり上がり、頭だけを出してまわりを見回す
@@ -15,6 +17,8 @@ export const PATTERNS = Object.freeze({
   lobtail: { durationMs: 32000, needs: 'humpback', sound: null },
   // 捕食: 泡の輪の中から口を開けて飛び出し、水ごとのみこむ。水をこし出して、潮吹きで終わる
   feeding: { durationMs: 88000, needs: 'humpback', sound: null },
+  // バブルネット: 群れで泡の網を作り、いっしょに口を開けて飛び出す。そのあと1頭ずつ潜る
+  bubbleNet: { durationMs: 86000, needs: 'humpback', sound: null },
   // 目が合う: 間近のカメラのすぐ前で頭を出し、目が画面いっぱいになる近さで、こちらをじっと見る
   eyeContact: { durationMs: 46000, needs: 'humpback', sound: null },
   summon: { durationMs: 120000, needs: 'humpback', sound: null, songAtMs: 40000 },
@@ -48,6 +52,7 @@ export const PATTERN_LABELS = Object.freeze({
   pecSlap: '胸びれで水面をたたく',
   lobtail: '尾びれで水面をたたく',
   feeding: '捕食(水ごとのみこむ)',
+  bubbleNet: 'バブルネット(群れで捕食)',
   eyeContact: '目が合う(すぐ目の前)',
   summon: '呼んだクジラ',
 });

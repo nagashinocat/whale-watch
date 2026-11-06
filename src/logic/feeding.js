@@ -59,3 +59,42 @@ export function feedingPose(t) {
   const dive = ease((t - (F.blow + 3)) / 6);    // 潮吹きのあと潜る
   return { gape, pouch, tipY, pitch, float, dive };
 }
+
+// ---- 群れのバブルネットフィーディング ----
+// 調べてわかったこと
+//   ・ふつうは5〜7頭がいっしょに飛び出す(10頭くらいの群れも、40頭の記録もある)
+//   ・泡の輪は直径20mほど。輪ができるときは、泡が水面ではじける「シュワシュワ」という音がする
+//   ・飛び出すのは8秒ほど。小魚があちこちへ跳ね、カモメが集まってくる
+//   ・飛び出したあとは何回か潮を吹き、背中を丸めて1頭ずつ潜っていく
+export const BUBBLE_NET = Object.freeze({
+  whales: [5, 7],
+  ringRadius: 10,
+  surface: FEEDING.surface,
+  filterEnd: 48,     // 群れのときは、こし出しを短くして、潜るところまで見せる
+  firstDive: 54,
+  diveGap: [2, 2.8],
+  end: 86,
+});
+
+// 群れの1頭ずつ。offset は輪のまん中からの [x, z](m)、delay は飛び出すずれ(秒)、
+// scale は体の大きさ、blows は潮吹きの時刻、dive は潜りはじめる時刻
+export function bubbleNetGroup(rng = Math.random) {
+  const [lo, hi] = BUBBLE_NET.whales;
+  const n = lo + Math.floor(rng() * (hi - lo + 1));
+  const group = [];
+  // まん中に1頭、まわりに輪のように並ぶ(口がぶつからない間隔)
+  for (let i = 0; i < n; i++) {
+    const a = (i / Math.max(1, n - 1)) * Math.PI * 2 + rng() * 0.15;
+    const r = i === 0 ? 0 : 4 + rng() * 1.2;
+    group.push({ offset: [Math.cos(a) * r, Math.sin(a) * r], delay: (rng() - 0.5) * 1.0, scale: 0.85 + rng() * 0.2 });
+  }
+  let t = BUBBLE_NET.firstDive;
+  const order = group.map((_, i) => i).sort(() => rng() - 0.5);
+  for (const i of order) {
+    group[i].dive = t;
+    const b1 = 32 + rng() * 4;
+    group[i].blows = [b1, b1 + 9 + rng() * 2, Math.min(t - 3, b1 + 18 + rng() * 2)].filter((b, k, a) => b < t - 2 && (k === 0 || b - a[k - 1] > 4));
+    t += BUBBLE_NET.diveGap[0] + rng() * (BUBBLE_NET.diveGap[1] - BUBBLE_NET.diveGap[0]);
+  }
+  return group;
+}

@@ -14,6 +14,7 @@ import { loadSettings, saveSettings } from './logic/settings.js';
 import { hoursFor, blendHours } from './logic/time.js';
 import { realSky } from './logic/places.js';
 import { AUDIO } from './logic/config.js';
+import { loadBook, saveBook, nextVisitor, recordSighting, bookEntries, individual } from './logic/flukeId.js';
 
 // メニューに表示する素材のクレジット(assets/CREDITS.md と合わせる)
 const CREDITS = ['波と水しぶきの音: Rmutt, plantmonkey, Fission9 (Freesound / CC0)', 'クジラの声: NOAA Fisheries, NOAA PMEL Acoustics Program (pmel.noaa.gov/acoustics/multimedia.html)'];
@@ -25,6 +26,8 @@ const DEBUG = window.WHALE_DEBUG === true || params.has('debug') || location.has
 const FAST = params.has('fast') || location.hash === '#debug-fast';
 
 const settings = loadSettings(safeStorage());
+// クジラ図鑑(尾びれの模様で見分けたクジラの記録)
+let book = loadBook(safeStorage());
 const ocean = createOcean(document.getElementById('sea'));
 const scheduler = createScheduler({ now: Date.now(), intervalScale: FAST ? 1 / 30 : 1 });
 
@@ -48,6 +51,24 @@ const whalesReady = createWhales(ocean.scene, {
     ocean.shake(cameraShake(d) * power);
   },
   playSound: (name, opts) => mixer?.playWhale(name, opts),
+  // この出方に来るクジラ(図鑑にのっているクジラが、ときどきもう一度来る)。taken は同じ出方ですでに来ているクジラ
+  visitor(taken = []) {
+    let id = nextVisitor(book);
+    for (let k = 0; k < 20 && taken.includes(id); k++) id = nextVisitor(book);
+    return id;
+  },
+  // 尾びれの裏が見えたら、図鑑に記録してお知らせする
+  sighted(w) {
+    if (!w.individual) return;
+    const r = recordSighting(book, w.individual.id, Date.now());
+    book = r.book;
+    saveBook(safeStorage(), book);
+    menu.setZukan(bookEntries(book));
+    const name = individual(w.individual.id).name;
+    menu.showToast(r.first
+      ? `はじめて見るクジラです。尾びれの模様から「${name}」と名前を付けて、図鑑にのせました`
+      : `「${name}」がまた来ました(${r.count}回目)`);
+  },
 });
 whalesReady.then(w => ocean.addUpdater(w.update));
 
@@ -117,7 +138,9 @@ async function handleEvent(event) {
   if (event.kind === 'summon') menu.setSummonStatus(null);
   try {
     const whales = await whalesReady;
-    const name = resolvePattern(event.pattern, whales.models);
+    // 「目が合う」は間近のカメラのすぐ前で起きるので、崖の上からは見えない(崖の真下になる)。かわりにスパイホップ
+    const wanted = event.pattern === 'eyeContact' && settings.camera === 'cliff' ? 'spyhop' : event.pattern;
+    const name = resolvePattern(wanted, whales.models);
     const { sound, durationMs } = PATTERNS[name];
     // 鳴き声だけのときは、長い歌と短い一声をまぜて選ぶ
     const voice = name === 'voice' && mixer
@@ -160,7 +183,17 @@ if (DEBUG) {
     });
     panel.append(b);
   }
-  panel.append(status);
+  // 図鑑を空にする(はじめて見るときのお知らせを、もう一度ためすため)
+  const clear = document.createElement('button');
+  clear.textContent = '図鑑を空にする';
+  clear.addEventListener('pointerdown', e => e.stopPropagation());
+  clear.addEventListener('click', () => {
+    book = {};
+    saveBook(safeStorage(), book);
+    menu.setZukan([]);
+    status.textContent = '図鑑を空にしました';
+  });
+  panel.append(clear, status);
   document.body.append(panel);
 }
 
@@ -213,6 +246,7 @@ const menu = createMenu(document.getElementById('ui'), {
 
 menu.setValues(settings);
 menu.showCredits(CREDITS);
+menu.setZukan(bookEntries(book));
 ocean.setCamera(settings.camera);
 updateTime();
 ocean.start();

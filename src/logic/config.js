@@ -40,6 +40,7 @@ export const SCHEDULE = Object.freeze({
     eyeContact: 3,
     // 捕食。沖縄の海は子育ての場所で、ザトウクジラはほとんど食べない(えさは夏に北の海で食べる)ので、ごくまれ
     feeding: 2,
+    bubbleNet: 1,
   }),
 });
 

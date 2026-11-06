@@ -512,8 +512,11 @@ export function flukeGeometry(kind, out = meshBuilder()) {
   const first = out.positions.length / 3;
   const leading = a => flukeOutline(kind, a).leading;
   const trailing = a => flukeOutline(kind, a).trailing;
-  const steps = 64, around = 12;
+  // 尾びれの裏の模様(1頭ずつちがう)を描けるように、網目は細かめ
+  const steps = 128, around = 24;
   const edges = [];
+  // 頂点ごとの尾びれの上の場所(s: 左 -1 〜 右 1、c: 前のふち 0 〜 うしろのふち 1、under: 裏側か)
+  const map = { start: first, s: [], c: [], under: [] };
   for (let i = 0; i <= steps; i++) {
     const t = -1 + (2 * i) / steps;           // -1 が左のはし、1 が右のはし
     const a = Math.abs(t);
@@ -537,6 +540,7 @@ export function flukeGeometry(kind, out = meshBuilder()) {
         color = SP_BODY;
       }
       out.add([x, y, z], color);
+      map.s.push(t); map.c.push(along); map.under.push(Math.sin(phi) < -1e-6 ? 1 : 0);
     }
   }
   for (let i = 0; i < steps; i++) {
@@ -552,7 +556,7 @@ export function flukeGeometry(kind, out = meshBuilder()) {
     if (a < 0.2 || a > 0.95) continue;
     rough += Math.abs(edges[i - 1] - 2 * edges[i] + edges[i + 1]); n++;
   }
-  return { ...out, span: f.span, trailingRoughness: rough / n };
+  return { ...out, span: f.span, trailingRoughness: rough / n, map };
 }
 
 // 体・胸びれ2枚・尾びれをまとめた形
@@ -561,8 +565,9 @@ export function buildWhaleGeometry(kind) {
   bodyMesh(kind, out);
   finGeometry(kind, 1, out);
   finGeometry(kind, -1, out);
-  flukeGeometry(kind, out);
+  const { map } = flukeGeometry(kind, out);
   return {
+    fluke: { start: map.start, s: Float32Array.from(map.s), c: Float32Array.from(map.c), under: Uint8Array.from(map.under) },
     positions: Float32Array.from(out.positions), colors: Float32Array.from(out.colors),
     indices: Uint32Array.from(out.indices), jaw: Float32Array.from(out.jaw),
   };

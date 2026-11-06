@@ -42,3 +42,12 @@ test('会えた回数で、図鑑の情報が少しずつわかっていく', ()
   assert.equal(all.next, null);
   assert.ok(/[ぁ-んァ-ン一-龥]/.test(one.next.text));
 });
+
+test('お知らせ: 1頭のとき、何頭もいっしょに来たとき(1つにまとめる)', async () => {
+  const { sightingMessage } = await import('../src/logic/zukan.js');
+  assert.equal(sightingMessage([{ name: 'ユキ', first: false, count: 3 }]), '「ユキ」がまた来ました(3回目)');
+  assert.ok(sightingMessage([{ name: 'ポチ', first: true, count: 1 }]).includes('はじめて見るクジラ'));
+  const m = sightingMessage([{ name: 'A', first: true, count: 1 }, { name: 'B', first: true, count: 1 }, { name: 'ユキ', first: false, count: 4 }]);
+  assert.ok(m.includes('はじめて見るクジラが2頭') && m.includes('「A」「B」') && m.includes('「ユキ」がまた来ました'), m);
+  assert.equal(sightingMessage([]), '');
+});

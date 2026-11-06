@@ -222,8 +222,6 @@ const MOTIONS = {
         { at: plan.dive + 8, run: (fx, [w]) => fx.effects.foam(bodyPoint(w, -0.3), 7000) },
         // 潜ったあとに、なめらかな足あとが残る
         { at: plan.dive + 10, run: (fx, [w]) => fx.footprint?.(bodyPoint(w, -0.5), yaw) },
-        // 尾びれの裏が見えたら、図鑑に記録する
-        { at: plan.dive + 4, run: (fx, [w]) => fx.sighted?.(w) },
       ],
     };
   },
@@ -366,7 +364,6 @@ const MOTIONS = {
       const calf = p.role === 'calf';
       for (const b of p.blows) cues.push({ at: b, run: (fx, ws) => blow(fx, ws[i], { calf }) });
       if (!calf) {
-        cues.push({ at: p.dive + 4, run: (fx, ws) => fx.sighted?.(ws[i]) });
         cues.push({ at: p.dive + 6.5, run: (fx, ws) => fx.effects.splash(onWater(bodyPoint(ws[i], -0.5)), 'small', headingOf(ws[i])) });
         cues.push({ at: p.dive + 10, run: (fx, ws) => fx.footprint?.(bodyPoint(ws[i], -0.5), headingYaw(ws[i])) });
       }
@@ -478,8 +475,6 @@ const MOTIONS = {
       });
     }
     cues.push({ at: first + count * period + 3, run: (fx, [w]) => fx.footprint?.(bodyPoint(w, -0.4), yaw) });
-    // 尾びれの裏が見えたら、図鑑に記録する
-    cues.push({ at: first + 1.5, run: (fx, [w]) => fx.sighted?.(w) });
     return {
       whales: [{ kind: 'humpback', swim: 0.3 }],
       each([w], t, D) {
@@ -611,7 +606,6 @@ const MOTIONS = {
         cues.push({ at: t + g.delay, run: (fx, ws) => fx.effects.cascade(bodyPoint(ws[i], 0.42, -1.2), 3) });
       }
       for (const b of g.blows) cues.push({ at: b, run: (fx, ws) => blow(fx, ws[i]) });
-      cues.push({ at: g.dive + 4, run: (fx, ws) => fx.sighted?.(ws[i]) });
       cues.push({ at: g.dive + 6.5, run: (fx, ws) => fx.effects.splash(onWater(bodyPoint(ws[i], -0.5)), 'small', headingOf(ws[i])) });
       cues.push({ at: g.dive + 10, run: (fx, ws) => fx.footprint?.(bodyPoint(ws[i], -0.5), headingYaw(ws[i])) });
     });
@@ -813,8 +807,22 @@ export async function createWhales(scene, fx) {
       for (const w of act.whales) {
         w.mixer.update(dt);
         pourWater(w, dt);
+        // 名前のあるクジラが水面に姿を見せたら、1回の出方につき1回、図鑑に記録する
+        if (w.individual && !w.sighted && showing(w)) {
+          w.sighted = true;
+          fx.sighted?.(w);
+        }
       }
     }
+  }
+
+  // 体のどこか(背中・おなか・左右のわき腹・まん中・胸びれの先)が、水面から出ているか
+  function showing(w) {
+    if (w.kind === 'humpback' && (finWorld(w, 1)[1] > 0.15 || finWorld(w, -1)[1] > 0.15)) return true;
+    const h = 0.08 * w.length;
+    const offsets = [[0, 0], [0, h], [0, -h], [h, 0], [-h, 0]];
+    return [0.4, 0.2, 0, -0.2, -0.45].some(a => offsets.some(([x, y]) =>
+      w.group.localToWorld(new THREE.Vector3(x, y, -a * w.length)).y > 0.15));
   }
 
   // 体のうち、水から上がってきている場所から水を流れ落とす

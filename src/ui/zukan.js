@@ -83,9 +83,9 @@ export function createZukan(root, { onRename, photos, portrait, nameOf }) {
 
   // ---- 一覧 ----
   function renderList(out) {
-    out.append(el('p', { cls: 'zukan-note', text: `尾びれの裏の模様は1頭ずつちがいます。尾びれを上げて潜ったクジラが、ここにのります。会うたびに、くわしいことがわかっていきます。 いままでに ${entries.length} / ${FLUKE_ID.size} 頭` }));
+    out.append(el('p', { cls: 'zukan-note', text: `尾びれの裏の模様は1頭ずつちがいます。水面に姿を見せたクジラが、ここにのります(鳴き声だけのときは数えません)。会うたびに、くわしいことがわかっていきます。 いままでに ${entries.length} / ${FLUKE_ID.size} 頭` }));
     const list = el('ol', { cls: 'zukan-list' });
-    if (!entries.length) list.append(el('li', { cls: 'zukan-empty', text: 'まだだれものっていません。クジラが尾びれを上げて潜るのを待ちましょう' }));
+    if (!entries.length) list.append(el('li', { cls: 'zukan-empty', text: 'まだだれものっていません。クジラが姿を見せるのを待ちましょう' }));
     for (const e of entries) {
       const item = el('button', { cls: 'zukan-item' }, [
         flukeCanvas(e),

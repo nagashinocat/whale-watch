@@ -16,6 +16,7 @@ import { realSky } from './logic/places.js';
 import { AUDIO } from './logic/config.js';
 import { loadBook, saveBook, nextVisitor, recordSighting, bookEntries, setNickname, displayName, population } from './logic/flukeId.js';
 import { traitsText } from './logic/traits.js';
+import { sightingMessage } from './logic/zukan.js';
 import { PHOTOS } from './logic/photos.js';
 import { createZukan } from './ui/zukan.js';
 import { createPhotoStore } from './ui/photoStore.js';
@@ -33,7 +34,8 @@ const FAST = params.has('fast') || location.hash === '#debug-fast';
 const settings = loadSettings(safeStorage());
 // クジラ図鑑(尾びれの模様で見分けたクジラの記録)
 let book = loadBook(safeStorage());
-let forcedVisitor = null;   // 動作確認用: 出すクジラの番号
+let forcedVisitor = null;
+let pendingSightings = [], sightingTimer = null;   // まとめて出すお知らせ   // 動作確認用: 出すクジラの番号
 // 撮った写真(この端末のブラウザに保存する)
 const photos = createPhotoStore();
 const ocean = createOcean(document.getElementById('sea'));
@@ -67,17 +69,20 @@ const whalesReady = createWhales(ocean.scene, {
     for (let k = 0; k < 20 && taken.includes(id); k++) id = nextVisitor(book);
     return id;
   },
-  // 尾びれの裏が見えたら、図鑑に記録してお知らせする
+  // 姿を見せたら(鳴き声だけのときは数えない)、図鑑に記録してお知らせする。
+  // 群れで何頭も来たときは、少し待ってからお知らせを1つにまとめる
   sighted(w) {
     if (!w.individual) return;
     const r = recordSighting(book, w.individual.id, Date.now());
     book = r.book;
     saveBook(safeStorage(), book);
     zukan.setEntries(bookEntries(book));
-    const name = displayName(w.individual.id, book);
-    menu.showToast(r.first
-      ? `はじめて見るクジラです。「${name}」と仮の名前で図鑑にのせました。図鑑で好きな名前を付けられます`
-      : `「${name}」がまた来ました(${r.count}回目)`);
+    pendingSightings.push({ name: displayName(w.individual.id, book), first: r.first, count: r.count });
+    clearTimeout(sightingTimer);
+    sightingTimer = setTimeout(() => {
+      menu.showToast(sightingMessage(pendingSightings));
+      pendingSightings = [];
+    }, 1500);
   },
 });
 whalesReady.then(w => ocean.addUpdater(w.update));

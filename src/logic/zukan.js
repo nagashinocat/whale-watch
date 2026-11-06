@@ -60,3 +60,21 @@ export function zukanInfo(ind, entry) {
     next: nextLevel ? { count: nextLevel.at, more: nextLevel.at - count, text: `あと${nextLevel.at - count}回会うと、${nextLevel.text}がわかります` } : null,
   };
 }
+
+// 図鑑に記録したときのお知らせ。items は [{ name, first(はじめてか), count(会えた回数) }]。
+// 群れで何頭もいっしょに来たときは、1つにまとめる
+export function sightingMessage(items) {
+  if (!items.length) return '';
+  if (items.length === 1) {
+    const [i] = items;
+    return i.first
+      ? `はじめて見るクジラです。「${i.name}」と仮の名前で図鑑にのせました。図鑑で好きな名前を付けられます`
+      : `「${i.name}」がまた来ました(${i.count}回目)`;
+  }
+  const quote = list => list.map(i => `「${i.name}」`).join('');
+  const fresh = items.filter(i => i.first), back = items.filter(i => !i.first);
+  const parts = [];
+  if (fresh.length) parts.push(`はじめて見るクジラが${fresh.length}頭(${quote(fresh)})。図鑑にのせました`);
+  if (back.length) parts.push(`${quote(back)}がまた来ました`);
+  return parts.join('。');
+}

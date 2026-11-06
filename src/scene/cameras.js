@@ -1,7 +1,7 @@
 // 3つの定点カメラ(上空・崖の上・間近)と、クジラが出る場所。three.js を読み込まない純粋なデータ(テストからも使う)。
 // fov は縦の視野角(度)。sway は揺れの傾き(度)、bob は上下の揺れ幅(m)。
 // whitecaps は白波の見え方(上から見るほどよく見える)。
-import { nearestFullView } from '../logic/view.js';
+import { nearestFullView, shallowestTarget } from '../logic/view.js';
 
 const FOV = 55;
 
@@ -21,8 +21,10 @@ export const CAMERA_PRESETS = Object.freeze({
     position: [0, SKY_HEIGHT, SPOT[2] + SKY_HEIGHT], target: [...SPOT], fov: FOV, sway: 0, bob: 0, whitecaps: 0.75,
   }),
   cliff: Object.freeze({
-    // ためしに近くへ出すときは、崖の上からクジラの場所を見下ろす
-    position: [0, CLIFF_HEIGHT, 0], target: TEST_SPOT === null ? [0, 0, -CLIFF_LOOK] : [...SPOT], fov: FOV, sway: 0, bob: 0, whitecaps: 0.55,
+    // ためしに近くへ出すときは、クジラがまるごと入るぎりぎりまで、水平線のほうへ起こした向きで見る
+    position: [0, CLIFF_HEIGHT, 0],
+    target: TEST_SPOT === null ? [0, 0, -CLIFF_LOOK] : shallowestTarget({ height: CLIFF_HEIGHT, spot: SPOT, fov: FOV }),
+    fov: FOV, sway: 0, bob: 0, whitecaps: 0.55,
   }),
   // 間近: 水面の高さから、クジラの20m手前で少し見上げる。大きなものは見上げると大きく感じる
   near: Object.freeze({

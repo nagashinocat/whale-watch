@@ -42,3 +42,17 @@ export function nearestFullView({ height, targetDistance, fov, aspect = 9 / 16, 
   }
   return Infinity;
 }
+
+// 高さ height のカメラで、spot のまわりのクジラの動く範囲が「上下に」まるごと入る、いちばん水平線に近い向き。
+// (左右のはみ出しは、見下ろす角度ではほとんど変わらないので、ここでは上下だけを見る)
+// 見下ろす角度を、水平(0度)から0.25度ずつ深くしていき、はじめて全部入った向きを返す(見る先の点)
+const UPDOWN_ONLY = 1000;
+export function shallowestTarget({ height, spot, fov, box = WHALE_BOX }) {
+  const corners = boxCorners(spot, box);
+  for (let pitch = 0.25; pitch < 89; pitch += 0.25) {
+    const r = (pitch * Math.PI) / 180;
+    const target = [spot[0], height - Math.tan(r) * 100, -100];
+    if (corners.every(p => isVisibleFrom({ position: [0, height, 0], target, fov }, p, UPDOWN_ONLY))) return target;
+  }
+  return [...spot];
+}

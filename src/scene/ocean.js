@@ -63,12 +63,9 @@ export function createOcean(canvas) {
   renderer.setPixelRatio(pixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  // クジラの海面より上だけを描くため
-  renderer.localClippingEnabled = true;
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 30000);
-  camera.layers.enable(1);   // 水の中のクジラ(映りこみには描かない層)も見る
 
   const water = new Water(new THREE.PlaneGeometry(40000, 40000), {
     textureWidth: 512,
@@ -83,10 +80,6 @@ export function createOcean(canvas) {
   water.rotation.x = -Math.PI / 2;
   scene.add(water);
   const tuned = tuneWaterShader(water.material);
-  // 海面は奥行きを書きこまない。水の中のクジラが、海面の下に透けて見えるように
-  // (海面より下のクジラは、ふつうの描き方では切り取ってある)
-  water.material.depthWrite = false;
-  water.renderOrder = -5;
 
   // 白波。海に映り込むと二重に見えるので、海の映り込みを描くあいだは隠す
   const whitecaps = createWhitecaps(lowPower);
@@ -106,7 +99,6 @@ export function createOcean(canvas) {
 
   // 時刻に合わせて色が変わる空(昼の青空、夕焼け、夜)
   const sky = createGradientSky();
-  sky.mesh.renderOrder = -10;   // 空をいちばん先に描く(海面が奥行きを書かないので)
   scene.add(sky.mesh);
 
   // クジラ用の光

@@ -78,12 +78,3 @@ test('intervalScaleで間隔を縮められる', () => {
   assert.ok(s.nextAt >= MIN && s.nextAt <= 3 * MIN);
 });
 
-test('シーズンに合わせて、出やすさと出方を変えられる', () => {
-  const s = createScheduler({ now: 0, rng: seeded(23) });
-  s.setSeason({ intervalScale: 4, weights: { sleeping: 1 } });
-  const e = s.tick(s.nextAt);
-  assert.equal(e.pattern, 'sleeping');
-  s.endEvent(1000);
-  // 次は4倍まれ(30〜90分の4倍)
-  assert.ok(s.nextAt - 1000 >= 4 * 30 * MIN && s.nextAt - 1000 <= 4 * 90 * MIN);
-});

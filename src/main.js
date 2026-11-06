@@ -16,7 +16,7 @@ import { realSky } from './logic/places.js';
 import { AUDIO } from './logic/config.js';
 import { loadBook, saveBook, nextVisitor, recordSighting, bookEntries, setNickname, displayName, population, FLUKE_ID } from './logic/flukeId.js';
 import { traitsText } from './logic/traits.js';
-import { sightingMessage } from './logic/zukan.js';
+import { sightingMessage, countsForZukan } from './logic/zukan.js';
 import { PHOTOS } from './logic/photos.js';
 import { createZukan } from './ui/zukan.js';
 import { createPhotoStore } from './ui/photoStore.js';
@@ -35,6 +35,7 @@ const settings = loadSettings(safeStorage());
 // クジラ図鑑(尾びれの模様で見分けたクジラの記録)
 let book = loadBook(safeStorage());
 let forcedVisitor = null;
+let countingSightings = true;   // いまの出方を図鑑に数えるか(「呼ぶ」で来たクジラは数えない)
 let pendingSightings = [], sightingTimer = null;   // まとめて出すお知らせ   // 動作確認用: 出すクジラの番号
 // 撮った写真(この端末のブラウザに保存する)
 const photos = createPhotoStore();
@@ -69,10 +70,10 @@ const whalesReady = createWhales(ocean.scene, {
     for (let k = 0; k < 20 && taken.includes(id); k++) id = nextVisitor(book);
     return id;
   },
-  // 姿を見せたら(鳴き声だけのときは数えない)、図鑑に記録してお知らせする。
+  // 姿を見せたら(鳴き声だけのときと、「呼ぶ」で来たときは数えない)、図鑑に記録してお知らせする。
   // 群れで何頭も来たときは、少し待ってからお知らせを1つにまとめる
   sighted(w) {
-    if (!w.individual) return;
+    if (!w.individual || !countingSightings) return;
     const r = recordSighting(book, w.individual.id, Date.now());
     book = r.book;
     saveBook(safeStorage(), book);
@@ -152,6 +153,7 @@ function refreshSummonButton() {
 // 出番係のイベントを、演出と音に渡す。終わったら出番係に知らせる。
 async function handleEvent(event) {
   if (event.kind === 'summon') menu.setSummonStatus(null);
+  countingSightings = countsForZukan(event);
   try {
     const whales = await whalesReady;
     // 「目が合う」は間近のカメラのすぐ前で起きるので、崖の上からは見えない(崖の真下になる)。かわりにスパイホップ
@@ -274,7 +276,7 @@ const menu = createMenu(document.getElementById('ui'), {
   },
   onSummon() {
     if (scheduler.summon(Date.now())) {
-      menu.setSummonStatus('呼んでいます…');
+      menu.setSummonStatus('呼んでいます…(呼んだクジラは図鑑に数えません)');
       menu.setSummonEnabled(false);
     }
   },

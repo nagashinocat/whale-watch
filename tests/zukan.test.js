@@ -51,3 +51,11 @@ test('お知らせ: 1頭のとき、何頭もいっしょに来たとき(1つに
   assert.ok(m.includes('はじめて見るクジラが2頭') && m.includes('「A」「B」') && m.includes('「ユキ」がまた来ました'), m);
   assert.equal(sightingMessage([]), '');
 });
+
+test('「呼ぶ」ボタンで来たクジラは図鑑に数えない。自然に来たクジラと、動作確認のふつうの出方は数える', async () => {
+  const { countsForZukan } = await import('../src/logic/zukan.js');
+  assert.equal(countsForZukan({ kind: 'summon', pattern: 'summon' }), false);
+  assert.equal(countsForZukan({ kind: 'debug', pattern: 'summon' }), false, '動作確認の「呼んだクジラ」も数えない');
+  assert.equal(countsForZukan({ kind: 'natural', pattern: 'breach' }), true);
+  assert.equal(countsForZukan({ kind: 'debug', pattern: 'spout' }), true);
+});

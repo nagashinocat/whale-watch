@@ -7,6 +7,7 @@ import { createGradientSky } from './sky.js';
 import { createWhitecaps } from './whitecaps.js';
 import { nextPixelRatio } from '../logic/quality.js';
 import { skyPalette } from '../logic/skyPalette.js';
+import { whaleLights, LIGHTING } from '../logic/lighting.js';
 
 // 海面の凹凸の模様は外部の画像に頼らず、その場で作る
 function makeWaterNormals(size) {
@@ -101,10 +102,24 @@ export function createOcean(canvas) {
   const sky = createGradientSky();
   scene.add(sky.mesh);
 
-  // クジラ用の光
+  // クジラ用の光。逆光のときは、照らす光をカメラのうしろ側へ移す(順光。lighting.js)。
+  // 本物の太陽の向きからは、ふちを照らす弱い光(rimLight)
   const ambient = new THREE.HemisphereLight(0xbfd8ff, 0x0b2030, 0.8);
   const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
-  scene.add(ambient, sunLight);
+  const rimLight = new THREE.DirectionalLight(0xffffff, 0);
+  scene.add(ambient, sunLight, rimLight);
+  let lightFrom = new THREE.Vector3(0, 1, 0), lightPower = 1.5;
+  function placeWhaleLights() {
+    camera.updateMatrixWorld();
+    const f = camera.getWorldDirection(new THREE.Vector3());
+    const { key, rim } = whaleLights(lightFrom.toArray(), f.toArray());
+    sunLight.position.fromArray(key).multiplyScalar(1000);
+    rimLight.position.fromArray(rim).multiplyScalar(1000);
+    sunLight.intensity = lightPower * (LIGHTING.key / 1.5);
+    // 光を移したときだけ、本物の太陽の向きからふちを照らす
+    const moved = key[0] * rim[0] + key[1] * rim[1] + key[2] * rim[2] < 0.99;
+    rimLight.intensity = moved ? lightPower * (LIGHTING.rim / 1.5) : 0;
+  }
 
   let preset = CAMERA_PRESETS.cliff;
   let elapsed = 0;
@@ -143,6 +158,7 @@ export function createOcean(canvas) {
     preset = CAMERA_PRESETS[name] ?? CAMERA_PRESETS.cliff;
     whitecaps.setStrength(preset.whitecaps ?? 0.5);
     placeCamera();
+    placeWhaleLights();
   }
 
   // 方位と高さ(度)から、画面の中の向き
@@ -184,9 +200,11 @@ export function createOcean(canvas) {
         u.uGlint.value = lerp(0.5, 0.15, s.daylight) * GLARE;
       }
     }
-    sunLight.position.copy(lightDir).multiplyScalar(1000);
+    lightFrom = lightDir.clone().normalize();
     sunLight.color.set(palette.light);
-    sunLight.intensity = s.isNight ? 0.4 * (0.3 + 0.7 * moonUp * illumination) : 1.5;
+    rimLight.color.set(palette.light);
+    lightPower = s.isNight ? 0.4 * (0.3 + 0.7 * moonUp * illumination) : 1.5;
+    placeWhaleLights();
     ambient.intensity = s.isNight ? 0.25 : 0.8;
     renderer.toneMappingExposure = s.exposure + 0.12 * s.daylight;
   }

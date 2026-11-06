@@ -32,6 +32,10 @@ export function splashParticles(kind, center, heading, rng = Math.random) {
   const out = [];
 
   // 輪の上の点と、そこでの外向きの向き(楕円)
+  // 膜の高さは場所によってちがい、いくつかの水の柱が高く立つ(てっぺんがぎざぎざになる)
+  const phase = rng() * Math.PI * 2;
+  const peaks = a => 0.72 + 0.28 * Math.sin(3 * a + phase) * Math.sin(5 * a + phase * 0.7);
+
   function ring(scale = 1) {
     const a = rng() * Math.PI * 2;
     const ca = Math.cos(a), sa = Math.sin(a);
@@ -41,6 +45,7 @@ export function splashParticles(kind, center, heading, rng = Math.random) {
     const nl = Math.hypot(nx, nz);
     nx /= nl; nz /= nl;
     return {
+      a,
       x: center[0] + fx * lx + sx * lz, z: center[2] + fz * lx + sz * lz,
       ox: fx * nx + sx * nz, oz: fz * nx + sz * nz,
     };
@@ -49,7 +54,7 @@ export function splashParticles(kind, center, heading, rng = Math.random) {
   // 2) 王冠のような水の膜
   for (let i = 0; i < s.crown; i++) {
     const q = ring(r(0.9, 1.1));
-    const h = s.crownHeight * r(0.55, 1.0);
+    const h = s.crownHeight * Math.min(1, peaks(q.a) * r(0.75, 1.15));
     const vy = Math.sqrt(2 * G * h);
     const o = s.outward * r(0.7, 1.3);
     out.push({
@@ -76,8 +81,8 @@ export function splashParticles(kind, center, heading, rng = Math.random) {
     const o = s.outward * r(0.3, 1.1);
     out.push({
       part: 'mist', p: [q.x, center[1] + s.mistHeight * r(0.2, 1), q.z], v: [q.ox * o, r(1, 3), q.oz * o],
-      delay: r(0.1, 0.8), life: r(4, 6.5), size: kind === 'large' ? r(1.6, 2.8) : r(0.8, 1.4),
-      alpha: 0.28, gravity: 2, wind: 1.6, grow: 3,
+      delay: r(0.1, 0.8), life: r(4, 6.5), size: kind === 'large' ? r(0.9, 1.5) : r(0.5, 0.9),
+      alpha: 0.2, gravity: 2, wind: 1.6, grow: 2.2,
     });
   }
   return out;

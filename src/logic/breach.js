@@ -80,3 +80,22 @@ export function podPlan(rng = Math.random) {
   }
   return g;
 }
+
+// 群れでスパイホップ: 3〜4頭がまとまって、0.4〜1.2秒ずつずれて頭を出す。
+// 頭を出す高さも、見回す向きも、1頭ずつちがう。offset は群れのまん中からの [x, z](m)
+export function groupSpyhopPlan(rng = Math.random) {
+  const n = 3 + (rng() < 0.5 ? 1 : 0);
+  // 頭どうしがぶつからない間隔(7m以上)
+  const spots = (n === 3 ? [[-6, 1], [0, -3], [6, 1]] : [[-7.5, 2], [-2.5, -3], [2.5, 2.5], [7.5, -2]]).map(([x, z]) => [x * 1.25, z * 1.25]);
+  const order = spots.map((_, i) => i).sort(() => rng() - 0.5);
+  // 見回すタイミングは、1頭ずつ確実にちがうように均等に分けてから、少しずらす
+  const g = spots.map(([x, z], i) => ({
+    offset: [x + (rng() - 0.5) * 1.2, z + (rng() - 0.5) * 1.2],
+    headOut: 3 + rng() * 1.3,
+    lookPhase: (i / n) * Math.PI * 2 + rng() * 0.6,
+    delay: 0,
+  }));
+  let d = 0;
+  for (const i of order) { g[i].delay = d; d += 0.4 + rng() * 0.8; }
+  return g;
+}

@@ -37,6 +37,7 @@ export const SCHEDULE = Object.freeze({
     calfBreach: 6,
     // 群れでならんで跳ぶのは、まれ
     groupBreach: 3,
+    groupSpyhop: 3,
     // 近くで見ると迫力のある出方(ときどき)
     spyhop: 5,
     pecSlap: 5,

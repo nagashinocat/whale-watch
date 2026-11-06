@@ -48,3 +48,19 @@ test('群れで泳ぐ: 母親・子ども・付きそいのオスなど3〜5頭�
   }
   assert.ok(POD.speed <= 1.5, 'slow');
 });
+
+test('群れでスパイホップ: 3〜4頭がまとまって、少しずつずれて頭を出し、それぞれまわりを見回す', async () => {
+  const { groupSpyhopPlan } = await import('../src/logic/breach.js');
+  for (let k = 1; k < 20; k++) {
+    const g = groupSpyhopPlan(seeded(k));
+    assert.ok(g.length >= 3 && g.length <= 4);
+    for (const w of g) assert.ok(w.headOut >= 3 && w.headOut <= 4.5);
+    for (let i = 0; i < g.length; i++) for (let j = i + 1; j < g.length; j++) {
+      assert.ok(Math.hypot(g[i].offset[0] - g[j].offset[0], g[i].offset[1] - g[j].offset[1]) >= 6);
+    }
+    const d = g.map(w => w.delay).sort((a, b) => a - b);
+    assert.ok(d.every((x, i) => i === 0 || x - d[i - 1] >= 0.4) && d.at(-1) <= 4);
+    assert.ok(new Set(g.map(w => w.lookPhase.toFixed(2))).size === g.length, 'each looks its own way');
+    assert.ok(d.at(-1) + 30 <= PATTERNS.groupSpyhop.durationMs / 1000);
+  }
+});

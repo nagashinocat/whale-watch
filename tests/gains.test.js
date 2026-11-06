@@ -26,3 +26,10 @@ test('クジラの音は、遠いほど小さくなる。近くても今の上�
   assert.ok(whaleDistanceGain(80) < whaleDistanceGain(30));
   for (let d = 0; d < 500; d += 5) assert.ok(whaleDistanceGain(d) <= 1 && whaleDistanceGain(d + 5) <= whaleDistanceGain(d));
 });
+
+test('水の音は遠いほどくぐもる(近くは高い音まで、遠くは低い音だけ)', async () => {
+  const { muffleFrequency } = await import('../src/audio/mixer.js');
+  assert.ok(muffleFrequency(20) >= 15000);
+  assert.ok(muffleFrequency(100) < muffleFrequency(40));
+  assert.ok(muffleFrequency(5000) >= 900);
+});

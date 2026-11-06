@@ -6,7 +6,7 @@ import { FEEDING, feedingPose, BUBBLE_NET, bubbleNetGroup } from '../logic/feedi
 import { BREATH, diveSurfacing, calfBreaths } from '../logic/breathing.js';
 import { SLEEP, sleepingGroup, headBob } from '../logic/sleep.js';
 import { individual as individualById } from '../logic/flukeId.js';
-import { BREACH, breachPose, groupBreachPlan, calfBreachPlan, POD, podPlan } from '../logic/breach.js';
+import { BREACH, breachPose, groupBreachPlan, calfBreachPlan, POD, podPlan, groupSpyhopPlan } from '../logic/breach.js';
 import { divingYaw } from '../logic/behavior.js';
 import { followFactor } from '../logic/quality.js';
 import { SPOT, CAMERA_PRESETS } from './cameras.js';
@@ -113,6 +113,18 @@ function crossingYaw() {
 // 尾びれの出方は何回か潮を吹くので長い。ゆっくり進んで、画面の外へ出ないようにする
 const SWIM_SPEED = { spout: 0.5, fluke: 0.3, motherCalf: 0.33, breach: 0.38, groupBreach: 0.38, pod: POD.speed };
 
+// スパイホップの姿勢: 体を縦にしてゆっくり上がり、頭(体長の約3分の1)を出して、こちらを見ながらまわりを見回す。
+// D は出ている長さ、headOut は頭の出る高さ(m)、lookPhase は見回しのずれ、face はおなかを向ける向きのずれ(度)
+function spyhopAt(w, t, D, at, headOut, lookPhase, face) {
+  const rise = ease(t / 9) - ease((t - (D - 9)) / 6);
+  const tipY = lerp(-4, headOut, rise) + Math.sin(t * 0.7 + lookPhase) * 0.15 * rise;
+  const pitch = 85;
+  // おなか(のどの白いところ)をカメラに向け、ゆっくり左右を見回す
+  const look = 180 + face + 35 * Math.sin(t * 0.22 + lookPhase) * smoothstepT(t, 9, 13);
+  w.group.position.set(at[0], tipY - (w.length / 2) * Math.sin(D2R(pitch)), at[2]);
+  w.group.rotation.set(D2R(pitch), D2R(look), 0);
+}
+
 // 1頭のジャンプ(launch 秒に飛び出す)。start から yaw の向きへ跳ぶ。rollSign は倒れる向き(1 か -1)
 function breachAt(w, t, launch, start, yaw, rollSign = 1) {
   const p = breachPose(t - launch, w.length / 14);
@@ -124,7 +136,15 @@ function breachAt(w, t, launch, start, yaw, rollSign = 1) {
 // ジャンプの水しぶきと音(i 番目のクジラ)。小さいクジラは小さなしぶき
 function breachCues(i, launch) {
   return [
-    { at: launch + 0.4, run: (fx, ws) => fx.effects.splash(onWater(bodyPoint(ws[i], 0.4)), 'small', headingOf(ws[i])) },
+    {
+      at: launch + 0.4,
+      run: (fx, ws) => {
+        const p = onWater(bodyPoint(ws[i], 0.4));
+        fx.effects.splash(p, 'small', headingOf(ws[i]));
+        // 水を割って体が出てくる「ザバァ」
+        fx.playSound('breach-rise', { gain: 0.4 + 0.6 * (ws[i].length / 14), position: p });
+      },
+    },
     {
       at: launch + BREACH.air * BREACH.splashAt,
       run: (fx, ws) => {
@@ -134,7 +154,8 @@ function breachCues(i, launch) {
         if (k <= 0.6) fx.effects.splash(p, 'small', headingOf(w));
         fx.impact?.(p, k);
         fx.effects.foam(p, 12000 * Math.max(0.5, k), { radius: 6 * Math.max(0.5, k) });
-        fx.playSound('splash', { gain: 0.35 + 0.65 * k, position: p });
+        // 着水の「ドーン」(小さいクジラは軽い音)
+        fx.playSound(k > 0.6 ? 'breach' : 'splash', { gain: k > 0.6 ? 1 : 0.55, position: p });
       },
     },
   ];
@@ -373,21 +394,29 @@ const MOTIONS = {
 
   // スパイホップ: 体を縦にしてゆっくり上がり、頭だけを出して、こちらを見ながらまわりを見回す
   spyhop({ start }) {
-    const headOut = 4;   // 海面から出る頭の高さ(m)。頭は体長の約3分の1
     return {
       whales: [{ kind: 'humpback', swim: 0.2 }],
-      each([w], t, D) {
-        const rise = ease(t / 9) - ease((t - (D - 9)) / 6);
-        const tipY = lerp(-4, headOut, rise) + Math.sin(t * 0.7) * 0.15 * rise;
-        const pitch = 85;
-        // おなか(のどの白いところ)をカメラに向け、ゆっくり左右を見回す
-        const look = 180 + 35 * Math.sin(t * 0.22) * smoothstepT(t, 9, 13);
-        w.group.position.set(start[0], tipY - (w.length / 2) * Math.sin(D2R(pitch)), start[2]);
-        w.group.rotation.set(D2R(pitch), D2R(look), 0);
-      },
+      each([w], t, D) { spyhopAt(w, t, D, start, 4, 0, 0); },
       cues: [
-        { at: 3.5, run: (fx, [w]) => fx.effects.foam(onWater([start[0], 0, start[2]]), 6000) },
+        { at: 3.5, run: fx => fx.effects.foam(onWater([start[0], 0, start[2]]), 6000) },
       ],
+    };
+  },
+
+  // 群れでスパイホップ: 3〜4頭がまとまって、少しずつずれて頭を出す。高さも見回す向きも1頭ずつちがう
+  groupSpyhop({ start }) {
+    const plan = groupSpyhopPlan();
+    const at = p => [start[0] + p.offset[0], 0, start[2] + p.offset[1]];
+    return {
+      whales: plan.map(() => ({ kind: 'humpback', swim: 0.2 })),
+      each(ws, t, D) {
+        ws.forEach((w, i) => {
+          const p = plan[i];
+          // 遅れて出た子は、それだけ遅れて沈む(全体の長さは同じ)
+          spyhopAt(w, t - p.delay, D - 4, at(p), p.headOut, p.lookPhase, 25 * Math.sin(p.lookPhase));
+        });
+      },
+      cues: plan.map(p => ({ at: p.delay + 3.5, run: fx => fx.effects.foam(at(p), 6000, { radius: 3.5, count: 200 }) })),
     };
   },
 

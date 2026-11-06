@@ -11,6 +11,9 @@ export const SOUND_FILES = Object.freeze({
   splash: 'assets/audio/splash.wav',
   // 潮吹きの息の音(合成。tools/audio/make_blow.py)
   blow: 'assets/audio/blow.wav',
+  // ジャンプの着水の「ドーン」と、飛び出すときの「ザバァ」(合成。tools/audio/make_breach.py)
+  breach: 'assets/audio/breach.wav',
+  'breach-rise': 'assets/audio/breach-rise.wav',
   // 泡の網の泡がはじける音(合成。tools/audio/make_bubbles.py)
   bubbles: 'assets/audio/bubbles.wav',
 });
@@ -31,6 +34,11 @@ export async function loadBuffers(ctx, files = SOUND_FILES) {
 
 // カメラごとの波の音。上空は崖の上と同じ遠い波の音を使う
 const waveSound = camera => (camera === 'near' ? 'surface' : 'cliff');   // 間近は水面の近くの波の音
+
+// 水しぶきやジャンプの音。距離に合わせてくぐもらせる
+const WATER_SOUNDS = new Set(['splash', 'breach', 'breach-rise']);
+// 距離 d(m)のときの、くぐもらせる高さ(Hz)。30mで約1万6千、100mで約5千、いちばん低くても900
+export const muffleFrequency = d => Math.min(16000, Math.max(900, (16000 * 30) / Math.max(30, d)));
 
 // 今の値から目標値まで、重ならないようにフェードする。
 function rampTo(param, ctx, target, ms) {
@@ -63,6 +71,7 @@ export function createMixer(ctx, buffers) {
   whaleBus.connect(limiter);
 
   const waveGains = {};
+  let listenerAt = [0, 0, 0];
 
   function startWaves() {
     for (const name of ['cliff', 'surface']) {
@@ -120,6 +129,7 @@ export function createMixer(ctx, buffers) {
 
     // 聞いている位置と向き(カメラ)。position は [x, y, z]、forward は前の向き
     setListener(position, forward) {
+      listenerAt = position;
       const l = ctx.listener;
       if (l.positionX) {
         l.positionX.value = position[0]; l.positionY.value = position[1]; l.positionZ.value = position[2];
@@ -142,18 +152,18 @@ export function createMixer(ctx, buffers) {
       const src = ctx.createBufferSource();
       src.buffer = buffer;
       const env = ctx.createGain();
-      const level = (name === 'splash' ? 0.5 : 1) * Math.min(1, Math.max(0, gain));
+      const level = (name === 'splash' ? 0.6 : 1) * Math.min(1, Math.max(0, gain));
       env.gain.setValueAtTime(0, now);
       env.gain.linearRampToValueAtTime(level, now + fade);
       env.gain.setValueAtTime(level, now + length - fade);
       env.gain.linearRampToValueAtTime(0, now + length);
 
       let node = src;
-      if (name === 'splash') {
-        // 遠くでくぐもって聞こえるようにする
+      if (WATER_SOUNDS.has(name)) {
+        // 水の音は、遠いほど高い音が弱まってくぐもる(低い「ドーン」は遠くまで届く)
         const muffle = ctx.createBiquadFilter();
         muffle.type = 'lowpass';
-        muffle.frequency.value = 800;
+        muffle.frequency.value = position ? muffleFrequency(Math.hypot(...position.map((v, i) => v - listenerAt[i]))) : 2000;
         node = node.connect(muffle);
       }
       node = node.connect(env);

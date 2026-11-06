@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { BLOW, blowDirection, blowSpeed } from '../logic/behavior.js';
 
 const MAX = 3000; // スマホで重くならないよう、全体の粒子数に上限をかける
 
@@ -74,13 +75,20 @@ export function createEffects(scene) {
 
   return {
     // 上に6〜9mほど噴き上がり、風に流れて3秒で消える霧
-    spout(position) {
+    // 潮吹き。ザトウクジラはまっすぐ上へ、もこもこと3〜5m。マッコウクジラは左前へ45度かたむく。
+    // forward はクジラが向いている水平の向き
+    spout(position, { kind = 'humpback', forward = [0, 0, -1] } = {}) {
       const [x, y, z] = position;
+      const b = BLOW[kind];
+      const dir = blowDirection(kind, forward);
+      const speed = blowSpeed(kind);
       for (let k = 0; k < 300; k++) {
-        const a = Math.random() * Math.PI * 2, r = Math.random() * 0.8;
-        emit([x + Math.cos(a) * 0.3, y + 1, z + Math.sin(a) * 0.3],
-          [Math.cos(a) * r, rand(9, 11), Math.sin(a) * r],
-          { life: rand(2.2, 3), size: rand(1.2, 2), alpha: 0.55, gravity: 6, wind: 1.5, grow: 2.5 });
+        const a = Math.random() * Math.PI * 2, r = Math.random() * b.spread;
+        // 速さを少しずつばらつかせて、上まで届く粒と途中で広がる粒をまぜる(もこもこした形になる)
+        const s = speed * rand(0.75, 1.0);
+        emit([x + Math.cos(a) * 0.3, y + 0.3, z + Math.sin(a) * 0.3],
+          [dir[0] * s + Math.cos(a) * r, dir[1] * s, dir[2] * s + Math.sin(a) * r],
+          { life: rand(2.4, 3.4), size: rand(1.0, 1.8), alpha: 0.5, gravity: b.gravity, wind: 1.2, grow: 2.8 });
       }
     },
 

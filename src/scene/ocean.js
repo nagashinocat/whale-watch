@@ -79,11 +79,14 @@ export function createOcean(canvas) {
   // 白波。海に映り込むと二重に見えるので、海の映り込みを描くあいだは隠す
   const whitecaps = createWhitecaps(lowPower);
   scene.add(whitecaps.mesh);
+  // 海面に貼りつけるもの(白波・足あと)は、海の映り込みには描かない
+  const surfaceDecals = [whitecaps.mesh];
   const mirrorRender = water.onBeforeRender;
   water.onBeforeRender = function (...args) {
-    whitecaps.mesh.visible = false;
+    const shown = surfaceDecals.map(o => o.visible);
+    for (const o of surfaceDecals) o.visible = false;
     mirrorRender.apply(this, args);
-    whitecaps.mesh.visible = true;
+    surfaceDecals.forEach((o, i) => { o.visible = shown[i]; });
   };
 
   // 遠くの海ほど空気でかすんで、地平線の空の色にとけこむ
@@ -103,6 +106,7 @@ export function createOcean(canvas) {
   let running = false;
   let last = 0;
   const updaters = [];
+  const paletteListeners = [];
 
   function placeCamera() {
     camera.fov = preset.fov;
@@ -139,6 +143,7 @@ export function createOcean(canvas) {
     sky.setState({ palette, sun: s, sunDir, moonDir: MOON_DIRECTION });
     scene.fog.color.set(palette.horizon);
     whitecaps.setLight(palette.light);
+    for (const fn of paletteListeners) fn(palette);
     water.material.uniforms.sunColor.value.set(palette.light);
     water.material.uniforms.waterColor.value.set(palette.water);
     if (tuned) {
@@ -212,5 +217,9 @@ export function createOcean(canvas) {
     camera,
     // 毎フレーム呼んでほしい処理(クジラ・エフェクト)を登録する
     addUpdater: fn => updaters.push(fn),
+    // 海面に貼りつけるもの(映り込みには描かない)を足す
+    addSurfaceDecal: obj => { surfaceDecals.push(obj); scene.add(obj); },
+    // 時刻が変わったときに呼んでほしい処理(空の色を使うもの)を登録する
+    onPalette: fn => paletteListeners.push(fn),
   };
 }

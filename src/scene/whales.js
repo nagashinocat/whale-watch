@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { PATTERNS } from '../logic/patterns.js';
 import { createWhaleMesh, prepareWhaleGeometry } from './whaleModel.js';
 import { WHALE_SPECS, surfacedCenterY } from '../logic/whaleShape.js';
+import { divingYaw } from '../logic/behavior.js';
 
 const D2R = THREE.MathUtils.degToRad;
 const clamp01 = x => Math.min(1, Math.max(0, x));
@@ -32,6 +33,31 @@ function bodyPoint(whale, along, up = 0) {
   return whale.group.localToWorld(new THREE.Vector3(0, up, -along * whale.length)).toArray();
 }
 
+// 鼻の穴の位置。ザトウクジラは頭のうしろの上、マッコウクジラは頭の前の左寄り
+function blowhole(w) {
+  if (w.kind === 'sperm') {
+    return w.group.localToWorld(new THREE.Vector3(-0.6, 1.5, -0.49 * w.length)).toArray();
+  }
+  return bodyPoint(w, 0.28, 1);
+}
+
+// クジラの頭が向いている水平の向き
+function headingOf(w) {
+  const v = new THREE.Vector3(0, 0, -1).applyQuaternion(w.group.quaternion);
+  return [v.x, 0, v.z];
+}
+
+// 頭の向きの角度(度)
+function headingYaw(w) {
+  const [x, , z] = headingOf(w);
+  return THREE.MathUtils.radToDeg(Math.atan2(-x, -z));
+}
+
+// 潮吹き(クジラの種類と向きに合わせる)
+function blow(fx, w) {
+  fx.effects.spout(blowhole(w), { kind: w.kind, forward: headingOf(w) });
+}
+
 // 向き yaw(度)で前に進む方向
 function forward(yawDeg) {
   const y = D2R(yawDeg);
@@ -55,13 +81,16 @@ const MOTIONS = {
       each([w], t, D) {
         const f = forward(yaw);
         const rise = ease(t / 5) - ease((t - (D - 8)) / 5);
-        w.group.position.set(start[0] + f[0] * speed * t, lerp(-6, surfaceY(w, 0.8), rise) + Math.sin(t * 0.8) * 0.15, start[2] + f[2] * speed * t);
-        w.group.rotation.set(D2R(Math.sin(t * 0.5) * 2), D2R(yaw), 0);
+        // 沈む前に背中を丸めて、背中の上のほうと背びれを見せる
+        const round = ease((t - (D - 11)) / 3) * (1 - ease((t - (D - 6)) / 4));
+        const y = lerp(-6, surfaceY(w, 0.8), rise) + Math.sin(t * 0.8) * 0.15 + 0.5 * round;
+        w.group.position.set(start[0] + f[0] * speed * t, y, start[2] + f[2] * speed * t);
+        w.group.rotation.set(D2R(Math.sin(t * 0.5) * 2 - 14 * round), D2R(yaw), 0);
       },
       cues: [
         { at: 5, run: (fx, [w]) => fx.effects.foam(bodyPoint(w, 0), 9000) },
-        { at: 7, run: (fx, [w]) => fx.effects.spout(bodyPoint(w, 0.28, 1)) },
-        { at: 19, run: (fx, [w]) => fx.effects.spout(bodyPoint(w, 0.28, 1)) },
+        { at: 7, run: (fx, [w]) => blow(fx, w) },
+        { at: 19, run: (fx, [w]) => blow(fx, w) },
       ],
     };
   },
@@ -72,17 +101,20 @@ const MOTIONS = {
       whales: [{ kind: 'humpback' }],
       each([w], t) {
         const f = forward(yaw);
-        const dive = ease((t - 13) / 8);
-        const pitch = lerp(0, -65, dive);
-        // 頭を下げて体を立てると、尾びれが海面から3mほど持ち上がる。そのあとまっすぐ沈む
-        const y = lerp(-6, surfaceY(w, 0.7), ease(t / 5)) - dive * 2.5 - ease((t - 20) / 5) * 14;
+        // 1) 浮かんで潮を吹く 2) 背中を丸めて背びれを見せる 3) 尾びれを真上近くまで立てて裏の模様を見せ、まっすぐ沈む
+        const round = ease((t - 9) / 3);
+        const dive = ease((t - 13) / 7);
+        const pitch = -14 * round * (1 - dive) + lerp(0, -80, dive);
+        const y = lerp(-6, surfaceY(w, 0.7), ease(t / 5)) + 0.5 * round * (1 - dive) - dive * 3 - ease((t - 20.5) / 5) * 14;
         w.group.position.set(start[0] + f[0] * speed * t, y, start[2] + f[2] * speed * t);
         w.group.rotation.set(D2R(pitch + Math.sin(t * 0.6) * 2 * (1 - dive)), D2R(yaw), 0);
       },
       cues: [
-        { at: 6, run: (fx, [w]) => fx.effects.spout(bodyPoint(w, 0.28, 1)) },
+        { at: 6, run: (fx, [w]) => blow(fx, w) },
         { at: 19.5, run: (fx, [w]) => fx.effects.splash(bodyPoint(w, -0.5), 'small') },
         { at: 21, run: (fx, [w]) => fx.effects.foam(bodyPoint(w, -0.3), 7000) },
+        // 潜ったあとに、なめらかな足あとが残る
+        { at: 23, run: (fx, [w]) => fx.footprint?.(bodyPoint(w, -0.5), yaw) },
       ],
     };
   },
@@ -105,8 +137,8 @@ const MOTIONS = {
         calf.group.rotation.set(D2R(Math.sin(t * 0.7) * 3), D2R(yaw), 0);
       },
       cues: [
-        { at: 10, run: (fx, [mom]) => fx.effects.spout(bodyPoint(mom, 0.28, 1)) },
-        { at: 30, run: (fx, [mom]) => fx.effects.spout(bodyPoint(mom, 0.28, 1)) },
+        { at: 10, run: (fx, [mom]) => blow(fx, mom) },
+        { at: 30, run: (fx, [mom]) => blow(fx, mom) },
         { at: 15, run: (fx, [, calf]) => fx.effects.foam(bodyPoint(calf, 0), 5000) },
       ],
     };
@@ -123,7 +155,16 @@ const MOTIONS = {
         w.group.position.set(start[0], top - w.length / 2, start[2]);
         w.group.rotation.set(D2R(84), D2R(yaw), D2R(Math.sin(t * 0.25) * 3));
       },
-      cues: [],
+      cues: [
+        {
+          at: 70,
+          run: (fx, [w]) => {
+            // 体が縦なので、頭のてっぺん(海面の少し上)から、向いている方の左前へ吹く
+            const top = w.group.localToWorld(new THREE.Vector3(-0.6, 0, -0.5 * w.length)).toArray();
+            fx.effects.spout(top, { kind: 'sperm', forward: [-Math.sin(D2R(yaw)), 0, -Math.cos(D2R(yaw))] });
+          },
+        },
+      ],
     };
   },
 
@@ -188,9 +229,10 @@ const MOTIONS = {
           at: PATTERNS.summon.songAtMs / 1000,
           run: fx => fx.playSound('humpback', { maxMs: (85 - PATTERNS.summon.songAtMs / 1000) * 1000 }),
         },
-        { at: 45, run: (fx, [w]) => fx.effects.spout(bodyPoint(w, 0.28, 1)) },
-        { at: 70, run: (fx, [w]) => fx.effects.spout(bodyPoint(w, 0.28, 1)) },
+        { at: 45, run: (fx, [w]) => blow(fx, w) },
+        { at: 70, run: (fx, [w]) => blow(fx, w) },
         { at: 106.5, run: (fx, [w]) => fx.effects.splash(bodyPoint(w, -0.5), 'small') },
+        { at: 110, run: (fx, [w]) => fx.footprint?.(bodyPoint(w, -0.5), headingYaw(w)) },
       ],
     };
   },
@@ -210,7 +252,7 @@ export async function createWhales(scene, fx) {
     if (!needs || !MOTIONS[name]) return new Promise(r => setTimeout(r, durationMs));
 
     // 渡された位置を中ほどで通るように、出発点を進む向きの反対へずらす
-    const yaw = crossingYaw();
+    const yaw = name === 'fluke' ? divingYaw(Math.random) : crossingYaw();
     const back = (SWIM_SPEED[name] ?? 0) * (durationMs / 1000) / 2;
     const f = forward(yaw);
     const start = [position[0] - f[0] * back, 0, position[2] - f[2] * back];

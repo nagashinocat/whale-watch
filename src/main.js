@@ -1,6 +1,7 @@
 import { createOcean } from './scene/ocean.js';
 import { createWhales } from './scene/whales.js';
 import { createEffects } from './scene/effects.js';
+import { createFootprints } from './scene/footprints.js';
 import { PATTERNS, resolvePattern, voiceSound } from './logic/patterns.js';
 import { spawnPosition } from './logic/spawn.js';
 import { createMixer, loadBuffers } from './audio/mixer.js';
@@ -25,8 +26,14 @@ const scheduler = createScheduler({ now: Date.now(), intervalScale: FAST ? 1 / 3
 let mixer = null;
 const effects = createEffects(ocean.scene);
 ocean.addUpdater(effects.update);
+// 潜ったクジラの足あと(海面のなめらかな跡)
+const footprints = createFootprints();
+ocean.addSurfaceDecal(footprints.group);
+ocean.addUpdater(footprints.update);
+ocean.onPalette(footprints.setPalette);
 const whalesReady = createWhales(ocean.scene, {
   effects,
+  footprint: (position, yaw) => footprints.add(position, yaw),
   playSound: (name, opts) => mixer?.playWhale(name, opts),
 });
 whalesReady.then(w => ocean.addUpdater(w.update));

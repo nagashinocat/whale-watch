@@ -48,3 +48,11 @@ test('動作確認ボタン用に、すべての出方に日本語の名前が�
     assert.ok(typeof PATTERN_LABELS[k] === 'string' && /[ぁ-んァ-ン一-龥]/.test(PATTERN_LABELS[k]), k);
   }
 });
+
+test('迫力のある出方(スパイホップ・胸びれ・尾びれでたたく)が、ときどき出る', () => {
+  for (const k of ['spyhop', 'pecSlap', 'lobtail']) {
+    assert.ok(PATTERNS[k]?.durationMs > 0, k);
+    assert.equal(PATTERNS[k].needs, 'humpback');
+    assert.ok(SCHEDULE.weights[k] > 0 && SCHEDULE.weights[k] <= SCHEDULE.weights.breach, k);
+  }
+});

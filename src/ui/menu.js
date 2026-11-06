@@ -1,6 +1,6 @@
 import { MENU_HIDE_MS } from '../logic/config.js';
 
-const CAMERA_LABELS = { sky: '上空', cliff: '崖の上', surface: '水面' };
+const CAMERA_LABELS = { sky: '上空', cliff: '崖の上', surface: '水面', near: '間近' };
 const TIME_LABELS = { auto: '自動', morning: '朝', day: '昼', evening: '夕方', night: '夜' };
 // 特別にきれいな時間
 const SPECIAL_LABELS = { golden: 'ゴールデンアワー', blue: 'ブルーアワー' };

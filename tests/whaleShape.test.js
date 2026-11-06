@@ -238,3 +238,13 @@ test('浮かんだときは、背中が決めた高さだけ海面から出る(�
     assert.ok(Math.abs(y + top - 0.8) < 1e-6, `${kind} ${len}m: top ${y + top}`);
   }
 });
+
+test('胸びれの先の位置: 付け根から胸びれの長さだけ離れている', async () => {
+  const { finTip, finGeometry: fg } = await import('../src/logic/whaleShape.js');
+  for (const side of [1, -1]) {
+    const t = finTip('humpback', side);
+    assert.ok(Math.sign(t.tip[0]) === side, 'tip on its own side');
+    const d = Math.hypot(t.tip[0] - t.root[0], t.tip[1] - t.root[1], t.tip[2] - t.root[2]);
+    assert.ok(Math.abs(d - fg('humpback', side).length) < 1e-9);
+  }
+});

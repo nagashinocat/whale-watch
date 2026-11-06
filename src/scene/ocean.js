@@ -108,10 +108,21 @@ export function createOcean(canvas) {
   const updaters = [];
   const paletteListeners = [];
 
+  // 近くで大きな水しぶきが上がったときの揺れ(0〜1)。だんだんおさまる
+  let shakeAmount = 0;
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
   function placeCamera() {
     camera.fov = preset.fov;
     camera.position.set(...preset.position);
     camera.lookAt(...preset.target);
+    if (shakeAmount > 0.001) {
+      const a = shakeAmount;
+      camera.position.y += Math.sin(elapsed * 31) * 0.12 * a;
+      camera.position.x += Math.sin(elapsed * 23 + 1) * 0.08 * a;
+      camera.rotateZ(Math.sin(elapsed * 27 + 2) * 0.006 * a);
+      camera.rotateX(Math.sin(elapsed * 19) * 0.005 * a);
+    }
     if (preset.sway) {
       // 船や水面に浮かんでいるように、傾きながら上下に揺れる
       const deg = THREE.MathUtils.degToRad(preset.sway);
@@ -174,7 +185,8 @@ export function createOcean(canvas) {
     water.material.uniforms.time.value += dt * 0.6;
     sky.update(dt);
     whitecaps.update(dt, camera.position);
-    if (preset.sway) placeCamera();
+    if (shakeAmount > 0.001) shakeAmount *= Math.exp(-dt * 3);
+    if (preset.sway || shakeAmount > 0.001) placeCamera();
     for (const fn of updaters) fn(dt);
     renderer.render(scene, camera);
   }
@@ -217,6 +229,8 @@ export function createOcean(canvas) {
     camera,
     // 毎フレーム呼んでほしい処理(クジラ・エフェクト)を登録する
     addUpdater: fn => updaters.push(fn),
+    // 画面を揺らす(0〜1)。動きを減らす設定の端末では揺らさない
+    shake: amount => { if (!reduceMotion) shakeAmount = Math.max(shakeAmount, amount); },
     // 海面に貼りつけるもの(映り込みには描かない)を足す
     addSurfaceDecal: obj => { surfaceDecals.push(obj); scene.add(obj); },
     // 時刻が変わったときに呼んでほしい処理(空の色を使うもの)を登録する

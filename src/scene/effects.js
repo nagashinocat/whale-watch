@@ -105,6 +105,16 @@ export function createEffects(scene) {
       for (const q of splashParticles(kind, position, heading)) emit(q.p, q.v, q);
     },
 
+    // 体から流れ落ちる水。水から上がってきた背中やひれの点から、細い滝のように落ちる
+    cascade(point, n = 3) {
+      for (let k = 0; k < n; k++) {
+        const a = Math.random() * Math.PI * 2, r = rand(0.15, 0.7);
+        emit([point[0] + rand(-0.3, 0.3), point[1] + rand(-0.15, 0.1), point[2] + rand(-0.3, 0.3)],
+          [Math.cos(a) * r, rand(-0.6, 0.4), Math.sin(a) * r],
+          { life: rand(1.2, 2.0), size: rand(0.3, 0.6), alpha: 0.75, gravity: 9.8, grow: 1.4 });
+      }
+    },
+
     // 太陽や月の光の色に合わせる(夕方は金色、夜は青白く暗く)
     setLight(hex) {
       material.uniforms.uColor.value.set(hex).multiplyScalar(1.5);

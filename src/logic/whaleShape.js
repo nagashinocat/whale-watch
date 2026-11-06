@@ -487,3 +487,14 @@ export function surfacedCenterY(kind, lengthMeters, exposedMeters) {
   }
   return exposedMeters - top;
 }
+
+// 胸びれの付け根と先の位置(体長1の比率)。胸びれでたたく動きで、先の位置を使う
+export function finTip(kind, side) {
+  const f = WHALE_SPECS[kind].fin;
+  const root = bodyPoint(kind, f.root, side * f.theta);
+  const axis = norm([side * f.axis[0], f.axis[1], f.axis[2]]);
+  const back = [0, 0, 1];
+  const chordDir = norm(sub(back, scale(axis, dot(back, axis))));
+  const tip = addv(addv(root, scale(axis, f.length)), scale(chordDir, f.sweep));
+  return { root, tip };
+}

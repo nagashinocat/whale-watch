@@ -41,3 +41,15 @@ export function blowDirection(kind, forward) {
 export function divingYaw(rng) {
   return (rng() * 2 - 1) * 30;
 }
+
+const clamp01 = x => Math.min(1, Math.max(0, x));
+
+// 大きな水しぶきが上がったとき、画面(カメラ)に水がかかる強さ(0〜1)。distance はカメラからの距離(m)
+export function lensSplash(distance) {
+  return clamp01(1 - (distance - 8) / 37) ** 1.5;
+}
+
+// 大きな水しぶきが上がったとき、画面が揺れる強さ(0〜1)
+export function cameraShake(distance) {
+  return clamp01(1 - (distance - 5) / 35) ** 2;
+}

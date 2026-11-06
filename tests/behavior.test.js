@@ -45,3 +45,15 @@ test('尾びれを上げて潜るときは、カメラから遠ざかる向き�
     assert.ok(yaw >= -30 && yaw <= 30, `yaw ${yaw}`);
   }
 });
+
+test('近くで大きな水しぶきが上がると、画面に水がかかって少し揺れる。遠いと何も起きない', async () => {
+  const { lensSplash, cameraShake } = await import('../src/logic/behavior.js');
+  assert.ok(lensSplash(10) > 0.7 && cameraShake(10) > 0.5);
+  assert.ok(lensSplash(30) > 0 && lensSplash(30) < lensSplash(10));
+  assert.equal(lensSplash(80), 0);
+  assert.equal(cameraShake(80), 0);
+  for (let d = 0; d < 100; d += 1) {
+    assert.ok(lensSplash(d) <= 1 && cameraShake(d) <= 1);
+    assert.ok(lensSplash(d + 1) <= lensSplash(d) + 1e-9, 'never stronger farther away');
+  }
+});

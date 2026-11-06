@@ -2,6 +2,8 @@ import { createOcean } from './scene/ocean.js';
 import { createWhales } from './scene/whales.js';
 import { createEffects } from './scene/effects.js';
 import { createFootprints } from './scene/footprints.js';
+import { createLensDrops } from './ui/lensDrops.js';
+import { lensSplash, cameraShake } from './logic/behavior.js';
 import { PATTERNS, PATTERN_LABELS, resolvePattern, voiceSound } from './logic/patterns.js';
 import { spawnPosition } from './logic/spawn.js';
 import { createMixer, loadBuffers } from './audio/mixer.js';
@@ -25,6 +27,7 @@ const ocean = createOcean(document.getElementById('sea'));
 const scheduler = createScheduler({ now: Date.now(), intervalScale: FAST ? 1 / 30 : 1 });
 
 let mixer = null;
+const lensDrops = createLensDrops();
 const effects = createEffects(ocean.scene);
 ocean.addUpdater(effects.update);
 // 潜ったクジラの足あと(海面のなめらかな跡)
@@ -36,6 +39,13 @@ ocean.onPalette(palette => effects.setLight(palette.light));
 const whalesReady = createWhales(ocean.scene, {
   effects,
   footprint: (position, yaw) => footprints.add(position, yaw),
+  // 近くで大きな水しぶきが上がったら、画面に水がかかって少し揺れる(power: 水しぶきの強さ 0〜1)
+  impact(position, power = 1) {
+    const c = ocean.camera.position;
+    const d = Math.hypot(position[0] - c.x, position[1] - c.y, position[2] - c.z);
+    lensDrops.splatter(lensSplash(d) * power);
+    ocean.shake(cameraShake(d) * power);
+  },
   playSound: (name, opts) => mixer?.playWhale(name, opts),
 });
 whalesReady.then(w => ocean.addUpdater(w.update));

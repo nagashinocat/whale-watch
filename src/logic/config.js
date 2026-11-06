@@ -3,7 +3,7 @@
 
 export const MODES = ['sleep', 'normal'];
 
-export const CAMERAS = ['sky', 'cliff', 'surface'];
+export const CAMERAS = ['sky', 'cliff', 'surface', 'near'];
 
 import { SKY_MOMENTS } from './skyPalette.js';
 
@@ -31,6 +31,10 @@ export const SCHEDULE = Object.freeze({
     motherCalf: 10,
     sleeping: 10,
     breach: 20,
+    // 近くで見ると迫力のある出方(ときどき)
+    spyhop: 5,
+    pecSlap: 5,
+    lobtail: 5,
   }),
 });
 

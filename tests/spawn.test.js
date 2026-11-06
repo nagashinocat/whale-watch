@@ -17,7 +17,7 @@ test('カメラの真後ろや画面の外は見えない扱い', () => {
   assert.equal(isVisibleFrom(cliff, [400, 0, -300]), false);
 });
 
-test('カメラは上空・崖の上・水面の3つで、上空は崖の上より高い', () => {
-  assert.deepEqual(Object.keys(CAMERA_PRESETS).sort(), ['cliff', 'sky', 'surface']);
+test('カメラは上空・崖の上・水面・間近の4つで、上空は崖の上より高い', () => {
+  assert.deepEqual(Object.keys(CAMERA_PRESETS).sort(), ['cliff', 'near', 'sky', 'surface']);
   assert.ok(CAMERA_PRESETS.sky.position[1] > CAMERA_PRESETS.cliff.position[1]);
 });

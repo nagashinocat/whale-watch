@@ -27,6 +27,10 @@ export const CAMERA_PRESETS = Object.freeze({
     // ためしに近くへ出すときは、崖の上からクジラの場所を見下ろす
     position: [0, CLIFF_HEIGHT, 0], target: TEST_SPOT === null ? [0, 0, -CLIFF_LOOK] : [...SPOT], fov: FOV, sway: 0, bob: 0, whitecaps: 0.55,
   }),
+  // 間近: 水面の高さから、クジラの20m手前で少し見上げる。大きなものは見上げると大きく感じる
+  near: Object.freeze({
+    position: [SPOT[0], 0.9, SPOT[2] + 20], target: [SPOT[0], 2.2, SPOT[2] - 60], fov: FOV, sway: 0, bob: 0, whitecaps: 0.3,
+  }),
   surface: Object.freeze({
     position: [0, SURFACE_HEIGHT, SPOT[2] + surfaceDistance],
     target: [0, 0, SPOT[2] + surfaceDistance - SURFACE_LOOK], fov: FOV, sway: 0, bob: 0, whitecaps: 0.35,

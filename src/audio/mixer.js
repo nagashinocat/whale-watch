@@ -26,7 +26,7 @@ export async function loadBuffers(ctx, files = SOUND_FILES) {
 }
 
 // カメラごとの波の音。上空は崖の上と同じ遠い波の音を使う
-const waveSound = camera => (camera === 'surface' ? 'surface' : 'cliff');
+const waveSound = camera => (camera === 'surface' || camera === 'near' ? 'surface' : 'cliff');
 
 // 今の値から目標値まで、重ならないようにフェードする。
 function rampTo(param, ctx, target, ms) {

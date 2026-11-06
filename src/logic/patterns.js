@@ -7,6 +7,12 @@ export const PATTERNS = Object.freeze({
   sleeping: { durationMs: 90000, needs: 'sperm', sound: 'sperm' },
   breach: { durationMs: 25000, needs: 'humpback', sound: null },
   // 呼んだクジラは近くに着いてから(songAtMs)歌い始める
+  // スパイホップ: 体を縦にしてゆっくり上がり、頭だけを出してまわりを見回す
+  spyhop: { durationMs: 32000, needs: 'humpback', sound: null },
+  // 横に転がって、長い胸びれで水面をたたく
+  pecSlap: { durationMs: 36000, needs: 'humpback', sound: null },
+  // 尾びれを持ち上げて、水面に強く打ちつける
+  lobtail: { durationMs: 32000, needs: 'humpback', sound: null },
   summon: { durationMs: 120000, needs: 'humpback', sound: null, songAtMs: 40000 },
 });
 
@@ -34,5 +40,8 @@ export const PATTERN_LABELS = Object.freeze({
   motherCalf: '親子で泳ぐ',
   sleeping: '寝ているクジラ',
   breach: 'ジャンプ',
+  spyhop: 'スパイホップ(顔を出す)',
+  pecSlap: '胸びれで水面をたたく',
+  lobtail: '尾びれで水面をたたく',
   summon: '呼んだクジラ',
 });

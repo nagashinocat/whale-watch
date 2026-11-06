@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createScheduler, pickPattern } from '../src/logic/scheduler.js';
+import { SCHEDULE } from '../src/logic/config.js';
 
 const seeded = (s = 1) => () => ((s = (s * 16807) % 2147483647) / 2147483647);
 const MIN = 60000;
@@ -21,10 +22,12 @@ test('出方の割合がおおむね重みどおり(直前と同じは出ない)
     count[p] = (count[p] ?? 0) + 1;
     prev = p;
   }
-  const pct = k => count[k] / 200;
-  assert.ok(pct('voice') > 20 && pct('voice') < 30);
-  assert.ok(pct('breach') > 15 && pct('breach') < 25);
-  assert.ok(pct('motherCalf') > 7 && pct('motherCalf') < 14);
+  // 設定の重みから計算した割合と、6ポイント以内で合う(直前と同じは出ないぶん、少しずれる)
+  const total = Object.values(SCHEDULE.weights).reduce((x, y) => x + y, 0);
+  for (const [k, w] of Object.entries(SCHEDULE.weights)) {
+    const pct = (count[k] ?? 0) / 200, want = (w / total) * 100;
+    assert.ok(Math.abs(pct - want) < 6, `${k} ${pct.toFixed(1)}% want ${want.toFixed(1)}%`);
+  }
 });
 
 test('時刻前はnull、時刻を過ぎたら1件だけ', () => {

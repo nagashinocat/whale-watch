@@ -36,6 +36,8 @@ export const SCHEDULE = Object.freeze({
     spyhop: 5,
     pecSlap: 5,
     lobtail: 5,
+    // 間近のカメラのすぐ前まで来て、目が合う(めったにない)
+    eyeContact: 3,
   }),
 });
 

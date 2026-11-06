@@ -3,6 +3,7 @@ import { createWhales } from './scene/whales.js';
 import { createEffects } from './scene/effects.js';
 import { createFootprints } from './scene/footprints.js';
 import { SPOT } from './scene/cameras.js';
+import { setEyeLight } from './scene/whaleModel.js';
 import { cameraShake } from './logic/behavior.js';
 import { PATTERNS, PATTERN_LABELS, resolvePattern, voiceSound } from './logic/patterns.js';
 import { spawnPosition } from './logic/spawn.js';
@@ -35,6 +36,7 @@ const footprints = createFootprints();
 ocean.addSurfaceDecal(footprints.group);
 ocean.addUpdater(footprints.update);
 ocean.onPalette(footprints.setPalette);
+ocean.onPalette(setEyeLight);
 ocean.onPalette(palette => effects.setLight(palette.light));
 const whalesReady = createWhales(ocean.scene, {
   effects,

@@ -176,9 +176,12 @@ test('口の線と目: 目は口の端のすぐ上・すぐうしろにある', 
     assert.ok(f.eye.u > corner.u && f.eye.u < corner.u + 0.05, `${kind} eye u ${f.eye.u} corner ${corner.u}`);
     assert.ok(Math.abs(f.eye.theta) < Math.abs(corner.theta), `${kind} eye is above the mouth corner`);
     // 目と口の線は、まわりより暗い
-    const eye = lum(skinColor(kind, f.eye.u, f.eye.theta));
-    const near = lum(skinColor(kind, f.eye.u, f.eye.theta - 0.3));
-    assert.ok(eye < near * 0.8 + 0.01, `${kind} eye ${eye} near ${near}`);
+    // (ザトウクジラの目は別の部品で作るので、ここではマッコウクジラだけ。eyeShape.test.js)
+    if (kind !== 'humpback') {
+      const eye = lum(skinColor(kind, f.eye.u, f.eye.theta));
+      const near = lum(skinColor(kind, f.eye.u, f.eye.theta - 0.3));
+      assert.ok(eye < near * 0.8 + 0.01, `${kind} eye ${eye} near ${near}`);
+    }
     const m = f.mouth[Math.floor(f.mouth.length / 2)];
     assert.ok(lum(skinColor(kind, m.u, m.theta)) < lum(skinColor(kind, m.u, m.theta + 0.25)), `${kind} mouth line`);
   }

@@ -222,7 +222,8 @@ function surfaceOffset(kind, u, theta) {
   }
   const side = Math.abs(angleDiff(theta, 0));
   d -= 0.0015 * mouthLine(kind, u, side);
-  d += 0.0015 * eyeSpot(kind, u, side);
+  // ザトウクジラの目は、まぶたと目の玉を別の部品(eyeShape.js)で細かく作る
+  if (kind !== 'humpback') d += 0.0015 * eyeSpot(kind, u, side);
   d -= 0.002 * blowholeSlit(kind, u, theta);
   if (kind === 'sperm') {
     // しわしわの肌(頭より後ろ)
@@ -252,7 +253,7 @@ function faceColor(kind, u, theta, c) {
   const side = Math.abs(angleDiff(theta, 0));
   c = mixColor(c, BARNACLE, barnacles(kind, u, theta));
   c = mixColor(c, LINE, 0.85 * mouthLine(kind, u, side));
-  c = mixColor(c, EYE, 0.95 * smoothstep(0.35, 0.8, eyeSpot(kind, u, side)));
+  if (kind !== 'humpback') c = mixColor(c, EYE, 0.95 * smoothstep(0.35, 0.8, eyeSpot(kind, u, side)));
   c = mixColor(c, EYE, 0.9 * smoothstep(0.3, 0.7, blowholeSlit(kind, u, theta)));
   return c;
 }
@@ -307,12 +308,45 @@ function meshBuilder() {
   };
 }
 
-function bodyMesh(kind, out, rings = 160, around = 176) {
+// 体の網目の細かさ。頭と尾の近くほど細かい
+export const BODY_GRID = Object.freeze({ rings: 160, around: 176 });
+export const ringU = i => 0.5 - 0.5 * Math.cos((Math.PI * i) / (BODY_GRID.rings - 1));
+export const aroundTheta = j => (TAU * j) / BODY_GRID.around;
+
+// ザトウクジラの目のまわりで、体の網目から抜いて、目の部品(パッチ)に置きかえるマス目。
+// 網目の線にそろえてあるので、パッチのふちと体がすきまなくつながる。
+// 前後は約1m、上下は約0.9m(間近で目を見ても、画面いっぱいがパッチになる広さ)
+export function eyeCells(kind) {
+  if (kind !== 'humpback') return null;
+  const e = FACES[kind].eye;
+  let ic = 0;
+  for (let i = 0; i < BODY_GRID.rings; i++) if (Math.abs(ringU(i) - e.u) < Math.abs(ringU(ic) - e.u)) ic = i;
+  const jc = Math.round(e.theta / aroundTheta(1));
+  const i0 = ic - 4, i1 = ic + 4, j0 = jc - 7, j1 = jc + 7;
+  return { i0, i1, right: [j0, j1], left: [BODY_GRID.around - j1, BODY_GRID.around - j0] };
+}
+const CELLS = { humpback: eyeCells('humpback'), sperm: null };
+const inCells = (kind, i, j) => {
+  const c = CELLS[kind];
+  if (!c || i < c.i0 || i >= c.i1) return false;
+  return (j >= c.right[0] && j < c.right[1]) || (j >= c.left[0] && j < c.left[1]);
+};
+
+// その場所が、体から抜いた目のまわりのマス目に入るか
+export function eyeHole(kind, u, theta) {
+  const c = CELLS[kind];
+  if (!c || u < ringU(c.i0) || u > ringU(c.i1)) return false;
+  const t = ((theta % TAU) + TAU) % TAU;
+  const j = t / aroundTheta(1);
+  return (j >= c.right[0] && j <= c.right[1]) || (j >= c.left[0] && j <= c.left[1]);
+}
+
+function bodyMesh(kind, out, rings = BODY_GRID.rings, around = BODY_GRID.around) {
   const first = out.positions.length / 3;
   for (let i = 0; i < rings; i++) {
-    const u = 0.5 - 0.5 * Math.cos((Math.PI * i) / (rings - 1)); // 頭と尾の近くを細かく
+    const u = ringU(i); // 頭と尾の近くを細かく
     for (let j = 0; j < around; j++) {
-      const theta = (TAU * j) / around;
+      const theta = aroundTheta(j);
       out.add(bodyPoint(kind, u, theta), skinColor(kind, u, theta));
     }
   }
@@ -320,6 +354,7 @@ function bodyMesh(kind, out, rings = 160, around = 176) {
     for (let j = 0; j < around; j++) {
       const a = first + i * around + j, b = first + i * around + ((j + 1) % around);
       const c = a + around, d = b + around;
+      if (inCells(kind, i, j)) continue;   // 目のまわりは目の部品で描く
       out.indices.push(a, c, b, b, c, d);
     }
   }

@@ -4,7 +4,8 @@ import { createWhaleMesh, prepareWhaleGeometry } from './whaleModel.js';
 import { WHALE_SPECS, surfacedCenterY, bodySection, finTip } from '../logic/whaleShape.js';
 import { divingYaw } from '../logic/behavior.js';
 import { followFactor } from '../logic/quality.js';
-import { SPOT } from './cameras.js';
+import { SPOT, CAMERA_PRESETS } from './cameras.js';
+import { eyeFrame, EYE } from '../logic/eyeShape.js';
 
 const D2R = THREE.MathUtils.degToRad;
 const clamp01 = x => Math.min(1, Math.max(0, x));
@@ -321,6 +322,56 @@ const MOTIONS = {
         w.group.rotation.set(D2R(pitch), D2R(yaw), 0);
       },
       cues,
+    };
+  },
+
+  // 目が合う: 間近のカメラのすぐ前で、体を立てて頭を出し(スパイホップ)、片目でこちらをじっと見る。
+  // ゆっくり上がってきて、少しずつ寄り、目が画面の半分以上になる近さ(約17cm)で20秒ほど止まる。
+  // まばたきをして、目の玉も少し動く。最後はゆっくり離れて沈んでいく
+  eyeContact() {
+    const near = CAMERA_PRESETS.near;
+    const cam = new THREE.Vector3(...near.position);
+    const dir = new THREE.Vector3(...near.target).sub(cam).normalize();
+    const eyeAt = d => cam.clone().addScaledVector(dir, d);
+    const far = 1.4;   // 上がってくるときの、カメラから目までの距離(m)
+    const pitch = 78;  // 体の立ち方(90で真上)
+    const local = eyeFrame(1);
+    let yaw = null;
+    return {
+      whales: [{ kind: 'humpback', swim: 0 }],
+      each([w], t, D) {
+        const eyeLocal = new THREE.Vector3(...local.center).multiplyScalar(w.length);
+        if (yaw === null) {
+          // 右目がカメラのほうを向く向きを探す
+          const n = new THREE.Vector3(...local.normal);
+          let best = -2;
+          for (let a = 0; a < 360; a += 1) {
+            w.group.rotation.set(D2R(pitch), D2R(a), 0);
+            w.group.updateMatrixWorld();
+            const score = n.clone().applyQuaternion(w.group.quaternion).dot(dir.clone().negate());
+            if (score > best) { best = score; yaw = a; }
+          }
+          w.mixer.eyes.alive = true;
+        }
+        const rise = ease(t / 10) - ease((t - (D - 5)) / 5);
+        const close = ease((t - 10) / 6) - ease((t - 36) / 5);
+        const target = eyeAt(lerp(far, EYE.contactDistance, close));
+        target.y = lerp(-3.5, target.y, rise) + 0.015 * Math.sin(t * 0.9) * close;
+        // 見つめている間は目を大きく開き、離れるときはふだんの開きにもどす
+        w.mixer.eyes.setBaseOpen(lerp(EYE.relaxedOpen, 1, ease((t - 15) / 3) - ease((t - 35) / 3)));
+        const sway = 2 * Math.sin(t * 0.3) * (1 - close * 0.7);
+        w.group.rotation.set(D2R(pitch), D2R(yaw + sway), 0);
+        w.group.position.set(0, 0, 0);
+        w.group.updateMatrixWorld();
+        const eyeWorld = w.group.localToWorld(eyeLocal.clone());
+        w.group.position.copy(target.sub(eyeWorld));
+      },
+      cues: [
+        { at: 2, run: (fx, [w]) => fx.effects.foam(onWater(bodyPoint(w, 0)), 8000) },
+        // 見つめながら、低く小さく鳴く
+        { at: 22, run: (fx, [w]) => fx.playSound('humpback-call', { gain: 0.5, maxMs: 8000, position: bodyPoint(w, 0.2) }) },
+        { at: 42, run: (fx, [w]) => fx.effects.foam(onWater(bodyPoint(w, 0)), 6000) },
+      ],
     };
   },
 

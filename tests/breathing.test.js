@@ -31,3 +31,21 @@ test('子クジラの潮吹きは小さく、息の音も小さい', () => {
   assert.ok(BREATH.calfScale < 0.6);
   assert.ok(BREATH.gain.calf < BREATH.gain.adult);
 });
+
+test('息つぎは、頭が出て潮を吹き、背中が転がるように出て、頭から沈む', async () => {
+  const { rollingSurfacing, ROLL } = await import('../src/logic/breathing.js');
+  const blows = [7, 19];
+  // 潮を吹くときは頭が上がっていて、体はかなり出ている
+  const atBlow = rollingSurfacing(7, blows);
+  assert.ok(atBlow.pitch > 2 && atBlow.lift > 0.6, JSON.stringify(atBlow));
+  // そのあと頭が下がり(背中・背びれが出る番)、やがて沈む
+  const after = rollingSurfacing(7 + ROLL.follow * 0.6, blows);
+  assert.ok(after.pitch < -2 && after.lift > 0.3, JSON.stringify(after));
+  // 息つぎのあいだは浅く沈んでいて、水平
+  assert.deepEqual(rollingSurfacing(13, blows), { lift: 0, pitch: 0 });
+  // なめらかにつながる(急に跳ばない)
+  for (let t = 0; t < 26; t += 0.05) {
+    const a = rollingSurfacing(t, blows), b = rollingSurfacing(t + 0.05, blows);
+    assert.ok(Math.abs(a.lift - b.lift) < 0.05 && Math.abs(a.pitch - b.pitch) < 0.4, `t ${t}`);
+  }
+});

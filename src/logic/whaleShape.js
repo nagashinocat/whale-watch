@@ -161,7 +161,9 @@ export function faceFeatures(kind) {
       const u = 0.01 + (i / 12) * 0.25;
       mouth.push({ u, theta: 1.9 - 0.2 * Math.sin((Math.PI * u) / 0.3) });
     }
-    return { mouth, eye: { u: 0.285, theta: 1.6 }, blowhole: null };
+    // 鼻の穴は2つ並んだ細長いすきま(前で寄ったV字)で、頭のこぶの列のうしろ、頭のてっぺんにある。
+    // そのすぐ前に、水が入らないようにする盛り上がり(スプラッシュガード)がある
+    return { mouth, eye: { u: 0.285, theta: 1.6 }, blowhole: { u: 0.222, theta: 0, pair: true } };
   }
   // マッコウクジラ: 口の線は頭の下を後ろへまっすぐ。目は口の端のすぐ上。鼻の穴はS字で、頭の前の左寄り
   const mouth = [];
@@ -189,10 +191,31 @@ function eyeSpot(kind, u, side) {
   return bump(u, e.u, 0.006) * bump(side, e.theta, 0.05);
 }
 
+// ザトウクジラの鼻の穴(2つ並んだすきま)とスプラッシュガード。大きさは体長に対する比率。
+// 鼻の穴: 長さ約0.45m、左右のまん中どうしが約0.4m、前のほうで寄る。ガード: 高さ約8cm
+export const NARES = Object.freeze({ length: 0.032, apart: 0.0145, converge: 0.005, width: 0.004,
+  depth: 0.0022, guardU: 0.2, guardLength: 0.009, guardWidth: 0.03, guardHeight: 0.0058 });
+
+// slit: 鼻の穴の上なら1、guard: スプラッシュガードの盛り上がり(0〜1)
+export function humpbackNares(u, theta) {
+  const top = Math.cos(theta);
+  if (top < 0.8) return { slit: 0, guard: 0 };
+  const s = bodySection('humpback', u);
+  // 頭のてっぺんは平らなので、角度ではなく横の位置(体長に対する比率)で決める
+  const x = s.halfWidth * Math.abs(Math.sin(theta)) ** (2 / s.squarenessTop);
+  const b = FACES.humpback.blowhole;
+  const k = (u - (b.u - NARES.length / 2)) / NARES.length;   // 0 が前、1 がうしろ
+  const along = k > 0 && k < 1 ? Math.sin(Math.PI * k) ** 0.6 : 0;
+  const center = NARES.apart - NARES.converge * (1 - k);
+  const slit = along * bump(x, center, NARES.width);
+  const guard = bump(u, NARES.guardU, NARES.guardLength) * bump(x, 0, NARES.guardWidth);
+  return { slit, guard };
+}
+
 // マッコウクジラのS字の鼻の穴
 function blowholeSlit(kind, u, theta) {
   const b = FACES[kind].blowhole;
-  if (!b) return 0;
+  if (!b || b.pair) return 0;
   let best = 0;
   for (let v = -1; v <= 1; v += 0.1) {
     const cu = b.u + 0.006 * v, ct = b.theta + 0.08 * Math.sin(Math.PI * v);
@@ -225,6 +248,10 @@ function surfaceOffset(kind, u, theta) {
   // ザトウクジラの目は、まぶたと目の玉を別の部品(eyeShape.js)で細かく作る
   if (kind !== 'humpback') d += 0.0015 * eyeSpot(kind, u, side);
   d -= 0.002 * blowholeSlit(kind, u, theta);
+  if (kind === 'humpback') {
+    const n = humpbackNares(u, theta);
+    d += NARES.guardHeight * n.guard - NARES.depth * n.slit;
+  }
   if (kind === 'sperm') {
     // しわしわの肌(頭より後ろ)
     const wrinkleZone = smoothstep(0.33, 0.4, u) * (1 - smoothstep(0.85, 0.93, u));
@@ -255,6 +282,7 @@ function faceColor(kind, u, theta, c) {
   c = mixColor(c, LINE, 0.85 * mouthLine(kind, u, side));
   if (kind !== 'humpback') c = mixColor(c, EYE, 0.95 * smoothstep(0.35, 0.8, eyeSpot(kind, u, side)));
   c = mixColor(c, EYE, 0.9 * smoothstep(0.3, 0.7, blowholeSlit(kind, u, theta)));
+  if (kind === 'humpback') c = mixColor(c, EYE, 0.8 * smoothstep(0.3, 0.8, humpbackNares(u, theta).slit));
   return c;
 }
 
@@ -582,7 +610,12 @@ export function buildWhaleGeometry(kind) {
 // 泳ぐときの体のしなり。s は頭(0)から尾(1)までの位置、phase は動きの進み具合。
 // クジラは尾びれを上下にあおいで泳ぐ。頭はほとんど動かず、尾に向かうほど大きく動き、
 // 波が頭から尾へ伝わっていく。シェーダーでも同じ数値を使う。
-export const SWIM = Object.freeze({ amplitude: 0.035, power: 2.5, wave: 5.0 });
+// 調べてわかったこと(ナガスクジラの仲間に記録計をつけた研究): ザトウクジラがふつうに泳ぐとき、
+// 尾は上下に体長の約5分の1(約2.4〜2.6m)ふれ、1秒に約0.25回あおぐ(体長およそ11m)。大きいほどゆっくりで、
+// あおぐ回数は体長の0.53乗に反比例する。水面近くで息つぎしながらゆっくり進むときは、それより小さめにしている
+// amplitude: 尾の先の片側へのふれ(体長に対する比率) / hz: 14mのクジラが1秒にあおぐ回数
+export const SWIM = Object.freeze({ amplitude: 0.07, power: 2.5, wave: 5.0, hz: 0.22, sizeExponent: 0.53 });
+export const strokesPerSecond = lengthMeters => SWIM.hz * (14 / lengthMeters) ** SWIM.sizeExponent;
 export function swimBend(s, phase, amount) {
   return amount * SWIM.amplitude * s ** SWIM.power * Math.sin(phase - SWIM.wave * s);
 }

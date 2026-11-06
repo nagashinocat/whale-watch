@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildWhaleGeometry, SWIM, WHALE_SPECS, jawHinge, POUCH_SWELL, BODY_GRID, ringU, aroundTheta, bodyPoint, flukeOutline } from '../logic/whaleShape.js';
+import { buildWhaleGeometry, SWIM, strokesPerSecond, WHALE_SPECS, jawHinge, POUCH_SWELL, BODY_GRID, ringU, aroundTheta, bodyPoint, flukeOutline } from '../logic/whaleShape.js';
 import { traitBodyColor, traitFinColor, flukeBite } from '../logic/traits.js';
 import { buildFeatures } from '../logic/features3d.js';
 import { eyePatch, applyLid, eyeballPlacement, blinkOpen, EYE } from '../logic/eyeShape.js';
@@ -362,8 +362,8 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
   const features = featuresFor(kind, individual);
   if (features) mesh.add(new THREE.Mesh(features, material));
 
-  // 大きいクジラほどゆっくり尾をあおぐ(14mでおよそ5秒に1回)
-  const strokesPerSecond = 0.2 * Math.sqrt(14 / lengthMeters);
+  // 大きいクジラほどゆっくり尾をあおぐ(14mでおよそ4.5秒に1回)
+  const strokes = strokesPerSecond(lengthMeters);
 
   return {
     mesh,
@@ -381,7 +381,7 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     // 目(ザトウクジラだけ)。alive にすると、まばたきと目の動きをする
     eyes,
     update(dt) {
-      uniforms.uPhase.value += dt * Math.PI * 2 * strokesPerSecond;
+      uniforms.uPhase.value += dt * Math.PI * 2 * strokes;
       eyes?.update(dt);
     },
   };

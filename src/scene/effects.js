@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BLOW, blowDirection, blowSpeed } from '../logic/behavior.js';
+import { BLOW, BLOW_EXHALE, blowDirection, blowSpeed } from '../logic/behavior.js';
 import { splashParticles } from '../logic/splash.js';
 
 const MAX = 6000; // スマホで重くならないよう、全体の粒子数に上限をかける
@@ -89,13 +89,23 @@ export function createEffects(scene) {
       const b = BLOW[kind];
       const dir = blowDirection(kind, forward);
       const speed = blowSpeed(kind) * Math.sqrt(scale);
-      for (let k = 0; k < 300 * Math.min(1, scale + 0.2); k++) {
+      // ザトウクジラは鼻の穴が2つ並んでいるので、左右2か所から噴き出す(遠くからはひとつのもこもこに見える)
+      const len = Math.hypot(forward[0], forward[2]) || 1;
+      const right = [-forward[2] / len, 0, forward[0] / len];
+      const nozzles = kind === 'humpback' ? [-1, 1] : [0];
+      const apart = 0.2 * Math.sqrt(scale);
+      const n = Math.round(300 * Math.min(1, scale + 0.2));
+      for (let k = 0; k < n; k++) {
         const a = Math.random() * Math.PI * 2, r = Math.random() * b.spread * Math.sqrt(scale);
+        const side = nozzles[k % nozzles.length] * apart;
+        // 息は一気に吐き出し(約1秒)、はじめがいちばん強い。あとから出る粒ほど低い
+        const when = BLOW_EXHALE * Math.random() ** 2;
+        const strength = 1 - 0.35 * (when / BLOW_EXHALE);
         // 速さを少しずつばらつかせて、上まで届く粒と途中で広がる粒をまぜる(もこもこした形になる)
-        const s = speed * rand(0.75, 1.0);
-        emit([x + Math.cos(a) * 0.3, y + 0.3, z + Math.sin(a) * 0.3],
-          [dir[0] * s + Math.cos(a) * r, dir[1] * s, dir[2] * s + Math.sin(a) * r],
-          { life: rand(2.4, 3.4), size: rand(1.0, 1.8), alpha: 0.5, gravity: b.gravity, wind: 1.2, grow: 2.8 });
+        const s = speed * rand(0.75, 1.0) * strength;
+        emit([x + right[0] * side + Math.cos(a) * 0.2, y + 0.3, z + right[2] * side + Math.sin(a) * 0.2],
+          [dir[0] * s + Math.cos(a) * r + right[0] * side * 0.6, dir[1] * s, dir[2] * s + Math.sin(a) * r + right[2] * side * 0.6],
+          { life: rand(2.4, 3.4), size: rand(1.0, 1.8), alpha: 0.5, gravity: b.gravity, wind: 1.2, grow: 2.8, delay: when });
       }
     },
 

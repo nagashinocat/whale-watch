@@ -13,6 +13,9 @@ export const BLOW = Object.freeze({
   sperm: Object.freeze({ height: 3, spread: 0.9, tiltDeg: 45, gravity: 6 }),
 });
 
+// 息を吐き出す長さ(秒)。息を吸う長さは約1秒と測られている(吐く長さは水面の下から始まるため測りにくい)
+export const BLOW_EXHALE = 0.9;
+
 // 足あとの大きさ(m)と残る時間。大きさは資料になかったので、尾びれの幅(約4.6m)の数倍にしている
 export const FOOTPRINT = Object.freeze({ lengthMeters: 12, widthMeters: 7, lastsMs: 3 * 60 * 1000 });
 

@@ -3,7 +3,7 @@ import { PATTERNS } from '../logic/patterns.js';
 import { createWhaleMesh, prepareWhaleGeometry } from './whaleModel.js';
 import { WHALE_SPECS, surfacedCenterY, bodySection, finTip, jawPoint, faceFeatures } from '../logic/whaleShape.js';
 import { FEEDING, feedingPose, BUBBLE_NET, bubbleNetGroup } from '../logic/feeding.js';
-import { BREATH, diveSurfacing, calfBreaths } from '../logic/breathing.js';
+import { BREATH, ROLL, diveSurfacing, calfBreaths, rollingSurfacing } from '../logic/breathing.js';
 import { SLEEP, sleepingGroup, headBob } from '../logic/sleep.js';
 import { individual as individualById } from '../logic/flukeId.js';
 import { lengthOf } from '../logic/zukan.js';
@@ -50,8 +50,12 @@ function blowhole(w) {
   if (w.kind === 'sperm') {
     return w.group.localToWorld(new THREE.Vector3(-0.6, 1.5, -0.49 * w.length)).toArray();
   }
-  return bodyPoint(w, 0.28, 1);
+  // ザトウクジラ: 2つ並んだ鼻の穴のあいだ(頭のてっぺんの表面)
+  const u = HUMPBACK_NARES_U;
+  const sec = bodySection('humpback', u);
+  return bodyPoint(w, 0.5 - u, (sec.centerY + sec.halfHeight) * w.length);
 }
+const HUMPBACK_NARES_U = faceFeatures('humpback').blowhole.u;
 
 // クジラの頭が向いている水平の向き
 function headingOf(w) {
@@ -131,6 +135,9 @@ function spyhopAt(w, t, D, at, headOut, lookPhase, face) {
 // 1頭のジャンプ(launch 秒に飛び出す)。start から yaw の向きへ跳ぶ。rollSign は倒れる向き(1 か -1)
 function breachAt(w, t, launch, start, yaw, rollSign = 1) {
   const p = breachPose(t - launch, w.length / 14);
+  // 水の中では強く尾をあおいで勢いをつけ、空中では尾を止める
+  const k = t - launch;
+  w.mixer.setSwim(1 - 0.8 * (ease(k / 0.6) - ease((k - BREACH.air - 0.5) / 2)));
   const f = forward(yaw);
   w.group.position.set(start[0] + f[0] * p.along, p.y, start[2] + f[2] * p.along);
   w.group.rotation.set(D2R(p.pitch), D2R(yaw), D2R(p.roll * rollSign));
@@ -172,21 +179,26 @@ const offsetBy = (p, r, side) => [p[0] + r[0] * side, 0, p[2] + r[2] * side];
 const MOTIONS = {
   spout({ start, yaw }) {
     const speed = SWIM_SPEED.spout;
+    const blows = [6, 15, 24];
     return {
       whales: [{ kind: 'humpback' }],
       each([w], t, D) {
         const f = forward(yaw);
-        const rise = ease(t / 5) - ease((t - (D - 8)) / 5);
-        // 沈む前に背中を丸めて、背中の上のほうと背びれを見せる
-        const round = ease((t - (D - 11)) / 3) * (1 - ease((t - (D - 6)) / 4));
-        const y = lerp(-6, surfaceY(w, 0.8), rise) + Math.sin(t * 0.8) * 0.15 + 0.5 * round;
+        const enter = ease(t / 4);
+        // 息つぎのたびに、頭 → 背中 → 背びれの順に水面を転がるように出る。あいだは水面のすぐ下
+        const roll = rollingSurfacing(t, blows);
+        // 息つぎのあいだは尾をあまりあおがず、すべるように進む(尾びれが水面を割らない)
+        w.mixer.setSwim(1 - 0.65 * roll.lift);
+        // 最後は背中を高く丸めて、背中の上のほうと背びれを見せてから沈む
+        const round = ease((t - 27.5) / 3) * (1 - ease((t - (D - 7)) / 4));
+        const top = surfaceY(w, 0.8), under = top - 1.8;
+        const y = lerp(-6, lerp(under, top, roll.lift), enter) + 0.8 * round - 8 * ease((t - (D - 6)) / 6);
         w.group.position.set(start[0] + f[0] * speed * t, y, start[2] + f[2] * speed * t);
-        w.group.rotation.set(D2R(Math.sin(t * 0.5) * 2 - 14 * round), D2R(yaw), 0);
+        w.group.rotation.set(D2R(roll.pitch + Math.sin(t * 0.5) * 1.2 - 14 * round), D2R(yaw), 0);
       },
       cues: [
-        { at: 5, run: (fx, [w]) => fx.effects.foam(bodyPoint(w, 0), 9000) },
-        { at: 7, run: (fx, [w]) => blow(fx, w) },
-        { at: 19, run: (fx, [w]) => blow(fx, w) },
+        { at: 4.5, run: (fx, [w]) => fx.effects.foam(bodyPoint(w, 0.3), 9000) },
+        ...blows.map(at => ({ at, run: (fx, [w]) => blow(fx, w) })),
       ],
     };
   },
@@ -196,7 +208,6 @@ const MOTIONS = {
   fluke({ start, yaw }) {
     const speed = SWIM_SPEED.fluke;
     const plan = diveSurfacing();
-    const last = plan.blows[plan.blows.length - 1];
     return {
       whales: [{ kind: 'humpback' }],
       each([w], t) {
@@ -204,17 +215,15 @@ const MOTIONS = {
         const round = ease((t - plan.round) / 3);
         const dive = ease((t - plan.dive) / 7);
         const pitch = -14 * round * (1 - dive) + lerp(0, -80, dive);
-        // 潮吹きのときに背中を出し、つぎの潮吹きまでのあいだは少し沈む
-        let dip = 0;
-        if (t < last) {
-          const next = plan.blows.find(b => b >= t) ?? last;
-          const prev = [...plan.blows].reverse().find(b => b < t) ?? 0;
-          const k = (t - prev) / Math.max(1, next - prev);
-          dip = prev ? Math.sin(Math.PI * clamp01(k)) * 1.3 : 0;
-        }
-        const y = lerp(-6, surfaceY(w, 0.7), ease(t / 5)) - dip + 0.5 * round * (1 - dive) - dive * 3 - ease((t - (plan.dive + 7.5)) / 5) * 14;
+        // 潮吹きのたびに、頭 → 背中 → 背びれの順に転がるように出る。あいだは水面のすぐ下。
+        // 最後の潮吹きのあとは水面にとどまり、背中を丸めて尾びれを上げる
+        const roll = rollingSurfacing(t, plan.blows, undefined, { holdLast: true });
+        // 息つぎのあいだはすべるように進み、尾びれを持ち上げるときは、あおがずに体を丸めた勢いで上げる
+        w.mixer.setSwim((1 - 0.65 * roll.lift) * (1 - 0.85 * dive));
+        const top = surfaceY(w, 0.7);
+        const y = lerp(-6, lerp(top - 1.8, top, roll.lift), ease(t / 4)) + 0.5 * round * (1 - dive) - dive * 3 - ease((t - (plan.dive + 7.5)) / 5) * 14;
         w.group.position.set(start[0] + f[0] * speed * t, y, start[2] + f[2] * speed * t);
-        w.group.rotation.set(D2R(pitch + Math.sin(t * 0.6) * 2 * (1 - dive) - 4 * dip), D2R(yaw), 0);
+        w.group.rotation.set(D2R(pitch + (roll.pitch + Math.sin(t * 0.6) * 1.2) * (1 - dive)), D2R(yaw), 0);
       },
       cues: [
         ...plan.blows.map(at => ({ at, run: (fx, [w]) => blow(fx, w) })),
@@ -241,9 +250,11 @@ const MOTIONS = {
         const r = [-f[2], 0, f[0]]; // 右方向
         const env = ease(t / 6) - ease((t - (D - 8)) / 6);
         const base = [start[0] + f[0] * speed * t, start[2] + f[2] * speed * t];
-        const momUp = surfacing(t, plan.mother, 9);
-        mom.group.position.set(base[0], lerp(-7, surfaceY(mom, 0.7) - 2.4 * (1 - momUp), env), base[1]);
-        mom.group.rotation.set(D2R(Math.sin(t * 0.4) * 2 - 6 * (1 - momUp)), D2R(yaw), 0);
+        // 母親は息つぎのたびに、頭 → 背中 → 背びれの順に転がるように出る(子どもを見せるため、ふだんも浅め)
+        const momRoll = rollingSurfacing(t, plan.mother, { ...ROLL, lead: 3, follow: 8 });
+        mom.mixer.setSwim(1 - 0.65 * momRoll.lift);
+        mom.group.position.set(base[0], lerp(-7, surfaceY(mom, 0.7) - 1.8 * (1 - momRoll.lift), env), base[1]);
+        mom.group.rotation.set(D2R(Math.sin(t * 0.4) * 1.5 + momRoll.pitch), D2R(yaw), 0);
         // 子は親の斜めうしろ。浮かぶときは頭を少し上げて、ぴょこっと出る
         const calfUp = surfacing(t, plan.calf, 4);
         calf.group.position.set(

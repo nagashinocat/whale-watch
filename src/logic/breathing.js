@@ -31,3 +31,23 @@ export function diveSurfacing(rng = Math.random) {
 export function calfBreaths() {
   return { mother: [11, 33], calf: [7, 18, 29, 40, 50] };
 }
+
+// 息つぎのときの、水面を「転がる」ような浮かび方。
+// 調べてわかったこと: ゆっくり泳ぎながら息をするザトウクジラは、まず頭(鼻の穴とその前の盛り上がり)が出て潮を吹き、
+// 頭が沈みはじめると背中が弓なりに水面を転がるように出て、そのあと背びれが見え、尾の付け根が少し丸く出て沈む。
+// アプリでは、体を少しずつ前に傾けながら(頭が上 → 水平 → 頭が下)浮いて沈むことで、頭・背中・背びれの順に見せる。
+// lead: 潮吹きの何秒前から浮かびはじめるか / follow: 潮吹きのあと沈みきるまで / angle: いちばん傾くときの角度(度)
+export const ROLL = Object.freeze({ lead: 2.2, follow: 5.5, angle: 7 });
+
+// t 秒目の浮かび具合。blows は潮吹きの時刻。lift は 0(浅く沈んでいる)〜1(背中が出ている)、pitch は頭の上がり(度)
+// holdLast: 最後の潮吹きのあとは沈まずに水面にとどまる(そのあと背中を丸めて尾びれを上げて潜るため)
+export function rollingSurfacing(t, blows, roll = ROLL, { holdLast = false } = {}) {
+  const span = roll.lead + roll.follow;
+  const last = blows[blows.length - 1];
+  for (const b of blows) {
+    const k = (t - (b - roll.lead)) / span;
+    if (holdLast && b === last && k >= 0.5) return { lift: 1, pitch: 0 };
+    if (k > 0 && k < 1) return { lift: Math.sin(Math.PI * k), pitch: roll.angle * Math.sin(2 * Math.PI * k) };
+  }
+  return { lift: 0, pitch: 0 };
+}

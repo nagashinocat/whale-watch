@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  WHALE_SPECS, bodySection, skinColor, ventralGroove, headKnobs, buildWhaleGeometry, finGeometry, flukeGeometry,
+  WHALE_SPECS, bodySection, humpbackNares, NARES, skinColor, ventralGroove, headKnobs, buildWhaleGeometry, finGeometry, flukeGeometry,
 } from '../src/logic/whaleShape.js';
 
 // 体長を1としたときの比率で確かめる(頭が z = -0.5、尾びれの先が z = +0.5)
@@ -138,13 +138,13 @@ test('泳ぐときは、頭はほとんど動かず、尾ほど大きく上下�
     tail = Math.max(tail, Math.abs(swimBend(1, p, 1)));
   }
   assert.ok(head < 0.001, `head ${head}`);
-  // ゆっくり泳ぐときの尾の上下は、体長の数%くらい
-  assert.ok(tail > 0.02 && tail < 0.06, `tail ${tail}`);
+  // 尾の先の片側へのふれは、体長の6〜10%(本気で泳ぐと約10%)
+  assert.ok(tail > 0.06 && tail <= 0.1, `tail ${tail}`);
   assert.equal(swimBend(1, 1.2, 0), 0);
 });
 
 // ---- 本物の資料とくらべて足した特徴 ----
-import { faceFeatures, flukeOutline, WHALE_SPECS as SPECS2 } from '../src/logic/whaleShape.js';
+import { faceFeatures, flukeOutline, bodyPoint, WHALE_SPECS as SPECS2 } from '../src/logic/whaleShape.js';
 
 test('ザトウクジラはがっしりした胴体(ほかのナガスクジラの仲間より太い)', () => {
   let best = 0;
@@ -192,7 +192,39 @@ test('マッコウクジラの鼻の穴はひとつで、頭の前の左寄り�
   assert.ok(b.u < 0.05, `u ${b.u}`);
   assert.ok(b.theta < 0 && b.theta > -1.0, `theta ${b.theta}`);   // 左(-x)寄りの上
   assert.ok(lum(skinColor('sperm', b.u, b.theta)) < lum(skinColor('sperm', b.u, b.theta + 0.4)));
-  assert.equal(faceFeatures('humpback').blowhole, null);
+});
+
+test('ザトウクジラの鼻の穴は2つ並び、頭のこぶのうしろのてっぺんにあって、前にスプラッシュガードがある', () => {
+  const b = faceFeatures('humpback').blowhole;
+  assert.ok(b.pair);
+  // 頭(体長の約3割)の中で、頭のこぶの列(まん中の列)より後ろ
+  const lastKnob = Math.max(...headKnobs('humpback').filter(k => k.theta === 0).map(k => k.u));
+  assert.ok(b.u > lastKnob && b.u < 0.3, `u ${b.u}`);
+  // 左右に1つずつ: まん中(θ=0)は鼻の穴ではなく、少し横が鼻の穴
+  let best = 0, bestTheta = 0;
+  for (let th = 0; th < 0.3; th += 0.001) {
+    const v = humpbackNares(b.u, th).slit;
+    if (v > best) { best = v; bestTheta = th; }
+  }
+  assert.ok(best > 0.9, `slit ${best}`);
+  assert.ok(humpbackNares(b.u, 0).slit < 0.2, 'まん中は仕切り');
+  assert.ok(Math.abs(humpbackNares(b.u, -bestTheta).slit - best) < 1e-9, '左右対称');
+  // 横の位置で左右のまん中どうしが 0.3〜0.5m(14m のクジラ)
+  const L = WHALE_SPECS.humpback.lengthMeters;
+  const x = bodyPoint('humpback', b.u, bestTheta)[0] * L;
+  assert.ok(x > 0.15 && x < 0.25, `x ${x}`);
+  // 前のほうが寄っている(V字)
+  const front = b.u - NARES.length * 0.35, back = b.u + NARES.length * 0.35;
+  const centerAt = u => { let bv = 0, bt = 0; for (let th = 0; th < 0.3; th += 0.0005) { const v = humpbackNares(u, th).slit; if (v > bv) { bv = v; bt = th; } } return bodyPoint('humpback', u, bt)[0]; };
+  assert.ok(centerAt(front) < centerAt(back), 'V字');
+  // 鼻の穴はへこんで暗く、スプラッシュガードは盛り上がる
+  assert.ok(lum(skinColor('humpback', b.u, bestTheta)) < lum(skinColor('humpback', b.u, bestTheta + 0.1)));
+  assert.ok(humpbackNares(NARES.guardU, 0).guard > 0.95);
+  const rise = (bodyPoint('humpback', NARES.guardU, 0)[1] - (bodyPoint('humpback', NARES.guardU - 0.02, 0)[1] + bodyPoint('humpback', NARES.guardU + 0.02, 0)[1]) / 2) * L;
+  assert.ok(humpbackNares(NARES.guardU - 0.03, 0).guard < 0.01 && humpbackNares(b.u + 0.03, 0).guard < 0.01);
+  assert.ok(rise > 0.04 && rise < 0.15, `guard ${rise}`);
+  // 体の横や下には出ない
+  assert.equal(humpbackNares(b.u, Math.PI / 2).slit, 0);
 });
 
 test('尾びれ: ザトウクジラはうしろのふちに丸いこぶが並び、切れこみが深い', () => {
@@ -261,4 +293,16 @@ test('体のしなりの傾き: 曲がり具合(陰のつけ方に使う)が、�
       assert.ok(Math.abs(numeric - swimSlope(s, ph, 1)) < 1e-6, `${s} ${ph}`);
     }
   }
+});
+
+test('泳ぐときの尾のふれと速さは、記録計の研究の数値に近い', async () => {
+  const { SWIM: S, strokesPerSecond: f, swimBend: bend } = await import('../src/logic/whaleShape.js');
+  // 尾の先の上下のふれ幅(山から谷まで): 体長の 1/8〜1/5(水面近くのゆっくり泳ぎは本気のときより少し小さめ)
+  let hi = -1, lo = 1;
+  for (let p = 0; p < Math.PI * 2; p += 0.01) { const y = bend(1, p, 1); hi = Math.max(hi, y); lo = Math.min(lo, y); }
+  assert.ok(hi - lo > 1 / 8 && hi - lo <= 0.21, `${hi - lo}`);
+  // 11mでおよそ0.25回/秒、大きいほどゆっくり
+  assert.ok(Math.abs(f(11.09) - 0.25) < 0.02, `${f(11.09)}`);
+  assert.ok(f(14) < f(11) && f(5) > f(14));
+  assert.ok(S.amplitude > 0);
 });

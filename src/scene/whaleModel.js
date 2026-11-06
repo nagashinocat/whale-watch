@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { buildWhaleGeometry, SWIM, WHALE_SPECS, jawHinge, POUCH_SWELL, BODY_GRID, ringU, aroundTheta, bodyPoint, flukeOutline } from '../logic/whaleShape.js';
 import { traitBodyColor, traitFinColor, flukeBite } from '../logic/traits.js';
+import { buildFeatures } from '../logic/features3d.js';
 import { eyePatch, applyLid, eyeballPlacement, blinkOpen, EYE } from '../logic/eyeShape.js';
 import { flukeWhiteness } from '../logic/flukeId.js';
 
@@ -177,7 +178,7 @@ function geometryFor(kind) {
   geo.setIndex(new THREE.BufferAttribute(g.indices, 1));
   geo.setAttribute('aJaw', new THREE.BufferAttribute(g.jaw, 4));
   geo.computeVertexNormals();
-  geo.userData = { fluke: g.fluke, fins: g.fins, bodyCount: g.bodyCount, srgb: g.colors };
+  geo.userData = { fluke: g.fluke, fins: g.fins, bodyCount: g.bodyCount, srgb: g.colors, raw: g };
   geometries[kind] = geo;
   return geo;
 }
@@ -239,6 +240,25 @@ function geometryForIndividual(kind, ind) {
     geo.computeVertexNormals();
   }
   individualGeometries.set(ind.id, geo);
+  return geo;
+}
+
+// 形のある特徴(フジツボ、盛り上がった傷あと)の網目。1頭ずつ作って覚えておく
+const featureGeometries = new Map();
+function featuresFor(kind, ind) {
+  if (kind !== 'humpback' || !ind) return null;
+  if (featureGeometries.has(ind.id)) return featureGeometries.get(ind.id);
+  const f = buildFeatures(geometryFor(kind).userData.raw, ind);
+  let geo = null;
+  if (f.indices.length) {
+    geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(f.positions, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(f.colors.map(toLinear), 3));
+    geo.setAttribute('aJaw', new THREE.BufferAttribute(f.jaw, 4));
+    geo.setIndex(new THREE.BufferAttribute(f.indices, 1));
+    geo.computeVertexNormals();
+  }
+  featureGeometries.set(ind.id, geo);
   return geo;
 }
 
@@ -338,6 +358,9 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
   mesh.scale.setScalar(lengthMeters);
   // ザトウクジラは、目のまわりを細かく作った部品をはめこむ(体の網目のその部分は抜いてある)
   const eyes = kind === 'humpback' ? createEyes(mesh, material, individual) : null;
+  // フジツボと、盛り上がった傷あと(体と同じ描き方なので、しなりやあごの動きもいっしょ)
+  const features = featuresFor(kind, individual);
+  if (features) mesh.add(new THREE.Mesh(features, material));
 
   // 大きいクジラほどゆっくり尾をあおぐ(14mでおよそ5秒に1回)
   const strokesPerSecond = 0.2 * Math.sqrt(14 / lengthMeters);

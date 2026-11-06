@@ -132,6 +132,25 @@ export function traitBodyColor(ind, u, theta, c) {
   return c;
 }
 
+// スクリューの傷の線(色の線と同じ場所)。それぞれ (u, θ) の点の列。形のある傷あとに使う
+export function propellerLines(ind) {
+  const t = ind.traits ?? {};
+  if (t.scars !== 'propeller') return [];
+  const lines = [];
+  // 色の帯のまん中: x = 0.6k + 0.1(0.3 < x < 2.2)
+  for (const x0 of [0.7, 1.3, 1.9]) {
+    const line = [];
+    for (let across = -1.75; across <= 1.75; across += 0.07) {
+      const along = x0 + across * t.scarAngle;
+      const u = 0.44 + along / 14, theta = across / 1.4;
+      if (u <= 0.441 || u >= 0.579 || Math.cos(theta) <= 0.32) continue;
+      line.push([u, theta < 0 ? theta + Math.PI * 2 : theta]);
+    }
+    if (line.length >= 3) lines.push(line);
+  }
+  return lines;
+}
+
 // 胸びれの色に個性を重ねる。s はつけ根 0 〜 先 1、top は上の面か
 export function traitFinColor(ind, s, top, c) {
   const t = ind.traits ?? {};

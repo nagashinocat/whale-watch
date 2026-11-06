@@ -21,6 +21,9 @@ function makeWaterNormals(size) {
 // 月はカメラの正面やや左、高さ20度。正面にあると海に月の光の道(ムーンロード)が手前までのびる
 const MOON_DIRECTION = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(70), THREE.MathUtils.degToRad(186));
 
+// 海面のきらめきの強さ(1 で元の強さ)。まぶしすぎるときはここを下げる
+const GLARE = 0.55;
+
 // 海面のきらめきを時間帯ごとに変えられるよう、three.js の海のシェーダーを少しだけ書き換える。
 // 書き換える場所が見つからなければ何もしない(元の見た目のまま動く)。
 function tuneWaterShader(material) {
@@ -32,6 +35,8 @@ function tuneWaterShader(material) {
   );
   // きらめきを空の映り込みの明るさに関係なく光らせる(夜の月の光の道が暗くならないように)
   shader = shader.replace(/reflectionSample \* specularLight/, 'reflectionSample * specularLight + specularLight * uGlint');
+  // 空の映り込みを少し弱める(真上から見たときの鏡のような反射を抑える)
+  shader = shader.replace(/float rf0 = 0\.3;/, 'float rf0 = 0.18;');
   if (shader === before) return false;
   material.fragmentShader = 'uniform float uShiny;\nuniform float uSpec;\nuniform float uGlint;\n' + shader;
   material.uniforms.uShiny = { value: 100 };
@@ -137,15 +142,15 @@ export function createOcean(canvas) {
       const lerp = (a, b, t) => a + (b - a) * t;
       if (s.isNight) {
         // 月の光の道: 細くまっすぐ、くっきり
-        u.uShiny.value = 220;
-        u.uSpec.value = 2.6 * s.moonlight;
-        u.uGlint.value = 0.8;
+        u.uShiny.value = 260;
+        u.uSpec.value = 2.6 * s.moonlight * GLARE;
+        u.uGlint.value = 0.8 * GLARE;
       } else {
         // 太陽が低いほど光の道が太く、金色に強く光る
         const up = THREE.MathUtils.smoothstep(s.elevation, -1, 1.5);
-        u.uShiny.value = lerp(60, 140, s.daylight);
-        u.uSpec.value = lerp(3.2, 1.6, s.daylight) * up;
-        u.uGlint.value = lerp(0.5, 0.15, s.daylight);
+        u.uShiny.value = lerp(80, 200, s.daylight);
+        u.uSpec.value = lerp(3.2, 1.6, s.daylight) * up * GLARE;
+        u.uGlint.value = lerp(0.5, 0.15, s.daylight) * GLARE;
       }
     }
     sunLight.position.copy(lightDir).multiplyScalar(1000);

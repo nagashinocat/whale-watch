@@ -65,6 +65,13 @@ function eyeMaterial() {
   return m;
 }
 
+// 色は sRGB で作ってあるので、体と同じように three.js の計算用の色に直す(左右それぞれ一度だけ)
+const toLinear = c => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+function linearColors(patch) {
+  if (!patch.linear) patch.linear = Float32Array.from(patch.colors, toLinear);
+  return patch.linear;
+}
+
 // 目のまわりの肌(左右)。形の計算に時間がかかるので、一度だけ作って使い回す
 let eyePatches = null;
 function patchesFor() {
@@ -78,7 +85,7 @@ function createEyes(parent, skinMaterial) {
     const geo = new THREE.BufferGeometry();
     const pos = new THREE.BufferAttribute(applyLid(new Float32Array(patch.base.length), patch, EYE.relaxedOpen), 3);
     geo.setAttribute('position', pos);
-    geo.setAttribute('color', new THREE.BufferAttribute(patch.colors, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(linearColors(patch), 3));
     geo.setIndex(new THREE.BufferAttribute(patch.indices, 1));
     geo.computeVertexNormals();
     const skin = new THREE.Mesh(geo, skinMaterial);
@@ -86,8 +93,8 @@ function createEyes(parent, skinMaterial) {
     // 目の玉: x が体の前後、y が背中の向き、z が外向き
     const pivot = new THREE.Group();
     pivot.position.fromArray(place.eyeCenter);
-    pivot.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
-      new THREE.Vector3(...place.along), new THREE.Vector3(...place.up), new THREE.Vector3(...place.normal)));
+    const [bx, by, bz] = place.basis.map(v => new THREE.Vector3(...v));
+    pivot.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(bx, by, bz));
     const ball = new THREE.Mesh(new THREE.SphereGeometry(place.radius, 64, 48), eyeMaterial());
     pivot.add(ball);
     parent.add(pivot);

@@ -89,10 +89,12 @@ export function eyeFrame(side) {
   return { center, normal, up, along: along[2] < 0 ? scale(along, -1) : along, theta };
 }
 
-// 目の玉の中心と半径(体長1の大きさ)
+// 目の玉の中心と半径(体長1の大きさ)。basis は目の玉の向き [x, y, z]。
+// 鏡に映した向きにならないよう、x は y と z から作る(z が外向き、y が背中の向き)
 export function eyeballPlacement(side) {
   const f = eyeFrame(side);
-  return { ...f, eyeCenter: add(f.center, scale(f.normal, (EYE.protrude - EYE.eyeball) / REF)), radius: EYE.eyeball / REF };
+  const basis = [cross(f.up, f.normal), f.up, f.normal];
+  return { ...f, basis, eyeCenter: add(f.center, scale(f.normal, (EYE.protrude - EYE.eyeball) / REF)), radius: EYE.eyeball / REF };
 }
 
 // 目のまわりの肌の網目(パッチ)。体から抜いたマス目(eyeCells)とぴったり同じ広さで、

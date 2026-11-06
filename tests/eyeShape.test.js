@@ -87,3 +87,13 @@ test('パッチのふちは、体の網目の頂点とぴったり同じ場所(�
   const corner2 = bodyPoint('humpback', ringU(c.i1), aroundTheta(c.right[1]));
   for (let m = 0; m < 3; m++) assert.ok(Math.abs(p.base[last + m] - corner2[m]) < 1e-6);
 });
+
+test('目の玉の向き(前後・上下・外向き)は、鏡に映した向きになっていない(右目も左目も)', async () => {
+  const { eyeballPlacement } = await import('../src/logic/eyeShape.js');
+  for (const side of [1, -1]) {
+    const { basis } = eyeballPlacement(side);
+    const [x, y, z] = basis;
+    const det = x[0] * (y[1] * z[2] - y[2] * z[1]) - x[1] * (y[0] * z[2] - y[2] * z[0]) + x[2] * (y[0] * z[1] - y[1] * z[0]);
+    assert.ok(Math.abs(det - 1) < 1e-6, `side ${side} det ${det}`);
+  }
+});

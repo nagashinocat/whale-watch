@@ -48,6 +48,9 @@ function headingOf(w) {
   return [v.x, 0, v.z];
 }
 
+// 点の真下の海面
+const onWater = p => [p[0], 0, p[2]];
+
 // 頭の向きの角度(度)
 function headingYaw(w) {
   const [x, , z] = headingOf(w);
@@ -115,7 +118,7 @@ const MOTIONS = {
       },
       cues: [
         { at: 6, run: (fx, [w]) => blow(fx, w) },
-        { at: 19.5, run: (fx, [w]) => fx.effects.splash(bodyPoint(w, -0.5), 'small') },
+        { at: 19.5, run: (fx, [w]) => fx.effects.splash(onWater(bodyPoint(w, -0.5)), 'small', headingOf(w)) },
         { at: 21, run: (fx, [w]) => fx.effects.foam(bodyPoint(w, -0.3), 7000) },
         // 潜ったあとに、なめらかな足あとが残る
         { at: 23, run: (fx, [w]) => fx.footprint?.(bodyPoint(w, -0.5), yaw) },
@@ -192,12 +195,12 @@ const MOTIONS = {
         w.group.rotation.set(D2R(pitch), D2R(yaw), D2R(roll));
       },
       cues: [
-        { at: 8.4, run: (fx, [w]) => fx.effects.splash(bodyPoint(w, 0.4), 'small') },
+        { at: 8.4, run: (fx, [w]) => fx.effects.splash(onWater(bodyPoint(w, 0.4)), 'small', headingOf(w)) },
         {
           at: 8 + 0.82 * 4,
           run: (fx, [w]) => {
             const p = bodyPoint(w, 0);
-            fx.effects.splash([p[0], 0, p[2]], 'large');
+            fx.effects.splash([p[0], 0, p[2]], 'large', headingOf(w));
             fx.effects.foam([p[0], 0, p[2]], 12000);
             fx.playSound('splash');
           },
@@ -237,7 +240,7 @@ const MOTIONS = {
         },
         { at: 45, run: (fx, [w]) => blow(fx, w) },
         { at: 70, run: (fx, [w]) => blow(fx, w) },
-        { at: 106.5, run: (fx, [w]) => fx.effects.splash(bodyPoint(w, -0.5), 'small') },
+        { at: 106.5, run: (fx, [w]) => fx.effects.splash(onWater(bodyPoint(w, -0.5)), 'small', headingOf(w)) },
         { at: 110, run: (fx, [w]) => fx.footprint?.(bodyPoint(w, -0.5), headingYaw(w)) },
       ],
     };

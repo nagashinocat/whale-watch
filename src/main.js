@@ -32,6 +32,7 @@ const footprints = createFootprints();
 ocean.addSurfaceDecal(footprints.group);
 ocean.addUpdater(footprints.update);
 ocean.onPalette(footprints.setPalette);
+ocean.onPalette(palette => effects.setLight(palette.light));
 const whalesReady = createWhales(ocean.scene, {
   effects,
   footprint: (position, yaw) => footprints.add(position, yaw),

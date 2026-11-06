@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { BLOW, blowDirection, blowSpeed } from '../logic/behavior.js';
+import { splashParticles } from '../logic/splash.js';
 
-const MAX = 3000; // スマホで重くならないよう、全体の粒子数に上限をかける
+const MAX = 6000; // スマホで重くならないよう、全体の粒子数に上限をかける
 
 const vertexShader = `
   attribute float aSize;
@@ -22,6 +23,8 @@ const fragmentShader = `
     float a = smoothstep(0.5, 0.0, d) * vAlpha;
     if (a < 0.01) discard;
     gl_FragColor = vec4(uColor, a);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
   }`;
 
 // 潮吹き・水しぶき・泡。すべて粒子を使い回して描く。
@@ -38,6 +41,7 @@ export function createEffects(scene) {
   const wind = new Float32Array(MAX);
   const grow = new Float32Array(MAX);
   const floor = new Uint8Array(MAX);       // 1なら海面より下で消す
+  const wait = new Float32Array(MAX);      // 出るまでの秒(水しぶきは順番に出る)
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
@@ -45,7 +49,8 @@ export function createEffects(scene) {
   geometry.setAttribute('aAlpha', new THREE.BufferAttribute(alpha, 1).setUsage(THREE.DynamicDrawUsage));
 
   const material = new THREE.ShaderMaterial({
-    uniforms: { uColor: { value: new THREE.Color(0xf2f6f8) } },
+    // 水は太陽や月の光の色に染まる(setLight で変える)
+    uniforms: { uColor: { value: new THREE.Color(1.5, 1.5, 1.5) } },
     vertexShader,
     fragmentShader,
     transparent: true,
@@ -69,6 +74,7 @@ export function createEffects(scene) {
     wind[i] = opts.wind ?? 0;
     grow[i] = opts.grow ?? 1;
     floor[i] = opts.floor ?? 1;
+    wait[i] = opts.delay ?? 0;
   }
 
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -92,18 +98,16 @@ export function createEffects(scene) {
       }
     },
 
-    // 放射状に飛び散って落ちる水しぶき。small は尾びれ、large はジャンプ
-    splash(position, kind = 'small') {
-      const [x, y, z] = position;
-      const big = kind === 'large';
-      const n = big ? 800 : 200;
-      for (let k = 0; k < n; k++) {
-        const a = Math.random() * Math.PI * 2;
-        const out = big ? rand(5, 12) : rand(3, 6);
-        emit([x + Math.cos(a) * rand(0, big ? 4 : 1.5), y + 0.2, z + Math.sin(a) * rand(0, big ? 4 : 1.5)],
-          [Math.cos(a) * out, big ? rand(6, 14) : rand(4, 8), Math.sin(a) * out],
-          { life: big ? rand(1.8, 2.6) : rand(1, 1.6), size: big ? rand(0.6, 1.2) : rand(0.4, 0.7), alpha: 0.85 });
-      }
+    // 水しぶき。small は尾びれ、large はジャンプの着水。
+    // 王冠のような水の膜が持ち上がり、ちぎれて水滴になって落ち、細かいしぶきがただよう。
+    // heading はクジラの体の向き(着水したクジラの体に沿って細長くなる)
+    splash(position, kind = 'small', heading = [1, 0, 0]) {
+      for (const q of splashParticles(kind, position, heading)) emit(q.p, q.v, q);
+    },
+
+    // 太陽や月の光の色に合わせる(夕方は金色、夜は青白く暗く)
+    setLight(hex) {
+      material.uniforms.uColor.value.set(hex).multiplyScalar(1.5);
     },
 
     // 海面に白い泡を円状に広げ、durationMs かけて薄くする
@@ -121,6 +125,7 @@ export function createEffects(scene) {
       if (dt <= 0) return;
       for (let i = 0; i < MAX; i++) {
         if (life[i] <= 0) { alpha[i] = 0; continue; }
+        if (wait[i] > 0) { wait[i] -= dt; alpha[i] = 0; continue; }
         life[i] -= dt;
         const j = i * 3;
         vel[j + 1] -= gravity[i] * dt;

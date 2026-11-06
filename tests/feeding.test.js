@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { jawWeights, jawHinge, jawPoint, bodyPoint, faceFeatures, buildWhaleGeometry } from '../src/logic/whaleShape.js';
+import { jawWeights, jawHinge, jawPoint, bodyPoint, bodyZ, faceFeatures, buildWhaleGeometry } from '../src/logic/whaleShape.js';
 import { FEEDING, feedingPose } from '../src/logic/feeding.js';
 import { PATTERNS } from '../src/logic/patterns.js';
 
@@ -99,4 +99,66 @@ test('バブルネットのあとは、何回か潮を吹いて、1頭ずつ潜�
   }
   assert.ok(dives.at(-1) + 12 <= PATTERNS.bubbleNet.durationMs / 1000);
   assert.equal(BUBBLE_NET.surface, FEEDING.surface);
+});
+
+test('調べた形: のどの袋はあごの関節の下がいちばん深く、前は急に、うしろはおへそへなだらかに細くなる(オタマジャクシの形)', async () => {
+  const { pouchAlong, pouchAcross, ENGULF, POUCH_SWELL } = await import('../src/logic/whaleShape.js');
+  const peak = corner.u;
+  let best = 0, bestU = 0;
+  for (let u = 0; u <= 1; u += 0.002) { const v = pouchAlong(u); if (v > best) { best = v; bestU = u; } }
+  assert.ok(Math.abs(bestU - peak) < 0.01 && best > 0.99, `peak ${bestU}`);
+  assert.equal(pouchAlong(0.01), 0);
+  assert.equal(pouchAlong(0.6), 0, 'おへそより後ろはふくらまない');
+  assert.ok(pouchAlong(0.07) > 0.3, '前はあごの先の近くまで深い');
+  assert.ok(pouchAlong(0.52) < 0.15, 'うしろはなだらかに消える');
+  // 畝のある範囲は体長の5〜6割
+  assert.ok(ENGULF.to - ENGULF.from >= 0.5 && ENGULF.to - ENGULF.from <= 0.6);
+  // 横から見ると丸い船底: おなかのまん中が深く、横へなめらかに消える(平らな板のようにならない)
+  assert.equal(pouchAcross(Math.PI), 1);
+  assert.ok(pouchAcross(2.3) < 0.5 && pouchAcross(1.6) === 0);
+  for (let a = 1.6; a < Math.PI; a += 0.05) assert.ok(pouchAcross(a + 0.05) >= pouchAcross(a));
+  // いちばん深いところは14mのクジラで約2m
+  assert.ok(POUCH_SWELL * 14 > 1.6 && POUCH_SWELL * 14 < 2.4);
+});
+
+test('のどがいっぱいのとき、おなかの線はなめらかなふくらみ(段や角がない)', () => {
+  const ys = [];
+  for (let u = 0.02; u <= 0.62; u += 0.01) ys.push(jawPoint('humpback', u, Math.PI, 0, 0, 1)[1]);
+  for (let i = 1; i < ys.length - 1; i++) {
+    const curve = ys[i - 1] - 2 * ys[i] + ys[i + 1];
+    assert.ok(Math.abs(curve) < 0.02, `u ${0.02 + i * 0.01} curve ${curve}`);
+  }
+  // 袋の底は、体のいちばん太いところより下まで出る
+  const bottomBody = bodyPoint('humpback', 0.32, Math.PI)[1];
+  assert.ok(Math.min(...ys) < bottomBody - 0.1);
+});
+
+test('口を開けると、左右の下あごが外へ広がる(関節で頭の幅の約1.2倍まで)', () => {
+  const closed = jawPoint('humpback', 0.15, 2.3, 0);
+  const open = jawPoint('humpback', 0.15, 2.3, FEEDING.lowerJaw);
+  const r = open[0] / closed[0];
+  assert.ok(r > 1.1 && r < 1.3, `${r}`);
+});
+
+test('ひげ板は上あごから下がり、長さは0.7m以下。口を閉じると下あごの中に隠れる', () => {
+  const g = buildWhaleGeometry('humpback');
+  const from = g.fluke.start + g.fluke.s.length;
+  const n = g.positions.length / 3 - from;
+  assert.ok(n > 100, `baleen vertices ${n}`);
+  let maxLen = 0;
+  for (let k = from; k < from + n; k++) {
+    assert.equal(g.jaw[k * 4], 0, '下あごといっしょに動かない');
+    assert.ok(g.jaw[k * 4 + 2] <= 0, 'のどといっしょにふくらまない');
+  }
+  // 列ごとの、口を開けたときの長さ(上の点と下の点の高さの差 + のびる長さ)
+  for (let k = from; k + 4 < from + n; k += 5) maxLen = Math.max(maxLen, g.positions[k * 3 + 1] - g.positions[(k + 4) * 3 + 1] - g.jaw[(k + 4) * 4 + 2]);
+  assert.ok(maxLen * 14 > 0.4 && maxLen * 14 <= 0.7, `${maxLen * 14} m`);
+  // 閉じているときは、どの点も体の外へ出ない(左右の幅と、あごの底より上)
+  for (let k = from; k < from + n; k++) {
+    const z = g.positions[k * 3 + 2], x = g.positions[k * 3], y = g.positions[k * 3 + 1];
+    const u = (z - bodyZ(0)) / (bodyZ(1) - bodyZ(0));
+    const bottom = bodyPoint('humpback', u, Math.PI)[1];
+    assert.ok(y > bottom, `below chin at u ${u}`);
+    assert.ok(Math.abs(x) < bodyPoint('humpback', u, Math.PI / 2)[0] * 1.05, `outside at u ${u}`);
+  }
 });

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildWhaleGeometry, SWIM, strokesPerSecond, WHALE_SPECS, jawHinge, POUCH_SWELL, BODY_GRID, ringU, aroundTheta, bodyPoint, flukeOutline } from '../logic/whaleShape.js';
+import { buildWhaleGeometry, SWIM, strokesPerSecond, WHALE_SPECS, jawHinge, POUCH_SWELL, POUCH_SIDEWAYS, ENGULF, BODY_GRID, ringU, aroundTheta, bodyPoint, flukeOutline } from '../logic/whaleShape.js';
 import { traitBodyColor, traitFinColor, flukeBite } from '../logic/traits.js';
 import { buildFeatures } from '../logic/features3d.js';
 import { eyePatch, applyLid, eyeballPlacement, blinkOpen, EYE } from '../logic/eyeShape.js';
@@ -318,12 +318,16 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
         objectNormal = vec3(objectNormal.x, objectNormal.y * cos(jawA) + objectNormal.z * sin(jawA), -objectNormal.y * sin(jawA) + objectNormal.z * cos(jawA));
         vJaw = aJaw;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
-        // のみこんだ水で、のどがふくらむ(下へ大きく、横へも少し)
+        // のみこんだ水で、のどがふくらむ(下へ大きく、横へも少し。pouchDirection と同じ式)
         if (uPouch > 0.0 && aJaw.z > 0.0) {
           vec2 r = vec2(transformed.x, transformed.y + 0.02);
-          vec3 d = normalize(vec3(r.x / max(length(r), 1e-4) * 0.7, r.y / max(length(r), 1e-4) - 0.4, 0.0));
+          vec3 d = normalize(vec3(r.x / max(length(r), 1e-4) * ${f(POUCH_SIDEWAYS)}, -1.0, 0.0));
           transformed += d * ${f(POUCH_SWELL)} * uPouch * aJaw.z;
         }
+        // ひげ板: 口を開けると本当の長さまでのびる(閉じているあいだは下あごの中にしまってある)
+        if (aJaw.z < 0.0) transformed.y += aJaw.z * smoothstep(0.05, 0.5, uLowerJaw);
+        // 左右の下あごが外へ回って、口が横に広がる
+        transformed.x *= 1.0 + ${f(ENGULF.splay)} * uLowerJaw * aJaw.x;
         transformed = jawTurn(transformed, jawA);
         float swimS = clamp(position.z + 0.5, 0.0, 1.0);
         transformed.y += uSwim * ${SWIM.amplitude.toFixed(4)} * pow(swimS, ${SWIM.power.toFixed(2)})

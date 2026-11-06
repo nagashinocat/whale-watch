@@ -352,17 +352,45 @@ function mouthTheta(kind, u) {
 }
 
 // 頂点のあごの重み [下あご, 上あご, のど, 口の線より下か](0〜1)
-export function jawWeights(kind, u, theta) {
+// belowOverride: 口の切れ目のふちの点は、上あご(0)か下あご(1)のどちらかにはっきり決める
+export function jawWeights(kind, u, theta, belowOverride = null) {
   if (kind !== 'humpback') return NO_JAW;
   const side = Math.abs(angleDiff(theta, 0));
-  const below = smoothstep(mouthTheta(kind, u) - 0.03, mouthTheta(kind, u) + 0.03, side);
+  const below = belowOverride ?? smoothstep(mouthTheta(kind, u) - 0.03, mouthTheta(kind, u) + 0.03, side);
   // 下あごの関節は口の端。そこまでに動きを弱め、うしろはのどの皮がのびてつながる
   const lower = below * (1 - smoothstep(0.17, 0.29, u));
   // 上あごは目より前だけ(目は動かさない)
   const upper = (1 - below) * (1 - smoothstep(0.16, 0.25, u));
-  // のど: 畝のある、おなか側の下半分。おへそ(体の半分くらい)まで
-  const pouch = smoothstep(1.75, 2.35, side) * smoothstep(0.02, 0.07, u) * (1 - smoothstep(0.42, 0.54, u));
+  // のど: 畝のある、おなか側。あごの先からおへそまで。ふくらむ量は場所ごとにちがう(pouchAlong・pouchAcross)
+  const pouch = pouchAlong(u) * pouchAcross(side);
   return [lower, upper, pouch, below];
+}
+
+// 口を開けて水をのみこむときの形。調べてわかったこと(ナガスクジラの仲間の研究):
+//   ・のどからおなかの畝のある部分は、あごの先からおへそまで(体長の5〜6割)。畝はまわりの長さで約2.6倍にのびる
+//   ・ふくらんだ袋は、あごの関節の前とうしろの「4分の1のだ円体」2つを合わせた形。いちばん深いのはあごの関節の下で、
+//     前はあごの先へ急に、うしろはおへそへ向かってなだらかに細くなる(全体で、ふくれたオタマジャクシの形)
+//   ・下あごは90度近くまで開き、左右の下あごの骨は外側へ回って、口の幅が広がる(関節のところで頭の幅の約1.2倍)
+//   ・ひげ板は上あごから左右に270〜400枚ずつ下がっていて、長さは0.7m以下。黒く、内側のふさは暗い茶色
+// depth: いちばんふくらんだときの深さ(体長に対する比率、14mで約2m) / from・peak・to: 袋の前・いちばん深いところ・うしろ(u)
+// splay: 下あごが外へ広がる割合(下あごの開き1ラジアンあたり) / baleen: ひげ板のいちばん長いところ(体長に対する比率)
+export const ENGULF = Object.freeze({ depth: 0.14, from: 0.03, to: 0.55, front: 0.6, back: 1.3, splay: 0.16, baleen: 0.045 });
+const POUCH_PEAK = () => FACES.humpback.mouth[FACES.humpback.mouth.length - 1].u;
+
+// 前後の位置でのふくらみ(0〜1)。あごの関節の下がいちばん深い
+export function pouchAlong(u) {
+  const peak = POUCH_PEAK();
+  if (u <= ENGULF.from || u >= ENGULF.to) return 0;
+  // 前のはしは、あごの先でなめらかに始まる(角を作らない)
+  if (u < peak) return (1 - ((peak - u) / (peak - ENGULF.from)) ** 2) ** ENGULF.front * smoothstep(ENGULF.from, ENGULF.from + 0.06, u);
+  return (1 - ((u - peak) / (ENGULF.to - peak)) ** 2) ** ENGULF.back;
+}
+
+// まわりの位置でのふくらみ(0〜1)。おなかのまん中がいちばん深く、横へなめらかに消える(丸い船底の形)
+// side は背中のまん中からの角度(π がおなかのまん中)
+export function pouchAcross(side) {
+  const k = (side - 1.65) / (Math.PI - 1.65);   // 目(1.6)より下から
+  return k <= 0 ? 0 : (1 - Math.cos(Math.PI * Math.min(1, k))) / 2;
 }
 
 // あごの軸(口の端)の [y, z](体長1の大きさ)。軸は左右(x)の向き
@@ -372,12 +400,13 @@ export function jawHinge(kind) {
   return [p[1], p[2]];
 }
 
-// のどのふくらむ向きと大きさ(体長1)。下へ大きく、横へも少し
-export const POUCH_SWELL = 0.11;
+// のどのふくらむ向きと大きさ(体長1)。下へ大きく、横へも少し(シェーダーでも同じ式)
+export const POUCH_SWELL = ENGULF.depth;
+export const POUCH_SIDEWAYS = 0.55;
 export function pouchDirection(p) {
   const r = Math.hypot(p[0], p[1] + 0.02) || 1;
-  const d = [(p[0] / r) * 0.7, (p[1] + 0.02) / r - 0.4, 0];
-  const n = Math.hypot(...d) || 1;
+  const d = [(p[0] / r) * POUCH_SIDEWAYS, -1, 0];
+  const n = Math.hypot(...d);
   return d.map(v => v / n);
 }
 
@@ -387,12 +416,62 @@ export function jawPoint(kind, u, theta, lower, upper = 0, pouch = 0) {
   let p = bodyPoint(kind, u, theta);
   const d = pouchDirection(p);
   p = p.map((v, i) => v + d[i] * POUCH_SWELL * pouch * wp);
+  // 左右の下あごが外へ回って、口が横に広がる
+  p[0] *= 1 + ENGULF.splay * lower * wl;
   const [hy, hz] = jawHinge(kind);
   const a = lower * wl - upper * wu;   // 下あごは前が下がる向き、上あごはその反対
   const y = p[1] - hy, z = p[2] - hz;
   const c = Math.cos(a), s = Math.sin(a);
   // 頭は -z の向き。前(-z)が下がる回転
   return [p[0], hy + y * c + z * s, hz - y * s + z * c];
+}
+
+// ひげ板: 上あごの口の線から、左右に黒いカーテンのように下がる。口を閉じているときは下あごの中に隠れる。
+// 前は短く、うしろほど長い。下あごの内側にはみださない長さにする
+const BALEEN_INWARD = 0.45;
+const BALEEN_TOP = hex(0x141210), BALEEN_FRINGE = hex(0x3a2c22);
+function baleenGeometry(kind, out) {
+  if (kind !== 'humpback') return;
+  const m = FACES[kind].mouth;
+  const u0 = m[0].u + 0.02, u1 = m[m.length - 1].u - 0.015;
+  const cols = 48, rows = 4;
+  for (const side of [1, -1]) {
+    const start = out.positions.length / 3;
+    for (let i = 0; i <= cols; i++) {
+      const u = u0 + (u1 - u0) * (i / cols);
+      const th = mouthTheta(kind, u) - 0.07;
+      const top = bodyPoint(kind, u, side * th);
+      top[0] *= 0.93;
+      // ひげ板の下のはしと同じ横の位置での、下あごの内側の底の高さ(体からはみださないように)
+      const bx = Math.abs(top[0]) * (1 - BALEEN_INWARD);
+      let floor = top[1];
+      for (let t = Math.PI; t > mouthTheta(kind, u); t -= 0.01) {
+        const q = bodyPoint(kind, u, side * t);
+        if (Math.abs(q[0]) >= bx) { floor = q[1]; break; }
+      }
+      const grow = 0.45 + 0.55 * (i / cols);
+      const front = Math.sin((Math.PI / 2) * Math.min(1, (i / cols) * 6)) ** 0.5;
+      const full = ENGULF.baleen * grow * front;
+      // 口を閉じたときは下あごの中におさまる長さ。口を開けると、本当の長さまでのびて見える
+      // (このアプリの下あごは本物より浅いので、閉じているあいだはひげ板を短くしまっておく)
+      const len = Math.min(full, 0.8 * (top[1] - floor));
+      const weights = jawWeights(kind, u, side * th);
+      for (let r = 0; r <= rows; r++) {
+        const k = r / rows;
+        // 下へ行くほど内側へ(ひげ板は口の中のまん中へ向かって斜めに下がる)
+        const p = [top[0] * (1 - BALEEN_INWARD * k), top[1] - len * k, top[2]];
+        // のどの重みの場所に「口を開けたときにのびる長さ」をマイナスで入れる(シェーダーで使う)
+        out.add(p, mixColor(BALEEN_TOP, BALEEN_FRINGE, k), [0, weights[1], -(full - len) * k, 0]);
+      }
+    }
+    for (let i = 0; i < cols; i++) {
+      for (let r = 0; r < rows; r++) {
+        const a = start + i * (rows + 1) + r, b = a + rows + 1;
+        if (side > 0) out.indices.push(a, b, a + 1, b, b + 1, a + 1);
+        else out.indices.push(a, a + 1, b, b, a + 1, b + 1);
+      }
+    }
+  }
 }
 
 // 体の網目の細かさ。頭と尾の近くほど細かい
@@ -428,21 +507,57 @@ export function eyeHole(kind, u, theta) {
   return (j >= c.right[0] && j <= c.right[1]) || (j >= c.left[0] && j <= c.left[1]);
 }
 
+// 口の切れ目: 口先から口の端の手前まで、上あごと下あごの皮がつながっていない(口を開けると横から口の中が見える)。
+// 口の端の近く(ほお)だけは皮がのびてつながる
+export const MOUTH_CUT = Object.freeze({ to: 0.235, overlap: 0.003 });
+function mouthCutAt(kind, u) {
+  const m = FACES[kind]?.mouth;
+  return kind === 'humpback' && u > m[0].u && u < MOUTH_CUT.to;
+}
+
 function bodyMesh(kind, out, rings = BODY_GRID.rings, around = BODY_GRID.around) {
   const first = out.positions.length / 3;
+  // 口の切れ目のある輪では、点ごとに上あご(1)・下あご(2)・どちらでもない(0)を決める
+  const label = new Uint8Array(rings * around);
   for (let i = 0; i < rings; i++) {
     const u = ringU(i); // 頭と尾の近くを細かく
+    const cut = mouthCutAt(kind, u);
+    const tm = cut ? mouthTheta(kind, u) : 0;
     for (let j = 0; j < around; j++) {
-      const theta = aroundTheta(j);
-      out.add(bodyPoint(kind, u, theta), skinColor(kind, u, theta), jawWeights(kind, u, theta));
+      let theta = aroundTheta(j);
+      let override = null;
+      if (cut) {
+        const right = theta <= Math.PI;
+        const side = right ? theta : TAU - theta;
+        const lower = side >= tm;
+        label[i * around + j] = lower ? 2 : 1;
+        override = lower ? 1 : 0;
+        // 切れ目のすぐ上とすぐ下の点は、口の線の上にそろえる(くちびるのふちがまっすぐになる)。少しだけ重ねて、閉じたときにすきまを作らない
+        const step = TAU / around;
+        if (!lower && side + step >= tm) theta = right ? tm + MOUTH_CUT.overlap : TAU - tm - MOUTH_CUT.overlap;
+        if (lower && side - step < tm) theta = right ? tm - MOUTH_CUT.overlap : TAU - tm + MOUTH_CUT.overlap;
+      }
+      out.add(bodyPoint(kind, u, theta), skinColor(kind, u, theta), jawWeights(kind, u, theta, override));
     }
   }
   for (let i = 0; i < rings - 1; i++) {
     for (let j = 0; j < around; j++) {
-      const a = first + i * around + j, b = first + i * around + ((j + 1) % around);
+      const ia = i * around + j, ib = i * around + ((j + 1) % around);
+      const a = first + ia, b = first + ib;
       const c = a + around, d = b + around;
       if (inCells(kind, i, j)) continue;   // 目のまわりは目の部品で描く
-      out.indices.push(a, c, b, b, c, d);
+      const L = [label[ia], label[ib], label[ia + around], label[ib + around]];
+      const kinds = new Set(L.filter(v => v));
+      if (kinds.size < 2 || L.includes(0)) { out.indices.push(a, c, b, b, c, d); continue; }
+      // 上あごと下あごがまざるマス: 同じあごの点が3つあれば三角形をひとつだけ作り、2つずつなら切れ目にする
+      const v = [a, b, c, d];
+      for (const k of kinds) {
+        const same = [0, 1, 2, 3].filter(q => L[q] === k);
+        if (same.length !== 3) continue;
+        // もとの向き(a, c, b / b, c, d)に合わせて並べる
+        const order = [[0, 2, 1], [1, 2, 3], [0, 2, 3], [0, 3, 1]].find(t => t.every(q => same.includes(q)));
+        out.indices.push(...order.map(q => v[q]));
+      }
     }
   }
   // 頭の先と尾の先をふさぐ
@@ -598,6 +713,7 @@ export function buildWhaleGeometry(kind) {
   const fins = [finGeometry(kind, 1, out).map, finGeometry(kind, -1, out).map]
     .map(m => ({ start: m.start, s: Float32Array.from(m.s), top: Uint8Array.from(m.top) }));
   const { map } = flukeGeometry(kind, out);
+  baleenGeometry(kind, out);
   return {
     bodyCount: BODY_GRID.rings * BODY_GRID.around,
     fins,

@@ -31,8 +31,8 @@ export const FEEDING = Object.freeze({
   blow: 79,           // 潮吹き
   end: 90,
   ringRadius: 5,      // 泡の輪の半径(m)
-  lowerJaw: 55 * D2R, // 下あごの開き
-  upperJaw: 25 * D2R, // 上あご(頭)の持ち上がり
+  lowerJaw: 68 * D2R, // 下あごの開き(体に対して。90度近くまで開くが、上あごも持ち上がるので少し控えめ)
+  upperJaw: 12 * D2R, // 上あご(頭)の持ち上がり(頭の骨が首のところで少し反る)
 });
 
 const F = FEEDING;

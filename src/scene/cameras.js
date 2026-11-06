@@ -1,4 +1,4 @@
-// 3つの定点カメラと、クジラが出る場所。three.js を読み込まない純粋なデータ(テストからも使う)。
+// 3つの定点カメラ(上空・崖の上・間近)と、クジラが出る場所。three.js を読み込まない純粋なデータ(テストからも使う)。
 // fov は縦の視野角(度)。sway は揺れの傾き(度)、bob は上下の揺れ幅(m)。
 // whitecaps は白波の見え方(上から見るほどよく見える)。
 import { nearestFullView } from '../logic/view.js';
@@ -15,9 +15,6 @@ export const SPOT = Object.freeze([0, 0, -(TEST_SPOT ?? nearestFullView({ height
 
 // 上空: 高さ80mから、クジラの場所を45度で見下ろす
 const SKY_HEIGHT = 80;
-// 水面すれすれ: 目の高さ0.8mで、クジラの場所をまっすぐ見る。まるごと入るいちばん近いところに置く
-const SURFACE_HEIGHT = 0.8, SURFACE_LOOK = 300;
-const surfaceDistance = nearestFullView({ height: SURFACE_HEIGHT, targetDistance: SURFACE_LOOK, fov: FOV });
 
 export const CAMERA_PRESETS = Object.freeze({
   sky: Object.freeze({
@@ -30,9 +27,5 @@ export const CAMERA_PRESETS = Object.freeze({
   // 間近: 水面の高さから、クジラの20m手前で少し見上げる。大きなものは見上げると大きく感じる
   near: Object.freeze({
     position: [SPOT[0], 0.9, SPOT[2] + 20], target: [SPOT[0], 2.2, SPOT[2] - 60], fov: FOV, sway: 0, bob: 0, whitecaps: 0.3,
-  }),
-  surface: Object.freeze({
-    position: [0, SURFACE_HEIGHT, SPOT[2] + surfaceDistance],
-    target: [0, 0, SPOT[2] + surfaceDistance - SURFACE_LOOK], fov: FOV, sway: 0, bob: 0, whitecaps: 0.35,
   }),
 });

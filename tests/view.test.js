@@ -19,8 +19,8 @@ test('崖の上から、クジラの動く範囲がまるごと見えるいち�
   assert.ok(-SPOT[2] < 120, `close enough: ${-SPOT[2]}m`);
 });
 
-test('ほかの視点(上空・水面)からも、その場所がまるごと見える', () => {
-  for (const name of ['sky', 'surface']) {
+test('上空からも、その場所がまるごと見える(間近はわざと画面からはみ出すくらい近い)', () => {
+  for (const name of ['sky']) {
     assert.ok(visibleAll(CAMERA_PRESETS[name], SPOT), name);
   }
 });

@@ -3,7 +3,7 @@
 
 export const MODES = ['sleep', 'normal'];
 
-export const CAMERAS = ['sky', 'cliff', 'surface', 'near'];
+export const CAMERAS = ['sky', 'cliff', 'near'];
 
 import { SKY_MOMENTS } from './skyPalette.js';
 

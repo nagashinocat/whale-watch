@@ -29,8 +29,8 @@ test('壊れたJSONなら初期設定', () => {
 });
 
 test('不正な項目だけ初期値に戻す', () => {
-  const s = mem({ 'whale-ocean-settings': JSON.stringify({ mode: 'party', camera: 'surface', volume: 7 }) });
-  assert.deepEqual(loadSettings(s), { mode: 'normal', camera: 'surface', volume: 0.5, time: 'auto' });
+  const s = mem({ 'whale-ocean-settings': JSON.stringify({ mode: 'party', camera: 'near', volume: 7 }) });
+  assert.deepEqual(loadSettings(s), { mode: 'normal', camera: 'near', volume: 0.5, time: 'auto' });
 });
 
 test('storageが例外を投げても止まらない', () => {
@@ -39,8 +39,8 @@ test('storageが例外を投げても止まらない', () => {
   assert.doesNotThrow(() => saveSettings(bad, DEFAULTS));
 });
 
-test('なくしたカメラ(船の上・浜辺)が保存されていたら崖の上に戻す', () => {
-  for (const camera of ['boat', 'beach']) {
+test('なくしたカメラ(船の上・浜辺・水面)が保存されていたら崖の上に戻す', () => {
+  for (const camera of ['boat', 'beach', 'surface']) {
     const s = mem({ 'whale-ocean-settings': JSON.stringify({ camera }) });
     assert.equal(loadSettings(s).camera, 'cliff');
   }

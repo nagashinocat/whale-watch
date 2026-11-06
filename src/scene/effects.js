@@ -3,15 +3,24 @@ import { BLOW, BLOW_EXHALE, blowDirection, blowSpeed } from '../logic/behavior.j
 import { splashParticles } from '../logic/splash.js';
 
 const MAX = 20000; // スマホで重くならないよう、全体の粒子数に上限をかける
+// 粒がカメラからこの距離(m)より近いと薄くなり、いちばん近いところで見えなくなる
+export const NEAR_FADE = Object.freeze([2, 7]);
+// 粒の画面上の大きさの上限(画素)
+export const MAX_POINT_PX = 140;
+// 出てすぐの粒は、この秒数で濃くなる(大きな粒がいっせいにパッと出ると、光ったように見える)
+const FADE_IN = 0.06;
 
 const vertexShader = `
   attribute float aSize;
   attribute float aAlpha;
   varying float vAlpha;
   void main() {
-    vAlpha = aAlpha;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = aSize * (300.0 / -mv.z);
+    float dist = -mv.z;
+    // カメラのすぐ近くを通る粒は、画面いっぱいの大きな白い丸になって一瞬だけ映る(チカチカの原因)。
+    // 近い粒ほど薄くして、大きさにも上限をつける
+    vAlpha = aAlpha * smoothstep(${NEAR_FADE[0].toFixed(1)}, ${NEAR_FADE[1].toFixed(1)}, dist);
+    gl_PointSize = min(aSize * (300.0 / max(dist, 0.1)), ${MAX_POINT_PX.toFixed(1)});
     gl_Position = projectionMatrix * mv;
   }`;
 
@@ -62,10 +71,16 @@ export function createEffects(scene) {
   scene.add(points);
 
   let cursor = 0;
+  let alive = 0;
 
+  // 空いている粒を使う。全部使っているときは、新しい粒を出さない
+  // (まだ飛んでいる粒を使い回すと、その粒が急に消えて、チカチカして見える)
   function emit(p, v, opts) {
-    const i = cursor;
-    cursor = (cursor + 1) % MAX; // 空きがなければ古い粒子から使い回す
+    if (alive >= MAX) return;
+    let i = cursor;
+    while (life[i] > 0) i = (i + 1) % MAX;
+    cursor = (i + 1) % MAX;
+    alive++;
     pos.set(p, i * 3);
     vel.set(v, i * 3);
     life[i] = maxLife[i] = opts.life;
@@ -192,6 +207,7 @@ export function createEffects(scene) {
         if (life[i] <= 0) { alpha[i] = 0; continue; }
         if (wait[i] > 0) { wait[i] -= dt; alpha[i] = 0; continue; }
         life[i] -= dt;
+        if (life[i] <= 0) { alive--; alpha[i] = 0; continue; }
         const j = i * 3;
         vel[j + 1] -= gravity[i] * dt;
         vel[j] += wind[i] * dt;
@@ -200,10 +216,13 @@ export function createEffects(scene) {
         pos[j] += vel[j] * dt;
         pos[j + 1] += vel[j + 1] * dt;
         pos[j + 2] += vel[j + 2] * dt;
-        if (floor[i] && pos[j + 1] < 0 && vel[j + 1] < 0) life[i] = 0;
+        if (floor[i] && pos[j + 1] < 0 && vel[j + 1] < 0) { life[i] = 0; alive--; alpha[i] = 0; continue; }
         const t = Math.max(0, life[i] / maxLife[i]); // 1 → 0
         size[i] = baseSize[i] * (1 + (grow[i] - 1) * (1 - t));
-        alpha[i] = life[i] > 0 ? baseAlpha[i] * Math.min(1, t * 2.5) : 0;
+        // 出てすぐは少しずつ濃く、終わりは薄く。水に落ちていく粒は、水面に近づくほど薄くなって消える
+        const age = maxLife[i] - life[i];
+        const sink = floor[i] && vel[j + 1] < 0 ? Math.min(1, Math.max(0, pos[j + 1] / 0.8)) : 1;
+        alpha[i] = baseAlpha[i] * Math.min(1, t * 2.5) * Math.min(1, age / FADE_IN) * sink;
       }
       geometry.attributes.position.needsUpdate = true;
       geometry.attributes.aSize.needsUpdate = true;

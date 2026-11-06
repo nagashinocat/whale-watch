@@ -509,7 +509,8 @@ export function eyeHole(kind, u, theta) {
 
 // 口の切れ目: 口先から口の端の手前まで、上あごと下あごの皮がつながっていない(口を開けると横から口の中が見える)。
 // 口の端の近く(ほお)だけは皮がのびてつながる
-export const MOUTH_CUT = Object.freeze({ to: 0.235, overlap: 0.003 });
+// overlap は 0: 上と下のくちびるのふちを同じ点にする(重ねると、重なったところがチカチカする)
+export const MOUTH_CUT = Object.freeze({ to: 0.235, overlap: 0 });
 function mouthCutAt(kind, u) {
   const m = FACES[kind]?.mouth;
   return kind === 'humpback' && u > m[0].u && u < MOUTH_CUT.to;
@@ -532,7 +533,7 @@ function bodyMesh(kind, out, rings = BODY_GRID.rings, around = BODY_GRID.around)
         const lower = side >= tm;
         label[i * around + j] = lower ? 2 : 1;
         override = lower ? 1 : 0;
-        // 切れ目のすぐ上とすぐ下の点は、口の線の上にそろえる(くちびるのふちがまっすぐになる)。少しだけ重ねて、閉じたときにすきまを作らない
+        // 切れ目のすぐ上とすぐ下の点は、口の線の上にそろえる(くちびるのふちがまっすぐになり、閉じたときにすきまも重なりもない)
         const step = TAU / around;
         if (!lower && side + step >= tm) theta = right ? tm + MOUTH_CUT.overlap : TAU - tm - MOUTH_CUT.overlap;
         if (lower && side - step < tm) theta = right ? tm - MOUTH_CUT.overlap : TAU - tm + MOUTH_CUT.overlap;

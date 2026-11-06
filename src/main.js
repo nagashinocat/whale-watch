@@ -1,4 +1,3 @@
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createOcean } from './scene/ocean.js';
 import { createWhales } from './scene/whales.js';
 import { createEffects } from './scene/effects.js';
@@ -26,7 +25,7 @@ const scheduler = createScheduler({ now: Date.now(), intervalScale: FAST ? 1 / 3
 let mixer = null;
 const effects = createEffects(ocean.scene);
 ocean.addUpdater(effects.update);
-const whalesReady = createWhales(ocean.scene, new GLTFLoader(), {
+const whalesReady = createWhales(ocean.scene, {
   effects,
   playSound: (name, opts) => mixer?.playWhale(name, opts),
 });

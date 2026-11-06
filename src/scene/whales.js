@@ -1,51 +1,22 @@
 import * as THREE from 'three';
-import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { PATTERNS } from '../logic/patterns.js';
-
-export const MODEL_FILES = Object.freeze({
-  humpback: 'assets/models/humpback.glb',
-  sperm: 'assets/models/sperm_whale.glb',
-});
-
-// モデルごとの向きと大きさの調整。ダウンロードしたモデルに合わせてここを変える。
-// rotationY: 頭が -Z(沖の方向)を向くように回す角度(度)。length: 体長(m)。
-export const MODEL_FIX = {
-  humpback: { rotationY: 0, length: 14 },
-  sperm: { rotationY: 0, length: 15 },
-};
+import { createWhaleMesh } from './whaleModel.js';
+import { WHALE_SPECS } from '../logic/whaleShape.js';
 
 const D2R = THREE.MathUtils.degToRad;
 const clamp01 = x => Math.min(1, Math.max(0, x));
 const ease = x => { const t = clamp01(x); return t * t * (3 - 2 * t); };
 const lerp = (a, b, t) => a + (b - a) * t;
 
-async function loadModel(loader, url) {
-  try {
-    return await loader.loadAsync(url);
-  } catch {
-    return null;
-  }
-}
-
 // クジラを1頭作る。外側の Group を動かせば位置と向きが変わる。頭は -Z 方向。
-function makeWhale(gltf, kind, scale = 1) {
-  const fix = MODEL_FIX[kind];
-  const model = cloneSkinned(gltf.scene);
-  const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
-  const longest = Math.max(size.x, size.y, size.z) || 1;
-  model.scale.setScalar((fix.length / longest) * scale);
-  model.rotation.y = D2R(fix.rotationY);
-
+// swim: 0 で体をしならせない(寝ているクジラ)、1 でふつうに泳ぐ
+function makeWhale(kind, scale = 1, swim = 1) {
+  const whale = createWhaleMesh(kind, WHALE_SPECS[kind].lengthMeters * scale);
+  whale.setSwim(swim);
   const group = new THREE.Group();
   group.rotation.order = 'YXZ';
-  group.add(model);
-
-  const mixer = new THREE.AnimationMixer(model);
-  const clips = gltf.animations ?? [];
-  const swim = clips.find(c => /swim/i.test(c.name)) ?? clips[0];
-  if (swim) mixer.clipAction(swim).play();
-
-  return { group, mixer, length: fix.length * scale };
+  group.add(whale.mesh);
+  return { group, mixer: whale, length: whale.length };
 }
 
 // 体の前後の点(頭 = +0.5、尾 = -0.5)のワールド座標
@@ -135,7 +106,7 @@ const MOTIONS = {
   sleeping({ start }) {
     const yaw = Math.random() * 360;
     return {
-      whales: [{ kind: 'sperm' }],
+      whales: [{ kind: 'sperm', swim: 0 }],
       each([w], t, D) {
         // 縦向きに浮いて、頭だけ海面にわずかに出す
         const env = ease(t / 8) - ease((t - (D - 8)) / 8);
@@ -217,12 +188,9 @@ const MOTIONS = {
 };
 
 // fx: { effects, playSound(name) } — 演出から水しぶきと効果音を出すために使う
-export async function createWhales(scene, loader, fx) {
-  const [humpback, sperm] = await Promise.all([
-    loadModel(loader, MODEL_FILES.humpback),
-    loadModel(loader, MODEL_FILES.sperm),
-  ]);
-  const models = { humpback, sperm };
+// クジラの形は計算で作るので、読み込みに失敗することはない
+export async function createWhales(scene, fx) {
+  const models = { humpback: true, sperm: true };
   const acts = new Set();
 
   // 出方を再生する。決まった時間で必ず終わる(画面が隠れて描画が止まっていても)。
@@ -237,7 +205,7 @@ export async function createWhales(scene, loader, fx) {
     const start = [position[0] - f[0] * back, 0, position[2] - f[2] * back];
     const motion = MOTIONS[name]({ start, yaw });
     const act = {
-      whales: motion.whales.map(w => makeWhale(models[w.kind], w.kind, w.scale)),
+      whales: motion.whales.map(w => makeWhale(w.kind, w.scale, w.swim)),
       motion,
       t: 0,
       D: durationMs / 1000,

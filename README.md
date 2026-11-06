@@ -29,11 +29,10 @@ python3 -m http.server 8000
 | 置く場所 | ファイル |
 |---|---|
 | `assets/audio/` | `waves-cliff.wav`(崖の上・上空) `waves-surface.wav` `humpback-song.wav` `humpback-call.wav` `sperm-clicks.wav` `splash.wav` |
-| `assets/models/` | `humpback.glb`(ザトウクジラ) `sperm_whale.glb`(マッコウクジラ) |
 
 素材を追加したら、出典とライセンスを `assets/CREDITS.md` に書き、`src/main.js` の `CREDITS` も更新します。
 
-モデルの向きや大きさが合わないときは、`src/scene/whales.js` の `MODEL_FIX` の数値を変えます。
+クジラの形はファイルではなく、`src/logic/whaleShape.js` で計算して作っています。体の太さや胸びれの長さなどの比率は、このファイルの `WHALE_SPECS` にまとめてあります。
 
 ## 調整できる数値
 

@@ -14,12 +14,9 @@
 | waves-cliff.wav | 遠くで岩に打ちよせる波(崖の上・上空) | https://freesound.org/s/156354 (oceanwaves-9) | CC0 | Rmutt |
 | waves-surface.wav | 砂州に寄せる小さな波(水面) | https://freesound.org/people/plantmonkey/sounds/459813 (Waves on a sand bar) | CC0 | plantmonkey |
 
-## 3Dモデル (`assets/models/`)
+## 3Dモデル
 
-| ファイル | 内容 | 元のページ | ライセンス | 作者 |
-|---|---|---|---|---|
-| humpback.glb | ザトウクジラ(泳ぐ・潜る・ジャンプ) | (未定) | | |
-| sperm_whale.glb | マッコウクジラ | (未定) | | |
+ザトウクジラとマッコウクジラの形は、このアプリの中で計算して作っている(`src/logic/whaleShape.js`)。外部のモデルは使っていない。
 
 ## 画面に表示するクレジット
 

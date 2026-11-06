@@ -28,7 +28,7 @@ python3 -m http.server 8000
 
 | 置く場所 | ファイル |
 |---|---|
-| `assets/audio/` | `waves-cliff.mp3`(崖の上・上空) `waves-surface.mp3` `humpback-song.mp3` `sperm-clicks.mp3` `splash.mp3` |
+| `assets/audio/` | `waves-cliff.wav`(崖の上・上空) `waves-surface.wav` `humpback-song.mp3` `sperm-clicks.mp3` `splash.mp3` |
 | `assets/models/` | `humpback.glb`(ザトウクジラ) `sperm_whale.glb`(マッコウクジラ) |
 
 素材を追加したら、出典とライセンスを `assets/CREDITS.md` に書き、`src/main.js` の `CREDITS` も更新します。

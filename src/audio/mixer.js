@@ -2,8 +2,9 @@ import { AUDIO } from '../logic/config.js';
 import { waveTargetGain, whaleTargetGain } from '../logic/gains.js';
 
 export const SOUND_FILES = Object.freeze({
-  'waves-cliff': 'assets/audio/waves-cliff.mp3',
-  'waves-surface': 'assets/audio/waves-surface.mp3',
+  // 波の音はくり返しても継ぎ目が出ないよう、圧縮しない形式(wav)にしてある
+  'waves-cliff': 'assets/audio/waves-cliff.wav',
+  'waves-surface': 'assets/audio/waves-surface.wav',
   humpback: 'assets/audio/humpback-song.mp3',
   sperm: 'assets/audio/sperm-clicks.mp3',
   splash: 'assets/audio/splash.mp3',

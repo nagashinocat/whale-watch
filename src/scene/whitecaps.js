@@ -32,9 +32,15 @@ const fragmentShader = `
   varying vec2 vXZ;
   varying float vDist;
   void main() {
-    // 風は +x 方向。白波は風に流され、大きな模様と小さな模様で速さが違う
-    float a = texture2D(uFoam, vXZ / 160.0 + vec2(uTime * 0.0016, 0.0)).r;
-    float b = texture2D(uFoam, vXZ / 61.0 + vec2(uTime * 0.0042 + 0.37, 0.53)).r;
+    // 風はほぼ +x 方向。白波は風に流され、大きな模様と小さな模様で速さが違う。
+    // 模様のくり返しが格子に見えないよう、2枚を少しずつ違う角度に回し、
+    // さらにもう1枚の模様で位置をゆらす
+    vec2 p = vXZ;
+    vec2 warp = vec2(texture2D(uFoam, p / 431.0 + 0.21).r, texture2D(uFoam, p / 397.0 + 0.67).r) - 0.25;
+    vec2 pa = mat2(0.978, 0.208, -0.208, 0.978) * p / 163.0 + warp * 0.35;
+    vec2 pb = mat2(0.951, -0.309, 0.309, 0.951) * p / 59.3 + warp * 0.6;
+    float a = texture2D(uFoam, pa + vec2(uTime * 0.0016, 0.0)).r;
+    float b = texture2D(uFoam, pb + vec2(uTime * 0.0042 + 0.37, 0.53)).r;
     // 白波は立っては消える。場所ごとにずらして明滅させる
     float pulse = 0.5 + 0.5 * sin(uTime * 0.35 + a * 9.0 + b * 5.0);
     float foam = smoothstep(0.25, 0.75, a * (0.4 + 0.9 * b) * pulse);

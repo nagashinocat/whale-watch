@@ -35,6 +35,10 @@ function tuneWaterShader(material) {
   );
   // きらめきを空の映り込みの明るさに関係なく光らせる(夜の月の光の道が暗くならないように)
   shader = shader.replace(/reflectionSample \* specularLight/, 'reflectionSample * specularLight + specularLight * uGlint');
+  // 波の模様は同じ画像を4回重ねて作られている。同じ向きのままだと並びがそろって
+  // 格子模様に見えるので、2枚目と4枚目を別々の角度に回す
+  shader = shader.replace(/vec2 uv1 = uv \/ 107\.0/, 'vec2 uv1 = mat2(0.799, 0.602, -0.602, 0.799) * uv / 107.0');
+  shader = shader.replace(/vec2 uv3 = uv \/ vec2\( 1091\.0, 1027\.0 \)/, 'vec2 uv3 = mat2(0.423, -0.906, 0.906, 0.423) * uv / vec2( 1091.0, 1027.0 )');
   // 空の映り込みを少し弱める(真上から見たときの鏡のような反射を抑える)
   shader = shader.replace(/float rf0 = 0\.3;/, 'float rf0 = 0.18;');
   if (shader === before) return false;

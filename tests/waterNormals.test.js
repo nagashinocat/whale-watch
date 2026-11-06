@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { waterNormalPixels } from '../src/logic/waterNormals.js';
+import { waterNormalPixels, waveSet } from '../src/logic/waterNormals.js';
 
 const seeded = (s = 1) => () => ((s = (s * 16807) % 2147483647) / 2147483647);
 
@@ -48,4 +48,13 @@ test('細かい波も含まれる(大きなうねりだけにならない)', () 
     diff += Math.abs(px[(y * size + x) * 4] - px[(y * size + x + 1) * 4]); n++;
   }
   assert.ok(diff / n > 6, `avg ${diff / n}`);
+});
+
+test('縦横にぴったりそろった波はない(格子模様に見えないように)', () => {
+  const waves = waveSet(seeded(13));
+  assert.ok(waves.length >= 40);
+  for (const w of waves) {
+    assert.notEqual(w.kx, 0);
+    assert.notEqual(w.ky, 0);
+  }
 });

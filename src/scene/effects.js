@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { BLOW, BLOW_EXHALE, blowDirection, blowSpeed } from '../logic/behavior.js';
 import { splashParticles } from '../logic/splash.js';
 
-const MAX = 6000; // スマホで重くならないよう、全体の粒子数に上限をかける
+const MAX = 20000; // スマホで重くならないよう、全体の粒子数に上限をかける
 
 const vertexShader = `
   attribute float aSize;
@@ -42,6 +42,7 @@ export function createEffects(scene) {
   const grow = new Float32Array(MAX);
   const floor = new Uint8Array(MAX);       // 1なら海面より下で消す
   const wait = new Float32Array(MAX);      // 出るまでの秒(水しぶきは順番に出る)
+  const drag = new Float32Array(MAX);      // 空気や水で横の動きがおそくなる割合(1秒あたり)
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
@@ -75,6 +76,7 @@ export function createEffects(scene) {
     grow[i] = opts.grow ?? 1;
     floor[i] = opts.floor ?? 1;
     wait[i] = opts.delay ?? 0;
+    drag[i] = opts.drag ?? 0.6;
   }
 
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -116,13 +118,33 @@ export function createEffects(scene) {
       for (const q of splashParticles(kind, position, heading)) emit(q.p, q.v, q);
     },
 
-    // 体から流れ落ちる水。水から上がってきた背中やひれの点から、細い滝のように落ちる
-    cascade(point, n = 3) {
+    // 体から流れ落ちる水。水から上がってきた背中やひれの点から、細い滝のように落ちる。
+    // velocity: 体のその場所の動き(m/秒)。はがれた水ははじめ体といっしょに動き、それから落ちる
+    // (勢いよく飛び出すジャンプでは、水が体に引っぱられて上へ流れ、うしろに長く尾を引く)
+    cascade(point, n = 3, velocity = [0, 0, 0]) {
       for (let k = 0; k < n; k++) {
         const a = Math.random() * Math.PI * 2, r = rand(0.15, 0.7);
+        const keep = rand(0.55, 0.95);
         emit([point[0] + rand(-0.3, 0.3), point[1] + rand(-0.15, 0.1), point[2] + rand(-0.3, 0.3)],
-          [Math.cos(a) * r, rand(-0.6, 0.4), Math.sin(a) * r],
+          [Math.cos(a) * r + velocity[0] * keep, rand(-0.6, 0.4) + velocity[1] * keep, Math.sin(a) * r + velocity[2] * keep],
           { life: rand(1.2, 2.0), size: rand(0.3, 0.6), alpha: 0.75, gravity: 9.8, grow: 1.4 });
+      }
+    },
+
+    // 落ちたところから広がる波の輪。白い泡の輪が、波の速さで外へ広がりながら薄くなる。
+    // length・width: 最初の輪の大きさ(m、体の向きに細長い) / speed: 波の速さ(m/秒)
+    waveRing(position, { length = 10, width = 6, speed = 3, heading = [1, 0, 0], count = 360, life = 6 } = {}) {
+      const hl = Math.hypot(heading[0], heading[2]) || 1;
+      const fx = heading[0] / hl, fz = heading[2] / hl, sx = -fz, sz = fx;
+      for (let k = 0; k < count; k++) {
+        const a = Math.random() * Math.PI * 2;
+        const lx = Math.cos(a) * length / 2, lz = Math.sin(a) * width / 2;
+        const ox = Math.cos(a) * width, oz = Math.sin(a) * length;   // 輪のふちに直角の向き
+        const ol = Math.hypot(ox, oz) || 1;
+        const dx = (fx * ox + sx * oz) / ol, dz = (fz * ox + sz * oz) / ol;
+        const sp = speed * rand(0.9, 1.1);
+        emit([position[0] + fx * lx + sx * lz, 0.2, position[2] + fz * lx + sz * lz], [dx * sp, 0, dz * sp],
+          { life: life * rand(0.8, 1), size: rand(0.9, 1.6), alpha: 0.32, gravity: 0, floor: 0, grow: 1.6, drag: 0.08, delay: rand(0.2, 0.6) });
       }
     },
 
@@ -173,8 +195,8 @@ export function createEffects(scene) {
         const j = i * 3;
         vel[j + 1] -= gravity[i] * dt;
         vel[j] += wind[i] * dt;
-        const drag = 1 - 0.6 * dt;
-        vel[j] *= drag; vel[j + 2] *= drag;
+        const slow = Math.max(0, 1 - drag[i] * dt);
+        vel[j] *= slow; vel[j + 2] *= slow;
         pos[j] += vel[j] * dt;
         pos[j + 1] += vel[j + 1] * dt;
         pos[j + 2] += vel[j + 2] * dt;

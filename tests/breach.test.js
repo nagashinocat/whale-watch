@@ -6,8 +6,11 @@ import { PATTERNS } from '../src/logic/patterns.js';
 const seeded = s => () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
 const peak = k => Math.max(...Array.from({ length: 200 }, (_, i) => breachPose(i * 0.05, k).y));
 
-test('ジャンプの形は体の大きさに合わせる(子どもは小さく跳ぶ)', () => {
-  assert.ok(peak(0.4) < peak(1) * 0.5);
+test('ジャンプの形は体の大きさに合わせる(子どもは低く跳ぶが、体のわりには高い)', () => {
+  // 飛び出す速さ(高さの平方根)は、子どものほうが少しおそい
+  const speed = k => (breachPose(0.05, k).y - breachPose(0, k).y) / 0.05;
+  assert.ok(speed(0.4) < speed(1) && speed(0.4) > speed(1) * 0.5);
+  assert.ok(Math.abs(peak(0.4) - breachPose(0, 0.4).y) < Math.abs(peak(1) - breachPose(0, 1).y));
   assert.ok(breachPose(-3, 1).y < -6, 'deep before the jump');
   assert.ok(breachPose(BREACH.air + 8, 1).y < -6, 'gone after the jump');
 });
@@ -63,4 +66,9 @@ test('群れでスパイホップ: 3〜4頭がまとまって、少しずつず�
     assert.ok(new Set(g.map(w => w.lookPhase.toFixed(2))).size === g.length, 'each looks its own way');
     assert.ok(d.at(-1) + 30 <= PATTERNS.groupSpyhop.durationMs / 1000);
   }
+});
+
+test('調べた数値: おとなが水から飛び出す速さは秒速6〜9m(記録計の研究では平均6.1m、高く跳ぶときは約8m)', () => {
+  const vy = (breachPose(0.05, 1).y - breachPose(0, 1).y) / 0.05;
+  assert.ok(vy > 6 && vy < 9, `${vy}`);
 });

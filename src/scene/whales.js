@@ -7,6 +7,7 @@ import { BREATH, ROLL, diveSurfacing, calfBreaths, rollingSurfacing } from '../l
 import { SLEEP, sleepingGroup, headBob } from '../logic/sleep.js';
 import { individual as individualById } from '../logic/flukeId.js';
 import { lengthOf } from '../logic/zukan.js';
+import { impactSplash, whaleMass, PART_MASS } from '../logic/impact.js';
 import { BREACH, breachPose, groupBreachPlan, calfBreachPlan, POD, podPlan, groupSpyhopPlan } from '../logic/breach.js';
 import { divingYaw } from '../logic/behavior.js';
 import { followFactor } from '../logic/quality.js';
@@ -143,30 +144,73 @@ function breachAt(w, t, launch, start, yaw, rollSign = 1) {
   w.group.rotation.set(D2R(p.pitch), D2R(yaw), D2R(p.roll * rollSign));
 }
 
-// ジャンプの水しぶきと音(i 番目のクジラ)。小さいクジラは小さなしぶき
+// 体の中の点(体長1の比率。頭は -z)が、いまどれだけの速さで動いているか(m/秒)。
+// 前のこまの位置と向きをおぼえておき、そこからの動きで計算する
+function pointVelocity(w, local) {
+  if (!w.prev || !(w.prevDt > 0)) return [0, 0, 0];
+  const v = new THREE.Vector3(local[0] * w.length, local[1] * w.length, local[2] * w.length);
+  const now = v.clone().applyQuaternion(w.group.quaternion).add(w.group.position);
+  const before = v.clone().applyQuaternion(w.prev.quat).add(w.prev.pos);
+  return [(now.x - before.x) / w.prevDt, (now.y - before.y) / w.prevDt, (now.z - before.z) / w.prevDt];
+}
+
+// 横倒しに落ちてくる体のうち、水面の近くでいちばん速く落ちている場所の速さ(m/秒、下向き)
+function fallingSpeed(w) {
+  let best = 0;
+  for (const a of [0.35, 0.15, -0.05, -0.25]) {
+    for (const [x, y] of [[0, 0], [0.1, 0], [-0.1, 0], [0, 0.1], [0, -0.1]]) {
+      const local = [x, y, -a];
+      const world = w.group.localToWorld(new THREE.Vector3(x * w.length, y * w.length, -a * w.length));
+      if (world.y < -2 || world.y > 4) continue;
+      best = Math.max(best, -pointVelocity(w, local)[1]);
+    }
+  }
+  return best;
+}
+
+// 水面をたたいた水しぶき一式(王冠・水滴・霧・水の柱・波の輪・泡・画面の揺れ)。大きさは impactSplash で計算する
+function slam(fx, p, heading, s) {
+  fx.effects.splash(p, s, heading);
+  fx.effects.waveRing?.(p, { length: s.length, width: s.width, speed: s.waveSpeed, heading,
+    count: Math.round(120 + 280 * Math.min(1.2, s.strength)), life: 4 + 4 * Math.min(1.2, s.strength) });
+  fx.effects.foam(p, s.foamMs, { radius: s.foamRadius, count: Math.round(150 + 350 * Math.min(1.2, s.strength)) });
+  fx.impact?.(p, s.shake);
+}
+
+// ジャンプの水しぶきと音(i 番目のクジラ)。しぶきの大きさは、体の重さと、そのときの体の速さから計算する
 function breachCues(i, launch) {
   return [
     {
       at: launch + 0.4,
       run: (fx, ws) => {
-        const p = onWater(bodyPoint(ws[i], 0.4));
-        fx.effects.splash(p, 'small', headingOf(ws[i]));
+        const w = ws[i];
+        const p = onWater(bodyPoint(w, 0.4));
+        // 水を割って飛び出す体が、まわりの水を押しのけて持ち上げる(体の前の3分の1くらいの重さ)
+        const up = Math.max(2, pointVelocity(w, [0, 0, -0.4])[1]);
+        const s = impactSplash({ mass: whaleMass(w.length) * 0.3, speed: up * 0.6, length: 0.35 * w.length, width: 0.23 * w.length });
+        fx.effects.splash(p, { ...s, column: 0 }, headingOf(w));
+        fx.effects.foam(p, s.foamMs * 0.6, { radius: s.foamRadius * 0.7, count: 200 });
         // 水を割って体が出てくる「ザバァ」
-        fx.playSound('breach-rise', { gain: 0.4 + 0.6 * (ws[i].length / 14), position: p });
+        fx.playSound('breach-rise', { gain: Math.min(1, 0.3 + 0.7 * s.strength), position: p });
       },
     },
     {
       at: launch + BREACH.air * BREACH.splashAt,
       run: (fx, ws) => {
-        const w = ws[i], k = w.length / 14;
+        const w = ws[i];
         const p = onWater(bodyPoint(w, 0));
-        fx.effects.splash(p, k > 0.6 ? 'large' : 'small', headingOf(w));
-        if (k <= 0.6) fx.effects.splash(p, 'small', headingOf(w));
-        fx.impact?.(p, k);
-        fx.effects.foam(p, 12000 * Math.max(0.5, k), { radius: 6 * Math.max(0.5, k) });
-        // 着水の「ドーン」(小さいクジラは軽い音)
-        fx.playSound(k > 0.6 ? 'breach' : 'splash', { gain: k > 0.6 ? 1 : 0.55, position: p });
+        const speed = fallingSpeed(w) || 6;
+        const s = impactSplash({ mass: whaleMass(w.length), speed, length: w.length, width: 0.23 * w.length });
+        slam(fx, p, headingOf(w), s);
+        // 着水の「ドーン」(勢いが小さいときは軽い音)
+        fx.playSound(s.strength > 0.45 ? 'breach' : 'splash', { gain: Math.min(1, 0.35 + 0.65 * s.strength), position: p });
+        w.landedAt = p;
       },
+    },
+    // 白い泡が消えたあとに、かき回された水がなめらかな跡(足あと)になって残る
+    {
+      at: launch + BREACH.air * BREACH.splashAt + 7,
+      run: (fx, ws) => { if (ws[i].landedAt) fx.footprint?.(ws[i].landedAt, headingYaw(ws[i])); },
     },
   ];
 }
@@ -446,8 +490,14 @@ const MOTIONS = {
         at: first + k * period + 0.25 * period,
         run: (fx, [w]) => {
           const tip = finWorld(w, 1);
-          fx.effects.splash(onWater(tip), 'small', headingOf(w));
-          fx.impact?.(onWater(tip), 0.4);
+          // 胸びれの先の速さと、胸びれの重さから、しぶきの大きさを決める
+          const local = finTip(w.kind, 1).tip;
+          const speed = Math.max(2, -pointVelocity(w, local)[1]);
+          const L = w.length, spec = WHALE_SPECS.humpback.fin;
+          const s = impactSplash({ mass: whaleMass(L) * PART_MASS.fin, speed, length: spec.length * L, width: spec.chord * L * 1.4, surface: 'fin' });
+          // 胸びれの付け根から先まで、ひれに沿って水面をたたく
+          const mid = onWater(finWorld(w, 1).map((v, k) => (v + bodyPoint(w, 0.2)[k]) / 2));
+          slam(fx, mid, headingOf(w), s);
           // 胸びれが水面を打つ「ベチャン」(毎回少しずつちがう音)
           fx.playSound('pec-slap', { gain: 0.9, rate: 0.9 + Math.random() * 0.2, position: onWater(tip) });
         },
@@ -477,9 +527,11 @@ const MOTIONS = {
         at: first + k * period + 0.7,
         run: (fx, [w]) => {
           const tail = onWater(bodyPoint(w, -0.5));
-          fx.effects.splash(tail, 'small', headingOf(w));
-          fx.effects.splash(tail, 'small', headingOf(w));
-          fx.impact?.(tail, 0.7);
+          // 尾びれの速さと重さから、しぶきの大きさを決める(尾びれは体の横向きに広がっている)
+          const speed = Math.max(3, -pointVelocity(w, [0, 0, 0.47])[1]);
+          const L = w.length, h = headingOf(w);
+          const s = impactSplash({ mass: whaleMass(L) * PART_MASS.fluke, speed, length: WHALE_SPECS.humpback.fluke.span * L, width: 0.1 * L, surface: 'fluke' });
+          slam(fx, tail, rightOf(h), s);
           // 尾びれが水面を打つ「バシーン」(鋭い音で、遠くまで届く)
           fx.playSound('tail-slap', { gain: 1, rate: 0.92 + Math.random() * 0.16, position: tail });
         },
@@ -796,6 +848,11 @@ export async function createWhales(scene, fx) {
   function update(dt) {
     for (const act of acts) {
       act.t += dt;
+      // 前のこまの位置と向き(体の点の速さを計算するため)
+      for (const w of act.whales) {
+        w.prev = { pos: w.group.position.clone(), quat: w.group.quaternion.clone() };
+        w.prevDt = dt;
+      }
       act.motion.each(act.whales, act.t, act.D);
       // 決めた姿勢へ、なめらかに追いかける(動きの急な変わり目で、がくっとならないように)
       const k = followFactor(dt);
@@ -840,14 +897,18 @@ export async function createWhales(scene, fx) {
   function pourWater(w, dt) {
     if (dt <= 0 || !fx.effects.cascade) return;
     const pts = WET[w.kind];
-    w.prevY ??= new Array(pts.length).fill(-Infinity);
+    w.prevW ??= pts.map(() => null);
     pts.forEach((p, i) => {
       const world = w.group.localToWorld(new THREE.Vector3(p[0] * w.length, p[1] * w.length + 0.1, p[2] * w.length)).toArray();
-      const rising = (world[1] - w.prevY[i]) / dt;
-      w.prevY[i] = world[1];
+      const before = w.prevW[i];
+      w.prevW[i] = world;
+      if (!before) return;
+      const vel = world.map((v, k) => Math.max(-12, Math.min(12, (v - before[k]) / dt)));
+      const rising = vel[1];
       if (world[1] > 0.2 && rising > 0.3 && rising < 40) {
-        const n = Math.min(6, Math.round(Math.min(rising, 4) * 18 * dt + Math.random()));
-        if (n > 0) fx.effects.cascade(world, n);
+        // 速く水から出るほど、たくさんの水が体といっしょに持ち上がって流れ落ちる
+        const n = Math.min(10, Math.round(Math.min(rising, 9) * 16 * dt + Math.random()));
+        if (n > 0) fx.effects.cascade(world, n, vel);
       }
     });
   }

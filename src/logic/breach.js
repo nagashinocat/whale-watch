@@ -31,7 +31,9 @@ export function breachPose(L, k = 1) {
     roll = lerp(0, 80, u);
   } else { y = -8 - ease((L - BREACH.air) / 6) * 6; pitch = -10; roll = 80; }
   const along = L < 0 ? Math.max(0, L + BREACH.approach) * 0.3 : 2.4 + Math.min(L, 6) * 1.2;
-  return { y: y * k, pitch, roll, along: along * k };
+  // 子クジラは体のわりに高く跳ぶ(高さは体の大きさの平方根に合わせる。そのぶん、落ちてくる速さもあまり落ちない)
+  const h = Math.sqrt(k);
+  return { y: y * h, pitch, roll, along: along * k };
 }
 
 // 群れでジャンプ: 2〜3頭が横にならび、0.3〜0.8秒ずつずれて跳ぶ。外側の2頭は鏡に映したように反対へ倒れる。

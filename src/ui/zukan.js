@@ -1,11 +1,14 @@
 import { drawFluke } from './flukeCanvas.js';
+import { tr } from '../logic/i18n.js';
 import { FLUKE_ID, NAME_MAX } from '../logic/flukeId.js';
 import { traitsText } from '../logic/traits.js';
 import { zukanInfo, ZUKAN_LEVELS } from '../logic/zukan.js';
 import { photosOf, photoCaption } from '../logic/photos.js';
 
 // 日付を「11/6」の形に
-const day = ms => { const d = new Date(ms); return `${d.getMonth() + 1}/${d.getDate()}`; };
+const T = (ja, en) => tr({ ja, en });
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const day = ms => { const d = new Date(ms); return T(`${d.getMonth() + 1}/${d.getDate()}`, `${MONTHS[d.getMonth()]} ${d.getDate()}`); };
 const no = id => `No.${String(id).padStart(2, '0')}`;
 
 // 要素を作る小さな道具(文字は textContent で入れるので、名前に何が入っても安全)
@@ -22,12 +25,12 @@ function el(tag, { cls, text, attrs } = {}, children = []) {
 // 上の見出しタブで「ファイル一覧」「写真」や、となりの子に切りかえる。
 // handlers: { onRename(id, name) }、photos: 写真の保存場所、portrait(ind): 全身の姿の絵のアドレス、nameOf(id)
 export function createZukan(root, { onRename, photos, portrait, nameOf }) {
-  const panel = el('section', { cls: 'zk', attrs: { 'aria-label': 'クジラ図鑑' } });
+  const panel = el('section', { cls: 'zk', attrs: { 'aria-label': T('クジラ図鑑', 'Whale Book') } });
   panel.hidden = true;
-  const back = el('button', { cls: 'zk-btn', text: '← ファイル一覧' });
+  const back = el('button', { cls: 'zk-btn', text: T('← ファイル一覧', '← All files') });
   const count = el('span', { cls: 'zk-count' });
-  const close = el('button', { cls: 'zk-btn', text: '閉じる' });
-  const tabs = el('div', { cls: 'zk-tabs', attrs: { role: 'group', 'aria-label': '図鑑のファイル' } });
+  const close = el('button', { cls: 'zk-btn', text: T('閉じる', 'Close') });
+  const tabs = el('div', { cls: 'zk-tabs', attrs: { role: 'group', 'aria-label': T('図鑑のファイル', 'Book sections') } });
   const view = el('div', { cls: 'zk-paper' });
   panel.append(
     el('div', { cls: 'zk-inner' }, [
@@ -38,13 +41,13 @@ export function createZukan(root, { onRename, photos, portrait, nameOf }) {
   );
 
   // 写真を大きく見る
-  const viewer = el('div', { cls: 'photo-view', attrs: { role: 'dialog', 'aria-label': '写真' } });
+  const viewer = el('div', { cls: 'photo-view', attrs: { role: 'dialog', 'aria-label': T('写真', 'Photo') } });
   viewer.hidden = true;
   const big = el('img', { attrs: { alt: '' } });
   const caption = el('p', { cls: 'photo-caption' });
-  const save = el('a', { cls: 'full photo-btn', text: '保存する' });
-  const del = el('button', { cls: 'full', text: '消す' });
-  const closeViewer = el('button', { cls: 'full', text: '閉じる' });
+  const save = el('a', { cls: 'full photo-btn', text: T('保存する', 'Save') });
+  const del = el('button', { cls: 'full', text: T('消す', 'Delete') });
+  const closeViewer = el('button', { cls: 'full', text: T('閉じる', 'Close') });
   viewer.append(big, caption, el('div', { cls: 'photo-actions' }, [save, del, closeViewer]));
   root.append(panel, viewer);
 
@@ -84,7 +87,7 @@ export function createZukan(root, { onRename, photos, portrait, nameOf }) {
       const b = el('button', { cls: 'zk-polaroid', attrs: { 'aria-label': photoCaption(p, nameOf), style: `transform: rotate(${[-4, 3, -2, 4, -3][i % 5]}deg)` } },
         [el('img', { attrs: { src: photos.url(p), alt: '' } })]);
       // 画像を出せなかったときは、そのことを書いておく(まっ白なままにしない)
-      b.querySelector('img').addEventListener('error', e => e.currentTarget.replaceWith(el('span', { cls: 'zk-photo-broken', text: '写真を表示できませんでした' })), { once: true });
+      b.querySelector('img').addEventListener('error', e => e.currentTarget.replaceWith(el('span', { cls: 'zk-photo-broken', text: T('写真を表示できませんでした', 'Could not show this photo') })), { once: true });
       b.addEventListener('click', () => openPhoto(p));
       row.append(b);
     });
@@ -92,7 +95,7 @@ export function createZukan(root, { onRename, photos, portrait, nameOf }) {
   }
 
   function flukeCanvas(e, w, h, label) {
-    const c = el('canvas', { attrs: { role: 'img', 'aria-label': label ?? `${e.displayName}の尾びれの裏` } });
+    const c = el('canvas', { attrs: { role: 'img', 'aria-label': label ?? T(`${e.displayName}の尾びれの裏`, `Underside of ${e.displayName}'s fluke`) } });
     c.width = w; c.height = h;
     drawFluke(c, e);
     return c;
@@ -113,29 +116,29 @@ export function createZukan(root, { onRename, photos, portrait, nameOf }) {
       tab(`${no(e.id)} ${e.displayName}`, true, () => {});
       for (const other of [entries[k + 1], entries[k - 1]].filter(Boolean)) tab(no(other.id), false, () => go({ tab: 'whales', detail: other.id }), true);
     } else {
-      tab('ファイル一覧', state.tab === 'whales', () => go({ tab: 'whales', detail: null }));
-      tab('写真', state.tab === 'photos', () => go({ tab: 'photos', detail: null }));
+      tab(T('ファイル一覧', 'Whales'), state.tab === 'whales', () => go({ tab: 'whales', detail: null }));
+      tab(T('写真', 'Photos'), state.tab === 'photos', () => go({ tab: 'photos', detail: null }));
     }
   }
 
   // ---- ファイル一覧 ----
   function renderList(out) {
     out.append(
-      el('span', { cls: 'zk-label', text: 'ザトウクジラ 調査ファイル' }),
-      el('h1', { cls: 'zk-title', text: 'クジラ図鑑' }),
-      el('p', { cls: 'zk-note', text: '尾びれの裏の模様は1頭ずつちがいます。水面に姿を見せたクジラが、ここにのります(鳴き声だけのときは数えません)。会うたびに、くわしいことがわかっていきます。' }),
+      el('span', { cls: 'zk-label', text: T('ザトウクジラ 調査ファイル', 'Humpback whale survey files') }),
+      el('h1', { cls: 'zk-title', text: T('クジラ図鑑', 'Whale Book') }),
+      el('p', { cls: 'zk-note', text: T('尾びれの裏の模様は1頭ずつちがいます。水面に姿を見せたクジラが、ここにのります(鳴き声だけのときは数えません)。会うたびに、くわしいことがわかっていきます。', 'Every whale has its own pattern under the fluke. Whales that show themselves at the surface are recorded here (calls alone don\'t count). You learn more each time you meet them.') }),
     );
     const list = el('ol', { cls: 'zk-files' });
-    if (!entries.length) list.append(el('li', { cls: 'zk-note', text: 'まだだれものっていません。クジラが姿を見せるのを待ちましょう' }));
+    if (!entries.length) list.append(el('li', { cls: 'zk-note', text: T('まだだれものっていません。クジラが姿を見せるのを待ちましょう', 'No whales yet. Wait for one to show itself.') }));
     for (const e of entries) {
       const item = el('button', { cls: 'zk-file' }, [
         el('span', { cls: 'zk-file-no', text: no(e.id) }),
         flukeCanvas(e, 120, 34),
         el('span', { cls: 'zk-file-text' }, [
           el('b', { text: e.displayName }),
-          el('small', { text: `さいご ${day(e.last)}` }),
+          el('small', { text: T(`さいご ${day(e.last)}`, `Last seen ${day(e.last)}`) }),
         ]),
-        el('span', { cls: 'zk-file-stamp', text: `${e.count}回` }),
+        el('span', { cls: 'zk-file-stamp', text: T(`${e.count}回`, `×${e.count}`) }),
       ]);
       item.addEventListener('click', () => go({ tab: 'whales', detail: e.id }));
       list.append(el('li', {}, [item]));
@@ -146,15 +149,15 @@ export function createZukan(root, { onRename, photos, portrait, nameOf }) {
   // ---- 1頭の調査書類 ----
   async function renderDetail(e, out) {
     const info = zukanInfo(e, e);
-    const rename = el('button', { cls: 'zk-link', text: '名前を付ける' });
+    const rename = el('button', { cls: 'zk-link', text: T('名前を付ける', 'Rename') });
     const nameBox = el('div', { cls: 'zk-namebox' }, [
-      el('span', { cls: 'zk-label', text: 'ザトウクジラ 調査記録' }),
+      el('span', { cls: 'zk-label', text: T('ザトウクジラ 調査記録', 'Humpback whale survey record') }),
       el('h1', { cls: 'zk-title', text: e.displayName }),
-      e.nickname ? el('small', { cls: 'zk-sub', text: `模様から付けた名前: ${e.autoName}` }) : el('span'),
+      e.nickname ? el('small', { cls: 'zk-sub', text: T(`模様から付けた名前: ${e.autoName}`, `Name from its markings: ${e.autoName}`) }) : el('span'),
       rename,
     ]);
     rename.addEventListener('click', () => startRename(nameBox, e));
-    const stamp = el('div', { cls: 'zk-stamp', attrs: { 'aria-label': `確認 ${info.count}回` } }, [el('span', { text: '確認' }), el('b', { text: `${info.count}回` })]);
+    const stamp = el('div', { cls: 'zk-stamp', attrs: { 'aria-label': T(`確認 ${info.count}回`, `Seen ${info.count} times`) } }, [el('span', { text: T('確認', 'Seen') }), el('b', { text: T(`${info.count}回`, `×${info.count}`) })]);
     out.append(el('div', { cls: 'zk-top' }, [nameBox, stamp]));
 
     // クリップで留めた全身の姿(3Dの絵)
@@ -162,56 +165,56 @@ export function createZukan(root, { onRename, photos, portrait, nameOf }) {
     if (info.open.portrait) {
       const url = portrait(e);
       clip.append(url
-        ? el('img', { cls: 'zk-portrait', attrs: { src: url, alt: `${e.displayName}の全身の姿` } })
-        : el('div', { cls: 'zk-portrait zk-locked', text: '全身の姿を描けませんでした' }));
-      clip.append(el('span', { cls: 'zk-caption', text: '全身の姿' }));
+        ? el('img', { cls: 'zk-portrait', attrs: { src: url, alt: T(`${e.displayName}の全身の姿`, `Full-body portrait of ${e.displayName}`) } })
+        : el('div', { cls: 'zk-portrait zk-locked', text: T('全身の姿を描けませんでした', 'Could not draw the portrait') }));
+      clip.append(el('span', { cls: 'zk-caption', text: T('全身の姿', 'Full body') }));
     } else {
-      clip.append(el('div', { cls: 'zk-portrait zk-locked', text: 'このクジラの写真を撮ると、全身の姿がのります' }));
+      clip.append(el('div', { cls: 'zk-portrait zk-locked', text: T('このクジラの写真を撮ると、全身の姿がのります', 'Take a photo of this whale to add its full-body portrait') }));
     }
     out.append(clip);
 
     // 数字
-    const unknown = '？';
+    const unknown = T('？', '?');
     const cell = (k, v) => el('div', { cls: 'zk-cell' }, [el('span', { text: k }), el('b', { text: v })]);
     out.append(el('div', { cls: 'zk-grid' }, [
-      cell('全長', info.open.length ? `${info.length.toFixed(1)} m` : unknown),
-      cell('体重', info.open.weight ? `約${info.weight} t` : unknown),
-      cell('はじめて', day(e.first)),
-      cell('さいご', day(e.last)),
+      cell(T('全長', 'Length'), info.open.length ? `${info.length.toFixed(1)} m` : unknown),
+      cell(T('体重', 'Weight'), info.open.weight ? T(`約${info.weight} t`, `~${info.weight} t`) : unknown),
+      cell(T('はじめて', 'First seen'), day(e.first)),
+      cell(T('さいご', 'Last seen'), day(e.last)),
     ]));
 
     // 特徴
-    out.append(el('span', { cls: 'zk-label', text: '特徴' }));
+    out.append(el('span', { cls: 'zk-label', text: T('特徴', 'Features') }));
     if (info.open.comment) out.append(el('p', { cls: 'zk-text', text: info.comment }));
     else {
       const t = traitsText(e);
-      out.append(el('p', { cls: 'zk-text zk-dim', text: t.length ? `${t[0]}…(くわしくは、もっと会うとわかります)` : 'もっと会うと、わかります' }));
+      out.append(el('p', { cls: 'zk-text zk-dim', text: t.length ? T(`${t[0]}…(くわしくは、もっと会うとわかります)`, `${t[0]}… (meet it more to learn more)`) : T('もっと会うと、わかります', 'Meet it more to find out') }));
     }
     if (info.next) out.append(el('p', { cls: 'zk-next', text: info.next.text }));
 
     // 尾びれの裏と写真
     const mine = photosOf(await photos.list(), e.id);
     out.append(el('div', { cls: 'zk-bottom' }, [
-      el('div', { cls: 'zk-fluke' }, [el('span', { cls: 'zk-label', text: '尾びれの裏' }), flukeCanvas(e, 300, 84)]),
+      el('div', { cls: 'zk-fluke' }, [el('span', { cls: 'zk-label', text: T('尾びれの裏', 'Fluke underside') }), flukeCanvas(e, 300, 84)]),
       mine.length ? polaroids(mine.slice(0, 6)) : el('span'),
     ]));
     out.append(el('span', { cls: 'zk-note', text: mine.length
-      ? `写真 ${mine.length}枚 ・ 押すと大きく見られます`
-      : 'この子が写っている写真は、まだありません。パネルのシャッターで撮れます' }));
+      ? T(`写真 ${mine.length}枚 ・ 押すと大きく見られます`, `${mine.length} photo${mine.length > 1 ? 's' : ''} · tap to enlarge`)
+      : T('この子が写っている写真は、まだありません。パネルのシャッターで撮れます', 'No photos of this whale yet. Use the shutter on the panel.') }));
   }
 
   // 名前を入力する欄を出す
   function startRename(box, e) {
     const form = el('form', { cls: 'zk-form' });
-    const input = el('input', { attrs: { type: 'text', maxlength: String(NAME_MAX), placeholder: e.autoName, 'aria-label': `${e.displayName}の名前` } });
+    const input = el('input', { attrs: { type: 'text', maxlength: String(NAME_MAX), placeholder: e.autoName, 'aria-label': T(`${e.displayName}の名前`, `Name for ${e.displayName}`) } });
     input.value = e.nickname ?? '';
-    const ok = el('button', { cls: 'zk-btn dark', text: '決める', attrs: { type: 'submit' } });
-    const cancel = el('button', { cls: 'zk-btn dark', text: 'やめる', attrs: { type: 'button' } });
+    const ok = el('button', { cls: 'zk-btn dark', text: T('決める', 'Save'), attrs: { type: 'submit' } });
+    const cancel = el('button', { cls: 'zk-btn dark', text: T('やめる', 'Cancel'), attrs: { type: 'button' } });
     cancel.addEventListener('click', render);
     form.addEventListener('submit', ev => { ev.preventDefault(); onRename(e.id, input.value); });
     form.append(input, ok, cancel);
-    box.replaceChildren(el('span', { cls: 'zk-label', text: '名前を付ける' }), form,
-      el('small', { cls: 'zk-sub', text: `${NAME_MAX}文字まで。空にすると「${e.autoName}」にもどります` }));
+    box.replaceChildren(el('span', { cls: 'zk-label', text: T('名前を付ける', 'Rename') }), form,
+      el('small', { cls: 'zk-sub', text: T(`${NAME_MAX}文字まで。空にすると「${e.autoName}」にもどります`, `Up to ${NAME_MAX} characters. Leave empty to go back to "${e.autoName}".`) }));
     input.focus();
   }
 
@@ -219,9 +222,9 @@ export function createZukan(root, { onRename, photos, portrait, nameOf }) {
   async function renderPhotos(out) {
     const list = (await photos.list()).sort((a, b) => b.time - a.time);
     out.append(
-      el('span', { cls: 'zk-label', text: '写真の記録' }),
-      el('h1', { cls: 'zk-title', text: '写真' }),
-      el('p', { cls: 'zk-note', text: `撮った写真 ${list.length}枚(${photos.max}枚まで。こえると古いものから消えます)。パネルのシャッターで撮れます` }),
+      el('span', { cls: 'zk-label', text: T('写真の記録', 'Photo log') }),
+      el('h1', { cls: 'zk-title', text: T('写真', 'Photos') }),
+      el('p', { cls: 'zk-note', text: T(`撮った写真 ${list.length}枚(${photos.max}枚まで。こえると古いものから消えます)。パネルのシャッターで撮れます`, `${list.length} photos (up to ${photos.max}; the oldest are removed beyond that). Use the shutter on the panel.`) }),
     );
     if (list.length) out.append(polaroids(list, 'large'));
   }
@@ -229,7 +232,7 @@ export function createZukan(root, { onRename, photos, portrait, nameOf }) {
   let renderId = 0;
   async function render() {
     const id = ++renderId;
-    count.textContent = `${entries.length} / ${FLUKE_ID.size} 頭`;
+    count.textContent = T(`${entries.length} / ${FLUKE_ID.size} 頭`, `${entries.length} / ${FLUKE_ID.size}`);
     const e = state.detail && entries.find(x => x.id === state.detail);
     back.hidden = !e && state.tab === 'whales';
     renderTabs();

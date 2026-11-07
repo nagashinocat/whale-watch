@@ -4,6 +4,7 @@
 // ・時刻は端末の時計で決めるので、画面が止まっていても、もどったときにすぐ知らせられる
 // ・ページを閉じても、もう一度開いたときに続きから数える(ブラウザに保存する)
 
+import { tr } from './i18n.js';
 export const TIMER = Object.freeze({
   presets: [5, 10, 15, 30, 60],   // すぐ選べる「○分後」
   maxMinutes: 24 * 60,
@@ -34,11 +35,11 @@ export function atClock(text, now) {
 // 残り時間のことば(「あと1時間5分」「あと12分」「あと45秒」)
 export function remainingText(ms) {
   const s = Math.max(0, Math.ceil(ms / 1000));
-  if (s < 60) return `あと${s}秒`;
+  if (s < 60) return tr({ ja: `あと${s}秒`, en: `${s}s left` });
   const m = Math.ceil(s / 60);
-  if (m < 60) return `あと${m}分`;
+  if (m < 60) return tr({ ja: `あと${m}分`, en: `${m} min left` });
   const h = Math.floor(m / 60), r = m % 60;
-  return r ? `あと${h}時間${r}分` : `あと${h}時間`;
+  return r ? tr({ ja: `あと${h}時間${r}分`, en: `${h} h ${r} min left` }) : tr({ ja: `あと${h}時間`, en: `${h} h left` });
 }
 
 // 鳴る時刻のことば(「7:30」)

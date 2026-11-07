@@ -20,17 +20,19 @@ export const TIME_PRESETS = Object.freeze({
 });
 
 
-export const DEFAULTS = Object.freeze({ mode: 'normal', camera: 'cliff', volume: 0.5, time: 'auto', interval: 'normal', shutter: 'center' });
+export const DEFAULTS = Object.freeze({ mode: 'normal', camera: 'cliff', volume: 0.5, time: 'auto', interval: 'normal', shutter: 'center', lang: 'auto' });
 
 // 操作パネルを閉じても画面に残る、写真のボタンの場所(off は出さない)
-export const SHUTTER_SPOTS = Object.freeze({ left: '左下', center: '真ん中', right: '右下', off: '出さない' });
+export const SHUTTER_SPOTS = Object.freeze({
+  left: { ja: '左下', en: 'Left' }, center: { ja: '真ん中', en: 'Center' }, right: { ja: '右下', en: 'Right' }, off: { ja: '出さない', en: 'Hide' },
+});
 
 // クジラが自然に来る間隔(分)。自分で選べる。前のクジラが帰ってから、min〜max 分のどこかで次が来る
 export const INTERVALS = Object.freeze({
-  often: Object.freeze({ label: 'よく来る', min: 5, max: 15 }),
-  more: Object.freeze({ label: '多め', min: 15, max: 45 }),
-  normal: Object.freeze({ label: 'ふつう', min: 30, max: 90 }),
-  rare: Object.freeze({ label: 'ときどき', min: 60, max: 180 }),
+  often: Object.freeze({ label: { ja: 'よく来る', en: 'Often' }, min: 5, max: 15 }),
+  more: Object.freeze({ label: { ja: '多め', en: 'More' }, min: 15, max: 45 }),
+  normal: Object.freeze({ label: { ja: 'ふつう', en: 'Normal' }, min: 30, max: 90 }),
+  rare: Object.freeze({ label: { ja: 'ときどき', en: 'Rarely' }, min: 60, max: 180 }),
 });
 
 export const SCHEDULE = Object.freeze({

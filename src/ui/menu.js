@@ -1,13 +1,17 @@
 import { MENU_HIDE_MS, TIME_PRESETS, INTERVALS, SHUTTER_SPOTS } from '../logic/config.js';
 import { TIMER, remainingText, clockText, atClock } from '../logic/timer.js';
+import { tr } from '../logic/i18n.js';
 
 // 操作パネル(カメラアプリのような形)。
 // 上: いまの見え方(カメラ・時間)と、おやすみ・音量・全画面の丸いボタン
 // 下: 空の色の帯(時間)、景色の絵(カメラ)、図鑑・シャッター(写真)・呼ぶ
 // 画面をタップすると出て、しばらくすると消える(赤ちゃんを寝かせるときにじゃまにならないように)
 
-const CAMERA_LABELS = { cliff: '崖の上', sky: '上空', near: '間近' };
-const TIME_LABELS = { auto: '自動', morning: '朝', day: '昼', evening: '夕方', night: '夜', golden: 'ゴールデンアワー', blue: 'ブルーアワー' };
+const T = (ja, en) => tr({ ja, en });
+const CAMERA_LABELS = { cliff: T('崖の上', 'Cliff'), sky: T('上空', 'Sky'), near: T('間近', 'Up close') };
+const TIME_LABELS = { auto: T('自動', 'Auto'), morning: T('朝', 'Morning'), day: T('昼', 'Day'), evening: T('夕方', 'Evening'), night: T('夜', 'Night'), golden: T('ゴールデンアワー', 'Golden hour'), blue: T('ブルーアワー', 'Blue hour') };
+const TIMER_IDLE = () => T('決めた時間になると、クジラが鳴きながら知らせに来ます', 'When the time comes, a whale swims up calling to let you know.');
+const LANG_LABELS = { auto: T('自動', 'Auto'), ja: '日本語', en: 'English' };
 
 // 空の色の帯の上の位置(朝5時 0% 〜 夜23時 100%)
 const HOUR_FROM = 5, HOUR_TO = 23;
@@ -21,7 +25,8 @@ export function nearestTime(fraction) {
 }
 
 // 来る間隔のことば(「5〜15分」「1〜3時間」)
-export const rangeLabel = ({ min, max }) => (min % 60 === 0 && max % 60 === 0 ? `${min / 60}〜${max / 60}時間` : `${min}〜${max}分`);
+export const rangeLabel = ({ min, max }) => (min % 60 === 0 && max % 60 === 0
+  ? T(`${min / 60}〜${max / 60}時間`, `${min / 60}–${max / 60} h`) : T(`${min}〜${max}分`, `${min}–${max} min`));
 
 // 景色の小さな絵(崖の上・上空・間近)
 const SCENES = {
@@ -46,53 +51,53 @@ const icon = (name, size = 22) => `<svg viewBox="0 0 24 24" width="${size}" heig
 export function createMenu(root, handlers) {
   root.innerHTML = `
     <div class="start" data-start>
-      <p>タップしてはじめる</p>
+      <p>${T('タップしてはじめる', 'Tap to start')}</p>
     </div>
     <div class="hud" data-menu hidden>
       <div class="hud-top">
         <span class="pill" data-now></span>
         <div class="hud-round">
-          <button class="round" data-full aria-label="全画面">${icon('full', 20)}</button>
-          <button class="round" data-timer aria-label="タイマーと、クジラが来る間隔" aria-expanded="false">${icon('clock', 21)}</button>
-          <button class="round" data-sound aria-label="音量" aria-expanded="false">${icon('sound', 20)}</button>
-          <button class="round" data-sleep aria-label="おやすみモード" aria-pressed="false">${icon('moon', 22)}</button>
+          <button class="round" data-full aria-label="${T('全画面', 'Full screen')}">${icon('full', 20)}</button>
+          <button class="round" data-timer aria-label="${T('タイマーと、クジラが来る間隔', 'Timer and how often whales come')}" aria-expanded="false">${icon('clock', 21)}</button>
+          <button class="round" data-sound aria-label="${T('音量', 'Volume')}" aria-expanded="false">${icon('sound', 20)}</button>
+          <button class="round" data-sleep aria-label="${T('おやすみモード', 'Sleep mode')}" aria-pressed="false">${icon('moon', 22)}</button>
         </div>
       </div>
       <div class="timer-pop" data-timerpop hidden>
-        <p class="timer-now" data-timernow>決めた時間になると、クジラが鳴きながら知らせに来ます</p>
-        <div class="timer-chips" role="group" aria-label="何分後">
-          ${TIMER.presets.map(m => `<button data-after="${m}">${m < 60 ? `${m}分` : `${m / 60}時間`}後</button>`).join('')}
+        <p class="timer-now" data-timernow>${TIMER_IDLE()}</p>
+        <div class="timer-chips" role="group" aria-label="${T('何分後', 'In how long')}">
+          ${TIMER.presets.map(m => `<button data-after="${m}">${m < 60 ? T(`${m}分後`, `${m} min`) : T(`${m / 60}時間後`, `${m / 60} h`)}</button>`).join('')}
         </div>
         <form class="timer-clock" data-timerclock>
-          <label>時刻で<input type="time" data-timertime required></label>
-          <button type="submit">この時刻に</button>
+          <label>${T('時刻で', 'At')}<input type="time" data-timertime required></label>
+          <button type="submit">${T('この時刻に', 'Set')}</button>
         </form>
-        <button class="timer-cancel" data-timercancel hidden>タイマーをやめる</button>
-        <small>画面をつけたまま、このページを開いておいてください(画面が消えると鳴りません)</small>
-        <div class="interval" role="group" aria-label="クジラが来る間隔">
-          <p class="interval-title">クジラが来る間隔</p>
+        <button class="timer-cancel" data-timercancel hidden>${T('タイマーをやめる', 'Cancel timer')}</button>
+        <small>${T('画面をつけたまま、このページを開いておいてください(画面が消えると鳴りません)', 'Keep this page open with the screen on (it can\'t ring once the screen turns off).')}</small>
+        <div class="interval" role="group" aria-label="${T('クジラが来る間隔', 'How often whales come')}">
+          <p class="interval-title">${T('クジラが来る間隔', 'How often whales come')}</p>
           <div class="interval-chips">
-            ${Object.entries(INTERVALS).map(([k, v]) => `<button data-interval="${k}" aria-pressed="false"><b>${v.label}</b><span>${rangeLabel(v)}</span></button>`).join('')}
+            ${Object.entries(INTERVALS).map(([k, v]) => `<button data-interval="${k}" aria-pressed="false"><b>${tr(v.label)}</b><span>${rangeLabel(v)}</span></button>`).join('')}
           </div>
         </div>
       </div>
-      <label class="vol-pop" data-volpop hidden>音量<input type="range" min="0" max="1" step="0.01" data-volume></label>
+      <label class="vol-pop" data-volpop hidden>${T('音量', 'Volume')}<input type="range" min="0" max="1" step="0.01" data-volume></label>
       <div class="hud-bottom">
-        <p class="sleep-note" data-sleepnote hidden>${icon('moon', 16)}おやすみモード中 ・ クジラの声は鳴らず、波の音だけ</p>
+        <p class="sleep-note" data-sleepnote hidden>${icon('moon', 16)}${T('おやすみモード中 ・ クジラの声は鳴らず、波の音だけ', 'Sleep mode · waves only, no whale calls')}</p>
         <div class="sky">
           <div class="sky-labels" aria-hidden="true">
             ${['morning', 'day', 'evening', 'night'].map(k => `<span style="left:${barPosition(TIME_PRESETS[k]) * 100}%">${TIME_LABELS[k]}</span>`).join('')}
           </div>
-          <button class="sky-bar" data-skybar aria-label="時間をえらぶ(押した場所に近い時間になります)">
+          <button class="sky-bar" data-skybar aria-label="${T('時間をえらぶ(押した場所に近い時間になります)', 'Choose the time of day')}">
             <span class="sky-sun" data-sun>${icon('sun', 18)}</span>
           </button>
-          <div class="chips" role="group" aria-label="時間">
-            <button data-time="auto">自動(いまの空)</button>
-            <button data-time="golden">ゴールデンアワー</button>
-            <button data-time="blue">ブルーアワー</button>
+          <div class="chips" role="group" aria-label="${T('時間', 'Time of day')}">
+            <button data-time="auto">${T('自動(いまの空)', 'Auto (real sky)')}</button>
+            <button data-time="golden">${TIME_LABELS.golden}</button>
+            <button data-time="blue">${TIME_LABELS.blue}</button>
           </div>
         </div>
-        <div class="cams" role="group" aria-label="見る場所">
+        <div class="cams" role="group" aria-label="${T('見る場所', 'View')}">
           ${Object.entries(CAMERA_LABELS).map(([k, v]) => `
             <button class="cam" data-camera="${k}">
               <svg viewBox="0 0 100 60" aria-hidden="true">${SCENES[k]}</svg>
@@ -101,26 +106,30 @@ export function createMenu(root, handlers) {
         </div>
         <p class="status" data-status hidden></p>
         <div class="actions">
-          <button class="act" data-zukan-open>${icon('book', 24)}図鑑<span class="badge" data-badge>0/24</span></button>
-          <button class="shutter" data-photo aria-label="写真を撮る">${icon('camera', 30)}</button>
-          <button class="act act-main" data-summon>${icon('whale', 24)}呼ぶ</button>
+          <button class="act" data-zukan-open>${icon('book', 24)}${T('図鑑', 'Book')}<span class="badge" data-badge>0/24</span></button>
+          <button class="shutter" data-photo aria-label="${T('写真を撮る', 'Take a photo')}">${icon('camera', 30)}</button>
+          <button class="act act-main" data-summon>${icon('whale', 24)}${T('呼ぶ', 'Call')}</button>
         </div>
-        <div class="shutter-spot" role="group" aria-label="パネルを閉じても残る、写真のボタンの場所">
-          <span>${icon('camera', 16)}閉じても残るボタン</span>
-          ${Object.entries(SHUTTER_SPOTS).map(([k, v]) => `<button data-spot="${k}" aria-pressed="false">${v}</button>`).join('')}
+        <div class="shutter-spot" role="group" aria-label="${T('パネルを閉じても残る、写真のボタンの場所', 'Where to keep the photo button when the panel is closed')}">
+          <span>${icon('camera', 16)}${T('閉じても残るボタン', 'Photo button')}</span>
+          ${Object.entries(SHUTTER_SPOTS).map(([k, v]) => `<button data-spot="${k}" aria-pressed="false">${tr(v)}</button>`).join('')}
         </div>
         <p class="notice" data-notice hidden></p>
         <small class="credits" data-credits></small>
-        <a class="about-link" href="about.html">このアプリについて(使い方・素材・データの扱い)</a>
+        <div class="shutter-spot lang-pick" role="group" aria-label="言語 / Language">
+          <span>言語 / Language</span>
+          ${Object.entries(LANG_LABELS).map(([k, v]) => `<button data-lang="${k}" aria-pressed="false">${v}</button>`).join('')}
+        </div>
+        <a class="about-link" href="about.html">${T('このアプリについて(使い方・素材・データの扱い)', 'About this app (how to use, credits, privacy)')}</a>
       </div>
     </div>
-    <button class="float-shutter" data-floatshutter hidden aria-label="写真を撮る">${icon('camera', 26)}</button>
+    <button class="float-shutter" data-floatshutter hidden aria-label="${T('写真を撮る', 'Take a photo')}">${icon('camera', 26)}</button>
     <span class="timer-mark" data-timermark hidden>${icon('clock', 16)}<span data-timermarktext></span></span>
     <div class="alarm" data-alarm hidden role="alert">
-      <p>${icon('clock', 22)}<span data-alarmtext>時間です</span></p>
-      <button data-alarmstop>止める</button>
+      <p>${icon('clock', 22)}<span data-alarmtext>${T('時間です', 'Time\'s up')}</span></p>
+      <button data-alarmstop>${T('止める', 'Stop')}</button>
     </div>
-    <span class="sleep-mark" data-sleepmark hidden aria-label="おやすみモード中">${icon('moon', 18)}</span>
+    <span class="sleep-mark" data-sleepmark hidden aria-label="${T('おやすみモード中', 'Sleep mode on')}">${icon('moon', 18)}</span>
     <p class="toast" data-toast hidden></p>
     <div class="flash" data-flash hidden></div>`;
 
@@ -235,6 +244,7 @@ export function createMenu(root, handlers) {
   $('[data-alarmstop]').addEventListener('click', () => handlers.onAlarmStop?.());
   // パネルを閉じても残るシャッター
   floatShutter.addEventListener('click', () => handlers.onPhoto());
+  root.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => handlers.onLang?.(b.dataset.lang)));
   root.querySelectorAll('[data-spot]').forEach(b => b.addEventListener('click', () => {
     handlers.onShutterSpot?.(b.dataset.spot);
     scheduleHide();
@@ -265,16 +275,20 @@ export function createMenu(root, handlers) {
   });
 
   function showNow() {
-    now.textContent = `${CAMERA_LABELS[current.camera] ?? ''} ・ ${TIME_LABELS[current.time] ?? ''}`;
+    now.textContent = `${CAMERA_LABELS[current.camera] ?? ''}${T(' ・ ', ' · ')}${TIME_LABELS[current.time] ?? ''}`;
     const sleep = current.mode === 'sleep';
     sleepNote.hidden = !sleep;
-    sleepBtn.setAttribute('aria-label', sleep ? 'おやすみモード(オン)。押すとクジラの声がもどります' : 'おやすみモード(オフ)。押すとクジラの声が止まります');
+    sleepBtn.setAttribute('aria-label', sleep ? T('おやすみモード(オン)。押すとクジラの声がもどります', 'Sleep mode on. Tap to bring back whale calls') : T('おやすみモード(オフ)。押すとクジラの声が止まります', 'Sleep mode off. Tap to mute whale calls'));
     showSleepMark();
   }
 
   return {
-    setValues({ mode, camera, volume: v, time, interval = 'normal', shutter = 'center' }) {
+    setValues({ mode, camera, volume: v, time, interval = 'normal', shutter = 'center', lang: langChoice = 'auto' }) {
       current = { mode, camera, time };
+      root.querySelectorAll('[data-lang]').forEach(b => {
+        b.classList.toggle('on', b.dataset.lang === langChoice);
+        b.setAttribute('aria-pressed', String(b.dataset.lang === langChoice));
+      });
       shutterSpot = shutter;
       root.querySelectorAll('[data-spot]').forEach(b => {
         b.classList.toggle('on', b.dataset.spot === shutter);
@@ -308,14 +322,14 @@ export function createMenu(root, handlers) {
       const on = at != null;
       timerBtn.classList.toggle('on', on);
       timerCancel.hidden = !on;
-      const left = on ? `${clockText(at)}に鳴ります(${remainingText(at - Date.now())})` : '';
-      timerNow.textContent = on ? left : '決めた時間になると、クジラが鳴きながら知らせに来ます';
-      timerBtn.setAttribute('aria-label', on ? `タイマー: ${left}` : 'タイマーと、クジラが来る間隔');
+      const left = on ? T(`${clockText(at)}に鳴ります(${remainingText(at - Date.now())})`, `Rings at ${clockText(at)} (${remainingText(at - Date.now())})`) : '';
+      timerNow.textContent = on ? left : TIMER_IDLE();
+      timerBtn.setAttribute('aria-label', on ? T(`タイマー: ${left}`, `Timer: ${left}`) : T('タイマーと、クジラが来る間隔', 'Timer and how often whales come'));
       $('[data-timermarktext]').textContent = on ? remainingText(at - Date.now()) : '';
       showSleepMark();
     },
     // 「時間です」の知らせ
-    showAlarm(text = '時間です') {
+    showAlarm(text = T('時間です', 'Time\'s up')) {
       $('[data-alarmtext]').textContent = text;
       alarm.hidden = false;
     },

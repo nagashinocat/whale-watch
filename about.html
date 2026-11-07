@@ -29,10 +29,13 @@
     th { color: var(--muted); font-weight: 500; white-space: nowrap; }
     td a { word-break: break-all; }
     footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
+    [hidden] { display: none !important; }
+    .lang-links { text-align: center; font-size: 13px; margin-top: 24px; }
   </style>
 </head>
 <body>
 <main>
+<div data-l="ja" lang="ja">
   <a class="back" href="./">← 海にもどる</a>
   <h1>クジラの見える海</h1>
   <p class="lead">波の音を流しっぱなしにできる、海の定点カメラです。ときどきクジラがやってきます。赤ちゃんの寝かしつけや、作業のおともにどうぞ。</p>
@@ -85,6 +88,83 @@
     <p>© クジラの見える海</p>
     <a class="back" href="./">← 海にもどる</a>
   </footer>
+</div>
+<div data-l="en" lang="en" hidden>
+  <a class="back" href="./">← Back to the sea</a>
+  <h1>Whale Ocean</h1>
+  <p class="lead">A fixed camera on the sea with endless wave sounds. Now and then, whales come by. Great for helping a baby fall asleep, or as company while you work.</p>
+
+  <h2>How to use</h2>
+  <ul>
+    <li>Tap the screen to show the control panel. It hides by itself after a while.</li>
+    <li>Whales come on their own about once every 30–90 minutes. You can change how often with the clock button at the top right. Tap “Call” and one will come right away.</li>
+    <li>In sleep mode (the moon button at the top right), only the waves play, with no whale calls.</li>
+    <li>Set a timer and, when the time comes, a whale swims up calling to let you know.</li>
+    <li>Take a photo with the shutter, and the full-body portrait of each whale in it is added to your Whale Book.</li>
+  </ul>
+  <div class="note">
+    <p><b>Sound and timers stop when the screen turns off.</b> This is a web page, so it pauses when your phone's screen sleeps or locks. For long sessions, set a longer auto-lock time or keep the phone charging.</p>
+    <p>On iPhone, sound may not play while the silent switch is on.</p>
+  </div>
+
+  <h3>Add to your home screen (use it like an app)</h3>
+  <ul>
+    <li><b>iPhone (Safari)</b>: tap the Share button (a square with an arrow) → “Add to Home Screen”.</li>
+    <li><b>Android (Chrome)</b>: tap the menu (︙) at the top right → “Add to Home screen” or “Install app”.</li>
+  </ul>
+  <p>After the first visit, it works even without a connection.</p>
+
+  <h2>Your data</h2>
+  <ul>
+    <li>This app does not collect personal information such as your name or email address. No sign-up is needed.</li>
+    <li>Your settings, Whale Book and photos are stored only in your browser on this device. Nothing is sent anywhere. Clearing your browser data also clears them.</li>
+    <li>There is no analytics and no advertising.</li>
+    <li>The 3D drawing library (three.js) is loaded from jsDelivr, and fonts from Google Fonts. When loading them, basic connection information (such as your IP address) reaches those services.</li>
+  </ul>
+
+  <h2>Credits</h2>
+  <div class="table">
+  <table>
+    <tr><th>Sound</th><td>Distant waves on rocks (Cliff, Sky)</td><td><a href="https://freesound.org/s/156354">Rmutt / Freesound</a> · CC0</td></tr>
+    <tr><th>Sound</th><td>Small waves on a sand bar (Up close)</td><td><a href="https://freesound.org/people/plantmonkey/sounds/459813">plantmonkey / Freesound</a> · CC0</td></tr>
+    <tr><th>Sound</th><td>Splash</td><td><a href="https://freesound.org/people/Fission9/sounds/583348/">Fission9 / Freesound</a> · CC0</td></tr>
+    <tr><th>Whale</th><td>Humpback song, sperm whale clicks</td><td><a href="https://www.fisheries.noaa.gov/">NOAA Fisheries</a> (Passive Acoustics Group, “Sounds in the Ocean”) · Public domain (U.S. government work)</td></tr>
+    <tr><th>Whale</th><td>Short humpback call</td><td><a href="https://pmel.noaa.gov/acoustics/multimedia.html">NOAA PMEL Acoustics Program</a></td></tr>
+    <tr><th>Sound</th><td>Blows, bubbles, breaches and slaps</td><td>Made for this app</td></tr>
+    <tr><th>Shape</th><td>3D whale shapes and movement</td><td>Computed in this app from real measurements</td></tr>
+    <tr><th>Library</th><td>3D drawing</td><td><a href="https://threejs.org/">three.js</a> · MIT License</td></tr>
+    <tr><th>Fonts</th><td>Zen Kaku Gothic New, M PLUS 1 Code</td><td><a href="https://fonts.google.com/">Google Fonts</a> · SIL Open Font License</td></tr>
+  </table>
+  </div>
+  <p>The whales' shapes, movements and sounds are based on figures from research papers and field guides (such as the National Museum of Nature and Science, Japan).</p>
+
+  <footer>
+    <p>© Whale Ocean</p>
+    <a class="back" href="./">← Back to the sea</a>
+  </footer>
+</div>
+  <p class="lang-links"><a href="#" data-to="ja">日本語</a> ・ <a href="#" data-to="en">English</a></p>
 </main>
+<script>
+  // アプリで選んだ言語(なければ端末の言語)で見せる
+  (function () {
+    var pick = 'ja';
+    try {
+      var saved = JSON.parse(localStorage.getItem('whale-ocean-settings') || 'null');
+      var l = saved && saved.lang;
+      if (l === 'ja' || l === 'en') pick = l;
+      else pick = /^ja/i.test((navigator.languages && navigator.languages[0]) || navigator.language || 'ja') ? 'ja' : 'en';
+    } catch (e) {}
+    function show(l) {
+      document.querySelectorAll('[data-l]').forEach(function (d) { d.hidden = d.getAttribute('data-l') !== l; });
+      document.documentElement.lang = l;
+      document.title = l === 'en' ? 'About | Whale Ocean' : 'このアプリについて | クジラの見える海';
+    }
+    show(pick);
+    document.querySelectorAll('[data-to]').forEach(function (a) {
+      a.addEventListener('click', function (e) { e.preventDefault(); show(a.getAttribute('data-to')); });
+    });
+  })();
+</script>
 </body>
 </html>

@@ -11,6 +11,8 @@
 //
 // 色は sRGB の [r, g, b](0〜1)。u は体の前(頭 0)から後ろ(尾 1)、θ は背中 0 から右回り
 
+import { tr } from './i18n.js';
+
 const clamp01 = x => Math.min(1, Math.max(0, x));
 const smoothstep = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 const bump = (x, c, w) => Math.exp(-(((x - c) / w) ** 2));
@@ -59,32 +61,33 @@ export const sizeOf = ind => ({ big: 1.1, small: 0.9 }[ind.traits?.size] ?? 1);
 export function traitsText(ind) {
   const t = ind.traits ?? {};
   const out = [];
-  if (t.coat === 'white') out.push('全身が真っ白(とてもめずらしい)');
-  if (t.coat === 'dark') out.push('おなかまで黒い');
-  if (t.coat === 'pale') out.push('おなかの白がわき腹まで広い');
-  if (t.pec === 'darkTop') out.push('胸びれの表が黒い');
-  if (t.dorsal === 'hook') out.push('背びれがかぎ形にとがっている');
-  if (t.dorsal === 'knob') out.push('背びれが小さなこぶ');
-  if (t.dorsal === 'nick') out.push('背びれの先が欠けている');
-  if (t.fluke === 'bite') out.push('尾びれのうしろのふちが大きく欠けている');
-  if (t.scars === 'propeller') out.push('背中に船のスクリューの傷');
-  if (t.barnacles === 'many') out.push('フジツボがたくさん付いている');
-  if (t.size === 'big') out.push('体が大きい');
-  if (t.size === 'small') out.push('体が小さめ');
+  if (t.coat === 'white') out.push(tr({ ja: '全身が真っ白(とてもめずらしい)', en: 'Pure white all over (extremely rare)' }));
+  if (t.coat === 'dark') out.push(tr({ ja: 'おなかまで黒い', en: 'Dark even on the belly' }));
+  if (t.coat === 'pale') out.push(tr({ ja: 'おなかの白がわき腹まで広い', en: 'White belly reaching far up the sides' }));
+  if (t.pec === 'darkTop') out.push(tr({ ja: '胸びれの表が黒い', en: 'Dark upper side of the flippers' }));
+  if (t.dorsal === 'hook') out.push(tr({ ja: '背びれがかぎ形にとがっている', en: 'Sharply hooked dorsal fin' }));
+  if (t.dorsal === 'knob') out.push(tr({ ja: '背びれが小さなこぶ', en: 'Dorsal fin is just a small knob' }));
+  if (t.dorsal === 'nick') out.push(tr({ ja: '背びれの先が欠けている', en: 'Tip of the dorsal fin is missing' }));
+  if (t.fluke === 'bite') out.push(tr({ ja: '尾びれのうしろのふちが大きく欠けている', en: 'Big chunk missing from the fluke edge' }));
+  if (t.scars === 'propeller') out.push(tr({ ja: '背中に船のスクリューの傷', en: 'Propeller scars on the back' }));
+  if (t.barnacles === 'many') out.push(tr({ ja: 'フジツボがたくさん付いている', en: 'Covered in barnacles' }));
+  if (t.size === 'big') out.push(tr({ ja: '体が大きい', en: 'Large body' }));
+  if (t.size === 'small') out.push(tr({ ja: '体が小さめ', en: 'Small body' }));
   return out;
 }
 
 // 名前に使う言葉(いちばん目立つ個性)
 export function traitWord(ind) {
   const t = ind.traits ?? {};
-  if (t.coat === 'white') return 'ユキ';
-  if (t.scars === 'propeller') return 'キズ';
-  if (t.fluke === 'bite') return 'カケオ';
-  return { hook: 'カギ', knob: 'コブ', nick: 'ハカケ' }[t.dorsal]
-    ?? { dark: 'クロハラ', pale: 'シロハラ' }[t.coat]
-    ?? (t.pec === 'darkTop' ? 'クロテ' : null)
-    ?? (t.barnacles === 'many' ? 'フジツボ' : null)
-    ?? ({ big: 'オオ', small: 'チビ' }[t.size] ?? '');
+  const w = (ja, en) => tr({ ja, en });
+  if (t.coat === 'white') return w('ユキ', 'Snow');
+  if (t.scars === 'propeller') return w('キズ', 'Scar');
+  if (t.fluke === 'bite') return w('カケオ', 'Notch');
+  return { hook: w('カギ', 'Hook'), knob: w('コブ', 'Knob'), nick: w('ハカケ', 'Chip') }[t.dorsal]
+    ?? { dark: w('クロハラ', 'Darkbelly'), pale: w('シロハラ', 'Palebelly') }[t.coat]
+    ?? (t.pec === 'darkTop' ? w('クロテ', 'Darkfin') : null)
+    ?? (t.barnacles === 'many' ? w('フジツボ', 'Barnacle') : null)
+    ?? ({ big: w('オオ', 'Big'), small: w('チビ', 'Tiny') }[t.size] ?? '');
 }
 
 // 背びれの高さ(体長1)。variant: normal・hook(かぎ形)・knob(小さなこぶ)・nick(先が欠けている)

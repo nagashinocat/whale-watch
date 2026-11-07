@@ -19,6 +19,7 @@ export function loadSettings(storage) {
     time: Object.hasOwn(TIME_PRESETS, saved.time) ? saved.time : DEFAULTS.time,
     interval: Object.hasOwn(INTERVALS, saved.interval) ? saved.interval : DEFAULTS.interval,
     shutter: Object.hasOwn(SHUTTER_SPOTS, saved.shutter) ? saved.shutter : DEFAULTS.shutter,
+    lang: ['auto', 'ja', 'en'].includes(saved.lang) ? saved.lang : DEFAULTS.lang,
   };
 }
 
@@ -32,6 +33,7 @@ export function saveSettings(storage, settings) {
       time: settings.time,
       interval: settings.interval,
       shutter: settings.shutter,
+      lang: settings.lang,
     }));
   } catch {
     // プライベートブラウズなどで保存できなくても続ける

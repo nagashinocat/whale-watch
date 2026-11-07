@@ -14,8 +14,8 @@ test('何も保存されていなければ初期設定', () => {
 
 test('保存した設定を読み戻せる', () => {
   const s = mem();
-  saveSettings(s, { mode: 'sleep', camera: 'sky', volume: 0.3, time: 'night', interval: 'often', shutter: 'right' });
-  assert.deepEqual(loadSettings(s), { mode: 'sleep', camera: 'sky', volume: 0.3, time: 'night', interval: 'often', shutter: 'right' });
+  saveSettings(s, { mode: 'sleep', camera: 'sky', volume: 0.3, time: 'night', interval: 'often', shutter: 'right', lang: 'en' });
+  assert.deepEqual(loadSettings(s), { mode: 'sleep', camera: 'sky', volume: 0.3, time: 'night', interval: 'often', shutter: 'right', lang: 'en' });
 });
 
 test('時間の設定は最初は自動、不正な値なら自動に戻す', () => {
@@ -30,7 +30,7 @@ test('壊れたJSONなら初期設定', () => {
 
 test('不正な項目だけ初期値に戻す', () => {
   const s = mem({ 'whale-ocean-settings': JSON.stringify({ mode: 'party', camera: 'near', volume: 7 }) });
-  assert.deepEqual(loadSettings(s), { mode: 'normal', camera: 'near', volume: 0.5, time: 'auto', interval: 'normal', shutter: 'center' });
+  assert.deepEqual(loadSettings(s), { mode: 'normal', camera: 'near', volume: 0.5, time: 'auto', interval: 'normal', shutter: 'center', lang: 'auto' });
 });
 
 test('来る間隔は最初は「ふつう」、知らない値なら「ふつう」に戻す', () => {

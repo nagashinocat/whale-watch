@@ -8,6 +8,7 @@
 //
 // 尾びれの上の場所: s は左のはし -1 〜 右のはし 1、c は前のふち 0 〜 うしろのふち 1
 
+import { tr, lang } from './i18n.js';
 import { rollTraits, traitWord, traitFlukeWhite, TRAITS, traitsText } from './traits.js';
 
 const clamp01 = x => Math.min(1, Math.max(0, x));
@@ -70,7 +71,8 @@ export function flukeWhiteness(ind, s, c) {
   return ind.traits ? traitFlukeWhite(ind, s, c, w) : w;
 }
 
-const COLOR_WORDS = { 1: 'シロ', 2: 'ハナ', 3: 'マダラ', 4: 'クロ', 5: 'スミ' };
+// 尾びれの白さを表す名前の後ろの言葉(英語は、名前らしく聞こえる言葉にしている)
+const COLOR_WORDS = () => tr({ ja: { 1: 'シロ', 2: 'ハナ', 3: 'マダラ', 4: 'クロ', 5: 'スミ' }, en: { 1: 'Frost', 2: 'Blossom', 3: 'Dapple', 4: 'Shadow', 5: 'Ink' } });
 
 // 番号 id のクジラ。いつも同じ模様と名前になる
 function makeIndividual(id) {
@@ -101,7 +103,7 @@ function makeIndividual(id) {
   ind.threshold = values[Math.min(values.length - 1, Math.floor((1 - FLUKE_ID.whiteness[category]) * values.length))];
   // ひと目でわかる個性(尾びれの模様を決めたあとに決めるので、模様はこれまでと変わらない)
   ind.traits = rollTraits(rng);
-  ind.mark = scars[0]?.type === 'rake' ? 'ツメ' : scars[0]?.type === 'line' ? 'イナズマ' : spots.length >= 3 ? 'ホシ' : '';
+  ind.mark = scars[0]?.type === 'rake' ? tr({ ja: 'ツメ', en: 'Claw' }) : scars[0]?.type === 'line' ? tr({ ja: 'イナズマ', en: 'Bolt' }) : spots.length >= 3 ? tr({ ja: 'ホシ', en: 'Star' }) : '';
   return ind;
 }
 
@@ -109,13 +111,16 @@ function makeIndividual(id) {
 function autoName(ind) {
   const word = traitWord(ind);
   if (ind.traits.coat === 'white') return word;
-  return (word || ind.mark) + COLOR_WORDS[ind.category];
+  const color = COLOR_WORDS()[ind.category];
+  const head = word || ind.mark;
+  return tr({ ja: head + color, en: head ? `${head} ${color}` : color });
 }
 
 let cache = null;
 // この海に来るクジラ全員(名前は重ならないように番号を付ける)
 export function population() {
-  if (cache) return cache;
+  // 名前は言語ごとにちがうので、言語が変わったら作りなおす
+  if (cache && cache.lang === lang()) return cache.list;
   const list = Array.from({ length: FLUKE_ID.size }, (_, k) => makeIndividual(k + 1));
   // 真っ白な子は1頭だけ。ほかの個性も、この海に1頭以上はいるようにする(個性の少ない子に足す)
   for (const ind of list) if (ind.traits.coat === 'white') ind.traits.coat = 'normal';
@@ -134,9 +139,9 @@ export function population() {
   for (const ind of list) {
     ind.baseName = autoName(ind);
     used[ind.baseName] = (used[ind.baseName] ?? 0) + 1;
-    ind.name = used[ind.baseName] === 1 ? ind.baseName : `${ind.baseName}${used[ind.baseName]}`;
+    ind.name = used[ind.baseName] === 1 ? ind.baseName : tr({ ja: `${ind.baseName}${used[ind.baseName]}`, en: `${ind.baseName} ${used[ind.baseName]}` });
   }
-  cache = list;
+  cache = { lang: lang(), list };
   return list;
 }
 

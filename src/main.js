@@ -11,6 +11,7 @@ import { createMixer, loadBuffers, camerasWithoutWaves } from './audio/mixer.js'
 import { rangeLabel, createMenu } from './ui/menu.js';
 import { createScheduler } from './logic/scheduler.js';
 import { loadSettings, saveSettings } from './logic/settings.js';
+import { tr, listJoin } from './logic/i18n.js';
 import { hoursFor, blendHours } from './logic/time.js';
 import { realSky } from './logic/places.js';
 import { AUDIO, INTERVALS } from './logic/config.js';
@@ -24,7 +25,10 @@ import { createPhotoStore } from './ui/photoStore.js';
 import { portraitOf } from './scene/portrait.js';
 
 // メニューに表示する素材のクレジット(assets/CREDITS.md と合わせる)
-const CREDITS = ['波と水しぶきの音: Rmutt, plantmonkey, Fission9 (Freesound / CC0)', 'クジラの声: NOAA Fisheries, NOAA PMEL Acoustics Program (pmel.noaa.gov/acoustics/multimedia.html)'];
+const CREDITS = [
+  tr({ ja: '波と水しぶきの音', en: 'Wave and splash sounds' }) + ': Rmutt, plantmonkey, Fission9 (Freesound / CC0)',
+  tr({ ja: 'クジラの声', en: 'Whale sounds' }) + ': NOAA Fisheries, NOAA PMEL Acoustics Program (pmel.noaa.gov/acoustics/multimedia.html)',
+];
 
 const params = new URLSearchParams(location.search);
 // 確認用: ?debug=1(&fast=1) か、公開ページではアドレスの最後に #debug(#debug-fast)
@@ -251,8 +255,8 @@ const menu = createMenu(document.getElementById('ui'), {
     const buffers = await loadBuffers(ctx, undefined, (name, buffer) => mixer.addBuffer(name, buffer));
     // 間近は「水面の波の音」、崖の上と上空は「遠い波の音」を使う(カメラの名前そのままのファイルはない)
     const silent = camerasWithoutWaves(buffers);
-    if (silent.length === 3) menu.showNotice('波の音を読み込めませんでした');
-    else if (silent.length) menu.showNotice('一部のカメラの波の音を読み込めませんでした');
+    if (silent.length === 3) menu.showNotice(tr({ ja: '波の音を読み込めませんでした', en: 'Could not load the wave sounds' }));
+    else if (silent.length) menu.showNotice(tr({ ja: '一部のカメラの波の音を読み込めませんでした', en: 'Could not load the wave sounds for some views' }));
   },
   onMode(mode) {
     settings.mode = mode;
@@ -278,7 +282,7 @@ const menu = createMenu(document.getElementById('ui'), {
     scheduler.setFrequency(name, Date.now());
     save();
     const r = INTERVALS[name];
-    menu.showToast(`「${r.label}」: クジラが帰ってから、${rangeLabel(r)}くらいで次が来ます`);
+    menu.showToast(tr({ ja: `「${tr(r.label)}」: クジラが帰ってから、${rangeLabel(r)}くらいで次が来ます`, en: `"${tr(r.label)}": the next whale comes about ${rangeLabel(r)} after the last one leaves` }));
   },
   onTimerSet(at) {
     timer = { at };
@@ -286,7 +290,7 @@ const menu = createMenu(document.getElementById('ui'), {
     scheduler.setQuiet(true, Date.now());   // タイマーのあいだは、ほかのクジラは自然には出てこない
     menu.setTimer(at);
     keepScreenOn(true);
-    menu.showToast(`${clockText(at)}に、クジラが鳴きながら知らせに来ます`);
+    menu.showToast(tr({ ja: `${clockText(at)}に、クジラが鳴きながら知らせに来ます`, en: `At ${clockText(at)}, a whale will come calling to let you know` }));
   },
   onTimerCancel() {
     timer = null;
@@ -305,7 +309,7 @@ const menu = createMenu(document.getElementById('ui'), {
   },
   onSummon() {
     if (scheduler.summon(Date.now())) {
-      menu.setSummonStatus('呼んでいます…(呼んだクジラは図鑑に数えません)');
+      menu.setSummonStatus(tr({ ja: '呼んでいます…(呼んだクジラは図鑑に数えません)', en: 'Calling… (whales you call are not counted in your Book)' }));
       menu.setSummonEnabled(false);
     }
   },
@@ -313,6 +317,13 @@ const menu = createMenu(document.getElementById('ui'), {
   onZukan() { zukan.open(); },
   onPhoto() { takePhoto(); },
   // パネルを閉じても残る写真のボタンの場所
+  // 言語を選びなおしたら、保存してページを読みなおす(画面の文を全部その言語で作りなおすため)
+  onLang(choice) {
+    if (settings.lang === choice) return;
+    settings.lang = choice;
+    saveSettings(safeStorage(), settings);
+    location.reload();
+  },
   onShutterSpot(spot) {
     settings.shutter = spot;
     save();
@@ -326,6 +337,7 @@ const menu = createMenu(document.getElementById('ui'), {
 
 menu.setValues(settings);
 menu.showCredits(CREDITS);
+document.title = tr({ ja: 'クジラの見える海', en: 'Whale Ocean' });
 // 図鑑の中身と、パネルの図鑑のしるし(何頭のっているか)を新しくする
 // これまでに撮った写真に写っているクジラも、全身の姿がのるようにする(この決まりにする前に撮った写真)
 photos.list().then(list => {
@@ -343,7 +355,7 @@ function showBook() {
 }
 
 // 図鑑(メニューのあとに作る。メニューが画面の部品を作りなおすので)
-const nameOf = id => (book[id]?.count > 0 ? displayName(id, book) : 'まだ図鑑にいないクジラ');
+const nameOf = id => (book[id]?.count > 0 ? displayName(id, book) : tr({ ja: 'まだ図鑑にいないクジラ', en: 'a whale not yet in your Book' }));
 const zukan = createZukan(document.getElementById('ui'), {
   photos,
   portrait: portraitOf,
@@ -372,10 +384,13 @@ async function takePhoto() {
     saveBook(safeStorage(), book);
     showBook();
     const unlocked = r.newly.map(nameOf);
-    menu.showToast(`写真を撮りました${names.length ? `(${names.join('、')}が写っています)` : ''}。${unlocked.length ? `図鑑に${unlocked.join('、')}の全身の姿がのりました。` : ''}図鑑の「写真」で見られます${saved ? '' : '(この端末に保存できないので、ページを閉じると消えます)'}`);
+    menu.showToast(tr({
+      ja: `写真を撮りました${names.length ? `(${listJoin(names)}が写っています)` : ''}。${unlocked.length ? `図鑑に${listJoin(unlocked)}の全身の姿がのりました。` : ''}図鑑の「写真」で見られます${saved ? '' : '(この端末に保存できないので、ページを閉じると消えます)'}`,
+      en: `Photo taken${names.length ? ` (with ${listJoin(names)})` : ''}. ${unlocked.length ? `Full-body portrait of ${listJoin(unlocked)} added to your Book. ` : ''}See it under Photos in your Book${saved ? '' : ' (this device can\'t save it, so it will be gone when you close the page)'}`,
+    }));
     zukan.refresh();
   } catch {
-    menu.showToast('写真を撮れませんでした');
+    menu.showToast(tr({ ja: '写真を撮れませんでした', en: 'Could not take the photo' }));
   }
 }
 ocean.setCamera(settings.camera);
@@ -436,7 +451,7 @@ function ringTimer(at) {
   menu.setTimer(null);
   keepScreenOn(false);
   stopAlarm();
-  menu.showAlarm(`時間です(${clockText(at)})`);
+  menu.showAlarm(tr({ ja: `時間です(${clockText(at)})`, en: `Time's up (${clockText(at)})` }));
   // おやすみモードでも鳴らす。止めるボタンを押すか、しばらくすると止まる
   alarmStop = mixer?.playAlarm({ ringMs: TIMER.ringMs, everyMs: TIMER.callEveryMs }) ?? null;
   alarmTimer = setTimeout(stopAlarm, TIMER.ringMs + 1000);
@@ -450,7 +465,7 @@ setInterval(() => {
   const state = timerState(timer.at, now);
   if (state === 'ring') ringTimer(timer.at);
   else if (state === 'missed') {
-    menu.showToast(`タイマーの時間(${clockText(timer.at)})を過ぎていました`);
+    menu.showToast(tr({ ja: `タイマーの時間(${clockText(timer.at)})を過ぎていました`, en: `The timer (${clockText(timer.at)}) went off while the page was asleep` }));
     timer = null;
     scheduler.setQuiet(false, now);
     saveTimer(safeStorage(), null);

@@ -14,8 +14,8 @@ test('何も保存されていなければ初期設定', () => {
 
 test('保存した設定を読み戻せる', () => {
   const s = mem();
-  saveSettings(s, { mode: 'sleep', camera: 'sky', volume: 0.3, time: 'night' });
-  assert.deepEqual(loadSettings(s), { mode: 'sleep', camera: 'sky', volume: 0.3, time: 'night' });
+  saveSettings(s, { mode: 'sleep', camera: 'sky', volume: 0.3, time: 'night', interval: 'often' });
+  assert.deepEqual(loadSettings(s), { mode: 'sleep', camera: 'sky', volume: 0.3, time: 'night', interval: 'often' });
 });
 
 test('時間の設定は最初は自動、不正な値なら自動に戻す', () => {
@@ -30,7 +30,12 @@ test('壊れたJSONなら初期設定', () => {
 
 test('不正な項目だけ初期値に戻す', () => {
   const s = mem({ 'whale-ocean-settings': JSON.stringify({ mode: 'party', camera: 'near', volume: 7 }) });
-  assert.deepEqual(loadSettings(s), { mode: 'normal', camera: 'near', volume: 0.5, time: 'auto' });
+  assert.deepEqual(loadSettings(s), { mode: 'normal', camera: 'near', volume: 0.5, time: 'auto', interval: 'normal' });
+});
+
+test('来る間隔は最初は「ふつう」、知らない値なら「ふつう」に戻す', () => {
+  assert.equal(loadSettings(mem()).interval, 'normal');
+  assert.equal(loadSettings(mem({ 'whale-ocean-settings': JSON.stringify({ interval: 'always' }) })).interval, 'normal');
 });
 
 test('storageが例外を投げても止まらない', () => {
@@ -44,4 +49,11 @@ test('なくしたカメラ(船の上・浜辺・水面)が保存されていた
     const s = mem({ 'whale-ocean-settings': JSON.stringify({ camera }) });
     assert.equal(loadSettings(s).camera, 'cliff');
   }
+});
+
+test('来る間隔のことば', async () => {
+  const { rangeLabel } = await import('../src/ui/menu.js');
+  const { INTERVALS } = await import('../src/logic/config.js');
+  assert.equal(rangeLabel(INTERVALS.often), '5〜15分');
+  assert.equal(rangeLabel(INTERVALS.rare), '1〜3時間');
 });

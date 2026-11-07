@@ -1,4 +1,4 @@
-import { MENU_HIDE_MS, TIME_PRESETS } from '../logic/config.js';
+import { MENU_HIDE_MS, TIME_PRESETS, INTERVALS } from '../logic/config.js';
 import { TIMER, remainingText, clockText, atClock } from '../logic/timer.js';
 
 // 操作パネル(カメラアプリのような形)。
@@ -19,6 +19,9 @@ export function nearestTime(fraction) {
   for (const k of ['morning', 'day', 'evening', 'night']) if (Math.abs(TIME_PRESETS[k] - h) < Math.abs(TIME_PRESETS[best] - h)) best = k;
   return best;
 }
+
+// 来る間隔のことば(「5〜15分」「1〜3時間」)
+export const rangeLabel = ({ min, max }) => (min % 60 === 0 && max % 60 === 0 ? `${min / 60}〜${max / 60}時間` : `${min}〜${max}分`);
 
 // 景色の小さな絵(崖の上・上空・間近)
 const SCENES = {
@@ -50,7 +53,7 @@ export function createMenu(root, handlers) {
         <span class="pill" data-now></span>
         <div class="hud-round">
           <button class="round" data-full aria-label="全画面">${icon('full', 20)}</button>
-          <button class="round" data-timer aria-label="タイマー" aria-expanded="false">${icon('clock', 21)}</button>
+          <button class="round" data-timer aria-label="タイマーと、クジラが来る間隔" aria-expanded="false">${icon('clock', 21)}</button>
           <button class="round" data-sound aria-label="音量" aria-expanded="false">${icon('sound', 20)}</button>
           <button class="round" data-sleep aria-label="おやすみモード" aria-pressed="false">${icon('moon', 22)}</button>
         </div>
@@ -66,6 +69,12 @@ export function createMenu(root, handlers) {
         </form>
         <button class="timer-cancel" data-timercancel hidden>タイマーをやめる</button>
         <small>画面をつけたまま、このページを開いておいてください(画面が消えると鳴りません)</small>
+        <div class="interval" role="group" aria-label="クジラが来る間隔">
+          <p class="interval-title">クジラが来る間隔</p>
+          <div class="interval-chips">
+            ${Object.entries(INTERVALS).map(([k, v]) => `<button data-interval="${k}" aria-pressed="false"><b>${v.label}</b><span>${rangeLabel(v)}</span></button>`).join('')}
+          </div>
+        </div>
       </div>
       <label class="vol-pop" data-volpop hidden>音量<input type="range" min="0" max="1" step="0.01" data-volume></label>
       <div class="hud-bottom">
@@ -205,6 +214,10 @@ export function createMenu(root, handlers) {
     closeTimerPop();
   });
   timerCancel.addEventListener('click', () => { handlers.onTimerCancel?.(); closeTimerPop(); });
+  root.querySelectorAll('[data-interval]').forEach(b => b.addEventListener('click', () => {
+    handlers.onInterval?.(b.dataset.interval);
+    scheduleHide();
+  }));
   $('[data-alarmstop]').addEventListener('click', () => handlers.onAlarmStop?.());
   root.querySelectorAll('[data-camera]').forEach(b =>
     b.addEventListener('click', () => handlers.onCamera(b.dataset.camera)));
@@ -240,8 +253,12 @@ export function createMenu(root, handlers) {
   }
 
   return {
-    setValues({ mode, camera, volume: v, time }) {
+    setValues({ mode, camera, volume: v, time, interval = 'normal' }) {
       current = { mode, camera, time };
+      root.querySelectorAll('[data-interval]').forEach(b => {
+        b.classList.toggle('on', b.dataset.interval === interval);
+        b.setAttribute('aria-pressed', String(b.dataset.interval === interval));
+      });
       root.querySelectorAll('[data-time]').forEach(b => b.classList.toggle('on', b.dataset.time === time));
       root.querySelectorAll('[data-camera]').forEach(b => {
         b.classList.toggle('on', b.dataset.camera === camera);
@@ -268,7 +285,7 @@ export function createMenu(root, handlers) {
       timerCancel.hidden = !on;
       const left = on ? `${clockText(at)}に鳴ります(${remainingText(at - Date.now())})` : '';
       timerNow.textContent = on ? left : '決めた時間になると、クジラが鳴きながら知らせに来ます';
-      timerBtn.setAttribute('aria-label', on ? `タイマー: ${left}` : 'タイマー');
+      timerBtn.setAttribute('aria-label', on ? `タイマー: ${left}` : 'タイマーと、クジラが来る間隔');
       $('[data-timermarktext]').textContent = on ? remainingText(at - Date.now()) : '';
       showSleepMark();
     },

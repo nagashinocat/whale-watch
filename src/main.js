@@ -8,12 +8,12 @@ import { cameraShake } from './logic/behavior.js';
 import { PATTERNS, PATTERN_LABELS, resolvePattern, voiceSound } from './logic/patterns.js';
 import { spawnPosition } from './logic/spawn.js';
 import { createMixer, loadBuffers, camerasWithoutWaves } from './audio/mixer.js';
-import { createMenu } from './ui/menu.js';
+import { rangeLabel, createMenu } from './ui/menu.js';
 import { createScheduler } from './logic/scheduler.js';
 import { loadSettings, saveSettings } from './logic/settings.js';
 import { hoursFor, blendHours } from './logic/time.js';
 import { realSky } from './logic/places.js';
-import { AUDIO } from './logic/config.js';
+import { AUDIO, INTERVALS } from './logic/config.js';
 import { loadBook, saveBook, nextVisitor, recordSighting, bookEntries, setNickname, displayName, population, FLUKE_ID } from './logic/flukeId.js';
 import { traitsText } from './logic/traits.js';
 import { sightingMessage, countsForZukan } from './logic/zukan.js';
@@ -41,7 +41,7 @@ let pendingSightings = [], sightingTimer = null;   // まとめて出すお知�
 // 撮った写真(この端末のブラウザに保存する)
 const photos = createPhotoStore();
 const ocean = createOcean(document.getElementById('sea'));
-const scheduler = createScheduler({ now: Date.now(), intervalScale: FAST ? 1 / 30 : 1 });
+const scheduler = createScheduler({ now: Date.now(), intervalScale: FAST ? 1 / 30 : 1, frequency: settings.interval });
 
 let mixer = null;
 const effects = createEffects(ocean.scene);
@@ -270,6 +270,15 @@ const menu = createMenu(document.getElementById('ui'), {
     settings.time = time;
     updateTime(true);
     save();
+  },
+  // クジラが来る間隔を選びなおす(次に来るまでの時間も、新しい間隔で決めなおす)
+  onInterval(name) {
+    if (!INTERVALS[name]) return;
+    settings.interval = name;
+    scheduler.setFrequency(name, Date.now());
+    save();
+    const r = INTERVALS[name];
+    menu.showToast(`「${r.label}」: クジラが帰ってから、${rangeLabel(r)}くらいで次が来ます`);
   },
   onTimerSet(at) {
     timer = { at };

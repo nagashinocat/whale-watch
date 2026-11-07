@@ -20,7 +20,15 @@ export const TIME_PRESETS = Object.freeze({
 });
 
 
-export const DEFAULTS = Object.freeze({ mode: 'normal', camera: 'cliff', volume: 0.5, time: 'auto' });
+export const DEFAULTS = Object.freeze({ mode: 'normal', camera: 'cliff', volume: 0.5, time: 'auto', interval: 'normal' });
+
+// クジラが自然に来る間隔(分)。自分で選べる。前のクジラが帰ってから、min〜max 分のどこかで次が来る
+export const INTERVALS = Object.freeze({
+  often: Object.freeze({ label: 'よく来る', min: 5, max: 15 }),
+  more: Object.freeze({ label: '多め', min: 15, max: 45 }),
+  normal: Object.freeze({ label: 'ふつう', min: 30, max: 90 }),
+  rare: Object.freeze({ label: 'ときどき', min: 60, max: 180 }),
+});
 
 export const SCHEDULE = Object.freeze({
   minIntervalMs: 30 * 60 * 1000,

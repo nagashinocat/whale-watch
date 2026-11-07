@@ -135,6 +135,15 @@
       border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 10px; min-height: 40px; padding: 0 8px; color-scheme: dark; }
     .timer-cancel { align-self: flex-start; color: #ffd0c8; border-color: rgba(255, 180, 170, 0.45); }
     .timer-pop small { color: rgba(238, 243, 247, 0.65); line-height: 1.5; }
+    .interval { border-top: 1px solid rgba(255, 255, 255, 0.14); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+    .interval-title { margin: 0; font-weight: 700; }
+    .interval-chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .interval-chips button { font: inherit; color: var(--text); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px; min-height: 52px; padding: 4px 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+    .interval-chips b { font-size: 13px; }
+    .interval-chips span { font-size: 10.5px; color: rgba(238, 243, 247, 0.7); }
+    .interval-chips button.on { background: #9fd3e6; color: #0b2233; border-color: #9fd3e6; }
+    .interval-chips button.on span { color: #16405a; }
     .timer-mark { position: fixed; top: max(18px, env(safe-area-inset-top)); left: 18px; z-index: 5; color: #cfe6f0; opacity: 0.4;
       pointer-events: none; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
     .alarm { position: fixed; left: 50%; top: 24%; transform: translate(-50%, -50%); z-index: 20; width: min(320px, calc(100vw - 32px));

@@ -96,3 +96,22 @@ test('タイマーのあいだは、自然にはクジラが出てこない。�
   assert.ok(s.nextAt >= end + SCHEDULE.minIntervalMs && s.nextAt <= end + SCHEDULE.maxIntervalMs);
   assert.equal(s.tick(s.nextAt).kind, 'natural');
 });
+
+test('来る間隔は自分で選べる。選びなおすと、次に来るまでの時間もその間隔で決めなおす', async () => {
+  const { INTERVALS } = await import('../src/logic/config.js');
+  // ふつうは、これまでと同じ30〜90分
+  assert.deepEqual([INTERVALS.normal.min, INTERVALS.normal.max], [SCHEDULE.minIntervalMs / 60000, SCHEDULE.maxIntervalMs / 60000]);
+  for (const [name, r] of Object.entries(INTERVALS)) {
+    const s = createScheduler({ now: 0, rng: seeded(7), frequency: name });
+    assert.ok(s.nextAt >= r.min * 60000 && s.nextAt <= r.max * 60000, name);
+    // 帰ったあとも同じ間隔
+    s.tick(s.nextAt);
+    s.endEvent(1e9);
+    assert.ok(s.nextAt >= 1e9 + r.min * 60000 && s.nextAt <= 1e9 + r.max * 60000, name);
+  }
+  const s = createScheduler({ now: 0, rng: seeded(3), frequency: 'rare' });
+  s.setFrequency('often', 1000);
+  assert.ok(s.nextAt >= 1000 + 5 * 60000 && s.nextAt <= 1000 + 15 * 60000);
+  // よく来るほど、間隔は短い
+  assert.ok(INTERVALS.often.max <= INTERVALS.more.min * 1 + INTERVALS.more.max && INTERVALS.often.max < INTERVALS.normal.max && INTERVALS.normal.max < INTERVALS.rare.max);
+});

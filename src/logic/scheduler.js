@@ -1,4 +1,4 @@
-import { SCHEDULE, SUMMON } from './config.js';
+import { SCHEDULE, SUMMON, INTERVALS } from './config.js';
 
 const between = (rng, min, max) => min + rng() * (max - min);
 
@@ -16,11 +16,18 @@ export function pickPattern(prev, rng, weights = SCHEDULE.weights) {
   return entries[entries.length - 1][0];
 }
 
+// 来る間隔(ミリ秒の [最短, 最長])
+function rangeOf(name) {
+  const r = INTERVALS[name];
+  return r ? [r.min * 60000, r.max * 60000] : [SCHEDULE.minIntervalMs, SCHEDULE.maxIntervalMs];
+}
+
 // クジラの出番係。いつ・どの出方で出すかだけを決め、描画や音には触らない。
-export function createScheduler({ now, rng = Math.random, intervalScale = 1 }) {
+// frequency: 来る間隔の選び方(INTERVALS の名前)。決めていなければ SCHEDULE の間隔
+export function createScheduler({ now, rng = Math.random, intervalScale = 1, frequency = null }) {
   const weights = SCHEDULE.weights;
-  const nextInterval = () =>
-    between(rng, SCHEDULE.minIntervalMs, SCHEDULE.maxIntervalMs) * intervalScale;
+  let range = rangeOf(frequency);
+  const nextInterval = () => between(rng, range[0], range[1]) * intervalScale;
 
   let busy = null;          // 'natural' | 'summon' | null
   let summonAt = null;      // 呼んだクジラの到着予定
@@ -64,6 +71,12 @@ export function createScheduler({ now, rng = Math.random, intervalScale = 1 }) {
     setQuiet(on, t) {
       if (quiet && !on) s.nextAt = Math.max(s.nextAt, t + nextInterval());
       quiet = on;
+    },
+
+    // 来る間隔を変える。次に来るまでの時間も、新しい間隔で決めなおす
+    setFrequency(name, t) {
+      range = rangeOf(name);
+      if (!busy) s.nextAt = t + nextInterval();
     },
 
     isSummoning() {

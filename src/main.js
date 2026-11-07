@@ -296,7 +296,7 @@ if (DEBUG) {
 }
 
 const menu = createMenu(document.getElementById('ui'), {
-  // スタートを押したときに流す広告動画(1回だけ)。流さないときは null
+  // スタートを押したときに流す広告動画(アプリを開いたときと、はじめのページにもどったあとに1回ずつ)。流さないときは null
   adToPlay() {
     if (!shouldPlayAd({ enabled: adsOn, alreadyPlayed: adPlayed })) return null;
     adPlayed = true;
@@ -316,7 +316,7 @@ const menu = createMenu(document.getElementById('ui'), {
     // はじめのページにもどったあと、もう一度スタートを押したとき: 音をもう一度大きくする
     if (audioCtx) {
       audioCtx.resume().catch(() => {});
-      mixer?.setFade(1, 1500);
+      if (!adPlaying) mixer?.setFade(1, 1500);   // 広告を流すときは、終わってから大きくする
       return;
     }
     const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -663,6 +663,7 @@ async function notifyComing() {
 }
 function goBackToStart() {
   heraldAt = null;
+  adPlayed = false;   // つぎにスタートを押したら、また広告動画を流す
   onLanding = true;
   updateQuiet();
   mixer?.setFade(0, 2000);

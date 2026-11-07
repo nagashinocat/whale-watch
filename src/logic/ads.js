@@ -13,7 +13,7 @@ export const ADS = Object.freeze({
   ]),
 });
 
-// 広告動画を流すか: 広告が使えるときに、アプリを開いてから1回だけ
+// 広告動画を流すか: 広告が使えるときに、スタートを押したとき1回だけ(アプリを開いたときと、しばらく使わずにはじめのページにもどったあと)
 export function shouldPlayAd({ enabled = ADS.enabled, alreadyPlayed = false } = {}) {
   return enabled && !alreadyPlayed && !!ADS.video.src;
 }

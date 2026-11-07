@@ -159,11 +159,37 @@
     @keyframes hudIn { from { opacity: 0; } }
     .hud > * { pointer-events: auto; }
     .hud-top { position: fixed; top: max(16px, env(safe-area-inset-top)); left: 14px; right: 14px; display: flex;
-      justify-content: space-between; align-items: center; gap: 8px; pointer-events: none; }
+      justify-content: space-between; align-items: flex-start; gap: 8px; pointer-events: none; }
     .hud-top > * { pointer-events: auto; }
     .pill { background: rgba(10, 18, 28, 0.62); border-radius: 999px; padding: 9px 14px; font-size: 13px;
       backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
     .hud-round { display: flex; gap: 8px; flex: 0 0 auto; }
+    /* 使い方: パネルの左上(場所の下)のボタンと、はじめのページのガイドのボタン */
+    .hud-left { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; flex: 1 1 auto; pointer-events: none !important; }
+    .hud-left > * { pointer-events: auto; }
+    .hud-left .pill { max-width: 100%; box-sizing: border-box; }
+    .help-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px 0 10px; border-radius: 999px; font-size: 13px; font-weight: 700;
+      color: #fdf6e3; background: rgba(10, 18, 28, 0.62); border: 1px solid rgba(255, 210, 138, 0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+    .help-chip svg, .landing-guide-btn svg, .tour-guide svg { stroke: #ffd28a; }
+    .landing-guide-btn { margin: 14px 0 0; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; border-radius: 999px;
+      border: 1px solid rgba(255, 210, 138, 0.7); color: #fdf6e3; font-size: 14px; font-weight: 700; text-decoration: none; background: rgba(255, 210, 138, 0.1); }
+    .landing-guide-btn:active { background: rgba(255, 210, 138, 0.22); }
+    /* チュートリアル: 画面を暗くして、ボタンを1つずつ照らす */
+    .tour { position: fixed; inset: 0; z-index: 46; }
+    .tour[hidden], .tour-spot[hidden], .tour-guide[hidden], .tour-skip[hidden] { display: none; }
+    .tour.dim { background: rgba(2, 8, 16, 0.66); }
+    .tour-spot { position: fixed; box-shadow: 0 0 0 200vmax rgba(2, 8, 16, 0.66), 0 0 0 3px #ffd28a; pointer-events: none; transition: all .25s ease; }
+    .tour-card { position: fixed; box-sizing: border-box; padding: 16px 16px 12px; border-radius: 18px; background: #fdf6e3; color: #0b2233;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4); display: flex; flex-direction: column; gap: 10px; transition: top .25s ease, left .25s ease; }
+    .tour-text { margin: 0; font-size: 15px; line-height: 1.7; }
+    .tour-guide { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; color: #1f6fa8; }
+    .tour-guide svg { stroke: #1f6fa8; }
+    .tour-row { display: flex; align-items: center; gap: 8px; }
+    .tour-count { flex: 1; font-size: 12px; color: #4a6478; font-variant-numeric: tabular-nums; }
+    .tour-skip { min-height: 40px; border: 0; background: transparent; color: #4a6478; font-size: 14px; }
+    .tour-next { min-height: 44px; padding: 0 20px; border: 0; border-radius: 999px; background: #1f6fa8; color: #fff; font-size: 15px; font-weight: 700; }
+    .tour-next:focus-visible, .tour-skip:focus-visible { outline: 3px solid #ffd28a; outline-offset: 2px; }
+    @media (prefers-reduced-motion: reduce) { .tour-spot, .tour-card { transition: none; } }
     .round { width: 48px; height: 48px; min-height: 48px; padding: 0; border-radius: 50%; background: rgba(10, 18, 28, 0.62);
       border: 1px solid rgba(255, 255, 255, 0.2); color: var(--text); display: inline-flex; align-items: center; justify-content: center;
       backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }

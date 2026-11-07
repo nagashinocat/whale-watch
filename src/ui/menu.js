@@ -44,6 +44,7 @@ const SCENES = {
 
 // 線の絵のアイコン
 const ICON = {
+  help: '<circle cx="12" cy="12" r="9"></circle><path d="M9.6 9.4a2.5 2.5 0 1 1 3.6 2.3c-.7.4-1.2.9-1.2 1.8"></path><path d="M12 16.8h.01"></path>',
   bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"></path><path d="M10 20a2 2 0 0 0 4 0"></path>',
   mic: '<rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path>',
   panel: '<rect x="4" y="4" width="16" height="16" rx="4"></rect><path d="M8 15h8M8 11h5"></path>',
@@ -81,7 +82,8 @@ export function createMenu(root, handlers) {
             <li>${icon('book', 22)}<div><b>${T('写真を撮って図鑑に', 'Snap and collect')}</b><span>${T('尾びれの模様で1頭ずつ見分けて、回遊の旅も追えます', 'Tell whales apart by their flukes and follow their migrations')}</span></div></li>
             <li>${icon('moon', 22)}<div><b>${T('寝かしつけにも', 'For bedtime')}</b><span>${T('おやすみタイマーで、波の音が静かに止まります', 'The sleep timer fades the waves out gently')}</span></div></li>
           </ol>
-          <p class="landing-links"><a href="guide.html">${T('くわしい使い方ガイド', 'Full guide')}</a><span aria-hidden="true">・</span><a href="about.html">${T('このアプリについて', 'About this app')}</a></p>
+          <a class="landing-guide-btn" href="guide.html">${icon('help', 18)}${T('くわしい使い方ガイドを見る', 'Open the full guide')}</a>
+          <p class="landing-links"><a href="about.html">${T('このアプリについて', 'About this app')}</a></p>
         </section>
         ${adSlot(ADS.banners[1])}
       </div>
@@ -93,7 +95,10 @@ export function createMenu(root, handlers) {
     </div>
     <div class="hud" data-menu hidden>
       <div class="hud-top">
-        <span class="pill" data-now></span>
+        <div class="hud-left">
+          <span class="pill" data-now></span>
+          <button class="help-chip" data-help>${icon('help', 18)}${T('使い方', 'How to use')}</button>
+        </div>
         <div class="hud-round">
           <button class="round" data-full aria-label="${T('全画面', 'Full screen')}">${icon('full', 20)}</button>
           <button class="round" data-timer aria-label="${T('タイマーと、クジラが来る間隔', 'Timer and how often whales come')}" aria-expanded="false">${icon('clock', 21)}</button>
@@ -200,6 +205,18 @@ export function createMenu(root, handlers) {
         </div>
         <a class="about-link guide-link" href="guide.html">${T('使い方ガイド', 'How to use')}</a>
         <a class="about-link" href="about.html">${T('このアプリについて(素材・データの扱い)', 'About this app (credits, privacy)')}</a>
+      </div>
+    </div>
+    <div class="tour" data-tour hidden>
+      <div class="tour-spot" data-tourspot aria-hidden="true"></div>
+      <div class="tour-card" role="dialog" aria-modal="true" aria-labelledby="tour-text">
+        <p class="tour-text" id="tour-text" data-tourtext></p>
+        <a class="tour-guide" data-tourguide href="guide.html" hidden>${icon('help', 16)}${T('くわしい使い方ガイド', 'Full guide')}</a>
+        <div class="tour-row">
+          <span class="tour-count" data-tourcount></span>
+          <button class="tour-skip" data-tourskip>${T('とばす', 'Skip')}</button>
+          <button class="tour-next" data-tournext></button>
+        </div>
       </div>
     </div>
     <button class="float-shutter" data-floatshutter hidden aria-label="${T('写真を撮る', 'Take a photo')}">${icon('camera', 26)}</button>
@@ -325,6 +342,7 @@ export function createMenu(root, handlers) {
   // 海をタップするとパネルが出て、もう一度タップすると消える
   document.addEventListener('pointerdown', e => {
     if (!started) return;
+    if (!tour.hidden) return;   // チュートリアルのあいだは、パネルを出したり消したりしない
     // 真っ暗な画面と「おやすみなさい」は、タップ(click)でもどす。ここではパネルを出さない
     if (blackout.contains(e.target) || rest.contains(e.target) || update.contains(e.target) || adOn) return;
     if (!hint.hidden) hideHint();
@@ -348,6 +366,63 @@ export function createMenu(root, handlers) {
   const blackout = $('[data-blackout]');
   const rest = $('[data-rest]');
   const hint = $('[data-hint]');
+
+  // ---- チュートリアル: 画面を暗くして、ボタンを1つずつ照らして説明する ----
+  const tour = $('[data-tour]'), tourSpot = $('[data-tourspot]'), tourCard = tour.querySelector('.tour-card');
+  const tourText = $('[data-tourtext]'), tourCount = $('[data-tourcount]'), tourNext = $('[data-tournext]'), tourSkip = $('[data-tourskip]'), tourGuide = $('[data-tourguide]');
+  let tourSteps = [], tourAt = 0, tourDone = null;
+  const tourTarget = name => {
+    const el = name === 'cams' ? $('.cams') : $(`[data-${name}]`);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 ? el : null;
+  };
+  function placeTour() {
+    const step = tourSteps[tourAt];
+    if (!step) return;
+    if (step.panel && menu.hidden) { menu.hidden = false; showSleepMark(); }
+    if (!step.panel && !menu.hidden) hideMenu();
+    tourText.textContent = step.label;
+    tourCount.textContent = `${tourAt + 1} / ${tourSteps.length}`;
+    const last = tourAt === tourSteps.length - 1;
+    tourNext.textContent = last ? T('はじめる', 'Start') : T('つぎへ', 'Next');
+    tourGuide.hidden = !step.guide;
+    tourSkip.hidden = last;
+    const el = step.target ? tourTarget(step.target) : null;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const cw = Math.min(340, vw - 32);
+    tourCard.style.width = cw + 'px';
+    if (!el) {
+      tourSpot.hidden = true;
+      tour.classList.add('dim');
+      tourCard.style.left = (vw - cw) / 2 + 'px';
+      tourCard.style.top = Math.max(16, vh * 0.32) + 'px';
+      return;
+    }
+    tour.classList.remove('dim');
+    const r = el.getBoundingClientRect(), pad = 6;
+    const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 12;
+    Object.assign(tourSpot.style, { left: r.left - pad + 'px', top: r.top - pad + 'px', width: r.width + pad * 2 + 'px', height: r.height + pad * 2 + 'px', borderRadius: Math.min(radius + pad, (r.height + pad * 2) / 2) + 'px' });
+    tourSpot.hidden = false;
+    const left = Math.min(Math.max(16, r.left + r.width / 2 - cw / 2), vw - cw - 16);
+    tourCard.style.left = left + 'px';
+    const ch = tourCard.offsetHeight || 160;
+    const below = r.bottom + pad + 14, above = r.top - pad - 14 - ch;
+    tourCard.style.top = (r.top + r.height / 2 < vh / 2 || above < 16 ? Math.min(below, vh - ch - 16) : above) + 'px';
+  }
+  function endTour(finished) {
+    tour.hidden = true;
+    window.removeEventListener('resize', placeTour);
+    const cb = tourDone; tourDone = null;
+    cb?.(finished);
+  }
+  tourNext.addEventListener('click', () => {
+    if (tourAt >= tourSteps.length - 1) { endTour(true); return; }
+    tourAt++; placeTour(); tourNext.focus();
+  });
+  tourSkip.addEventListener('click', () => endTour(false));
+  tour.addEventListener('keydown', e => { if (e.key === 'Escape') endTour(false); });
+  $('[data-help]').addEventListener('click', () => handlers.onHelp?.());
   const update = $('[data-update]');
   let hintTimer = null;
   function hideHint() { hint.hidden = true; clearTimeout(hintTimer); }
@@ -469,6 +544,18 @@ export function createMenu(root, handlers) {
   }
 
   return {
+    // チュートリアルを始める。steps: [{ target, panel, guide, label }]。onDone(最後まで見たか)
+    startTour(steps, onDone) {
+      if (!started || !steps.length) return;
+      hideHint();
+      volpop.hidden = true; timerPop.hidden = true; closePick();
+      tourSteps = steps; tourAt = 0; tourDone = onDone;
+      tour.hidden = false;
+      placeTour();
+      window.addEventListener('resize', placeTour);
+      tourNext.focus();
+    },
+    hasTarget: name => !!tourTarget(name),
     setValues({ mode, camera, volume: v, time, interval = 'normal', shutter = 'center', lang: langChoice = 'auto', whisper = true, hydrophone = false, herald = false }) {
       heraldBtn.setAttribute('aria-pressed', String(herald));
       heraldBtn.classList.toggle('on', herald);

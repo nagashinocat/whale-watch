@@ -179,6 +179,7 @@ def page(L):
         </ul>''',
         [phone(f'{L}-sleeptimer.jpg', T('おやすみタイマー', 'Sleep timer'), -2)]))
     faq = [
+        (T('ボタンの意味を忘れた', 'I forgot what the buttons do'), T('パネルの左上の「使い方」を押すと、ボタンの紹介をもう一度見られます。', 'Tap “How to use” at the top left of the panel to see the button tour again.')),
         (T('音が出ない', 'No sound'), T('マナーモードを切って、音量を上げてみてね。おやすみモードのときは、クジラの大きな声は鳴りません。', 'Turn off silent mode and turn up the volume. In sleep mode, loud whale calls do not play.')),
         (T('しばらくすると止まる', 'It stops after a while'), T('画面が消えると止まります。おやすみタイマーを決めているあいだは、画面がつけたままになります(できる端末のみ)。画面の光が気になるときは「真っ暗画面」を使ってね。', 'It pauses when the screen sleeps. While a sleep timer is set, the screen stays on (on supported devices). If the light bothers you, use the dark screen.')),
         (T('クジラが来ない', 'No whales come'), T('30〜90分に1回くらいです。待てないときは「呼ぶ」か、時計のボタンで「多め」に。', 'They come about once every 30–90 minutes. Tap “Call”, or choose “More” under the clock button.')),

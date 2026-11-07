@@ -28,6 +28,7 @@ import { PLUS, loadPlus, savePlus, usableInterval, pickableWhales } from './logi
 import { patternLabel } from './logic/patterns.js';
 import { SLEEP_TIMER, sleepTimerFor, sleepPhase, fadeLevel } from './logic/sleepTimer.js';
 import { loadHints, markHint, nextHint, HINT_TEXT } from './logic/hints.js';
+import { tourSteps, tourText, loadTourDone, markTourDone } from './logic/tour.js';
 import { makeBackup, parseBackup, mergeBooks, newPhotos, backupFileName } from './logic/backup.js';
 import { ADS, shouldPlayAd } from './logic/ads.js';
 import { songVersion, seasonKey, loadSongs, recordSong } from './logic/songs.js';
@@ -307,7 +308,7 @@ const menu = createMenu(document.getElementById('ui'), {
   onAdDone() {
     adPlaying = false;
     mixer?.setFade(1, 1500);
-    setTimeout(() => showHint(false), 1200);
+    setTimeout(firstGuide, 1200);
   },
   async onStart() {
     onLanding = false;
@@ -322,7 +323,7 @@ const menu = createMenu(document.getElementById('ui'), {
     const Ctx = window.AudioContext || window.webkitAudioContext;
     const ctx = new Ctx();
     audioCtx = ctx;
-    if (!adPlaying) setTimeout(() => showHint(false), 1500);   // はじめての人には「海をタップすると…」
+    if (!adPlaying) setTimeout(firstGuide, 1500);   // はじめての人には、ボタンの紹介(チュートリアル)
     await ctx.resume();
     // iPhone などでは、電話や通知、ほかのアプリに切りかえたあと、音が止まったままになることがある。
     // 画面をさわったときと、画面にもどってきたときに、音をもう一度動かす
@@ -439,6 +440,8 @@ const menu = createMenu(document.getElementById('ui'), {
     ocean.setEco(on || resting);
   },
   onMenuShown() { showHint(true); },
+  // パネルの「使い方」: チュートリアルをもう一度
+  onHelp() { startTour(); },
   onAlarmStop() {
     stopAlarm();
   },
@@ -764,6 +767,20 @@ if (settings.hydrophone) scheduleDistantSong();
 
 // ---- はじめての案内 ----
 const hints = loadHints(safeStorage());
+// チュートリアル(ボタンの紹介)。見終わったら(とばしても)、もう出さない。前からある吹き出しの案内も、もう出さない
+function startTour() {
+  const steps = tourSteps().map(st => ({ ...st, label: tourText(st) }));
+  menu.startTour(steps, () => {
+    markTourDone(safeStorage());
+    markHint(safeStorage(), hints, 'tap');
+    markHint(safeStorage(), hints, 'panel');
+  });
+}
+// はじめてスタートを押したとき: まだ見ていなければチュートリアル、見たことがあれば(前からの人)吹き出しの案内
+function firstGuide() {
+  if (!loadTourDone(safeStorage()) && hints.size === 0) startTour();
+  else showHint(false);
+}
 function showHint(panelOpen) {
   const step = nextHint(hints, panelOpen);
   // パネルを開いたら、「海をタップすると…」はもう出さない

@@ -20,7 +20,7 @@ test('電波がなくても動くための sw.js が、いまのファイルに�
 
 test('ホーム画面のアイコンと、リンクを送ったときの絵がある', () => {
   const m = JSON.parse(read('manifest.webmanifest'));
-  assert.equal(m.name, 'クジラの見える海');
+  assert.equal(m.name, 'クジラが見てる');
   for (const icon of m.icons) assert.ok(existsSync(new URL(icon.src, root)), icon.src);
   const html = read('index.html').toString();
   for (const needle of ['rel="manifest"', 'apple-touch-icon', 'og:image', 'name="description"']) assert.ok(html.includes(needle), needle);

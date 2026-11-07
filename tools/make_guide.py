@@ -167,7 +167,7 @@ def page(L):
   <header class="hero">
     <div class="hero-text">
       <p class="kicker">{T('つかいかたガイド', 'How to use')}</p>
-      <h1>{T('クジラの<br>見える海', 'Whale<br>Ocean')}</h1>
+      <h1>{T('クジラが<br>見てる', 'Whale<br>Watch')}</h1>
       <p class="hero-lead">{T('波の音を流しっぱなしにできる、海の定点カメラ。ときどき、クジラがやってきます。', 'A fixed camera on the sea with endless waves. Now and then, whales come by.')}</p>
       <div class="hero-actions">
         <a class="btn" href="./">{T('海を見に行く', 'Go to the sea')}</a>
@@ -291,7 +291,7 @@ SCRIPT = '''
     function show(l) {
       document.querySelectorAll('[data-l]').forEach(function (d) { d.hidden = d.getAttribute('data-l') !== l; });
       document.documentElement.lang = l;
-      document.title = l === 'en' ? 'Whale Ocean Guide' : 'クジラの見える海 ガイド';
+      document.title = l === 'en' ? 'Whale Watch Guide' : 'クジラが見てる ガイド';
     }
     show(pick);
     document.querySelectorAll('[data-to]').forEach(function (a) {
@@ -306,8 +306,8 @@ out = f'''<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="claude:viewport-fit-sides" content="cover">
-<title>クジラの見える海 ガイド</title>
-<meta name="description" content="クジラの見える海の使い方ガイド。カメラ、クジラの出かた、写真と図鑑、シェア、タイマー、おやすみモード。">
+<title>クジラが見てる ガイド</title>
+<meta name="description" content="クジラが見てるの使い方ガイド。カメラ、クジラの出かた、写真と図鑑、シェア、タイマー、おやすみモード。">
 <meta name="theme-color" content="#1f7ae0">
 <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32">
 <link rel="preconnect" href="https://fonts.googleapis.com">

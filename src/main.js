@@ -414,7 +414,7 @@ function setPlusUnlocked(on) {
 }
 menu.setPlus(plus.unlocked, { canBuy: DEBUG, offered: PLUS.offered });
 menu.showCredits(CREDITS);
-document.title = tr({ ja: 'クジラの見える海', en: 'Whale Ocean' });
+document.title = tr({ ja: 'クジラが見てる', en: 'Whale Watch' });
 // 図鑑の中身と、パネルの図鑑のしるし(何頭のっているか)を新しくする
 // これまでに撮った写真に写っているクジラも、全身の姿がのるようにする(この決まりにする前に撮った写真)
 photos.list().then(list => {
@@ -462,7 +462,7 @@ const zukan = createZukan(document.getElementById('ui'), {
     let data;
     try { data = parseBackup(await file.text()); } catch (e) {
       return e?.reason === 'notBackup'
-        ? tr({ ja: 'このアプリのバックアップのファイルではないようです', en: 'This doesn\'t look like a Whale Ocean backup file.' })
+        ? tr({ ja: 'このアプリのバックアップのファイルではないようです', en: 'This doesn\'t look like a Whale Watch backup file.' })
         : tr({ ja: 'ファイルを読めませんでした', en: 'Could not read the file.' });
     }
     const before = bookEntries(book).length;

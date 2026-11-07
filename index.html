@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#06223f">
-  <title>クジラの見える海</title>
+  <title>クジラが見てる</title>
   <meta name="description" content="波の音を流しっぱなしにできる海の定点カメラ。ときどきクジラがやってきます。赤ちゃんの寝かしつけや、作業のおともに。">
   <!-- ホーム画面に追加したとき(アプリのように開く) -->
   <link rel="manifest" href="manifest.webmanifest">
@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-title" content="クジラの海">
   <!-- リンクを送ったときに出る絵と説明(公開する場所が決まったら、絵のアドレスを https:// からに直す) -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="クジラの見える海">
+  <meta property="og:title" content="クジラが見てる">
   <meta property="og:description" content="波の音と、ときどきクジラ。流しっぱなしにできる海の定点カメラ。">
   <meta property="og:image" content="assets/icons/og.png">
   <meta name="twitter:card" content="summary_large_image">
@@ -38,6 +38,8 @@
     .start p { margin: 0; padding: 12px 22px; border: 1px solid var(--line); border-radius: 999px;
       background: var(--glass); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
       letter-spacing: 0.08em; font-size: 15px; }
+    .start-inner { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 0 24px; text-align: center; }
+    .start-note { font-size: 12px; letter-spacing: 0.08em; color: rgba(238, 243, 247, 0.78); text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5); }
 
     .menu { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom));
       transform: translateX(-50%); width: min(440px, calc(100vw - 32px)); box-sizing: border-box;

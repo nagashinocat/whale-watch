@@ -98,7 +98,7 @@ d = ImageDraw.Draw(og)
 font_path = '/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc'
 title = ImageFont.truetype(font_path, 76, index=0)
 sub = ImageFont.truetype('/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc', 34, index=0)
-d.text((80, 170), 'クジラの見える海', font=title, fill=(255, 255, 255))
+d.text((80, 170), 'クジラが見てる', font=title, fill=(255, 255, 255))
 d.text((84, 280), '波の音と、ときどきクジラ。', font=sub, fill=(240, 244, 250))
 og.save(f'{OUT}/og.png', optimize=True)
 print('ok')

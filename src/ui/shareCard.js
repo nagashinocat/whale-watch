@@ -9,8 +9,8 @@ const MONO = '"M PLUS 1 Code", ui-monospace, monospace';
 const PAPER = '#f3ecdd', INK = '#2b2620', DIM = '#6b6456', RED = '#b8432f', NAVY = '#0b2a4a';
 
 // アプリの名前と、共有するときの言葉
-export const APP_NAME = () => T('クジラの見える海', 'Whale Ocean');
-export const HASHTAG = () => T('#クジラの見える海', '#WhaleOcean');
+export const APP_NAME = () => T('クジラが見てる', 'Whale Watch');
+export const HASHTAG = () => T('#クジラが見てる', '#WhaleWatchApp');
 
 function loadImage(src) {
   return new Promise(resolve => {

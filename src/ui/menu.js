@@ -58,7 +58,10 @@ const icon = (name, size = 22) => `<svg viewBox="0 0 24 24" width="${size}" heig
 export function createMenu(root, handlers) {
   root.innerHTML = `
     <div class="start" data-start>
-      <p>${T('さぁ、クジラたちに会いにいこう', 'Let\'s go meet the whales')}</p>
+      <div class="start-inner">
+        <p>${T('さぁ、クジラたちに会いにいこう', 'Let\'s go meet the whales')}</p>
+        <small class="start-note">${T('海のむこうから、クジラたちが見守っています', 'From across the sea, the whales are watching over you')}</small>
+      </div>
     </div>
     <div class="hud" data-menu hidden>
       <div class="hud-top">
@@ -111,7 +114,7 @@ export function createMenu(root, handlers) {
         <small>${T('数秒で来てくれます。来たクジラは図鑑にものります', 'It arrives in a few seconds and is added to your Book.')}</small>
       </div>
       <div class="plus-sheet" data-plussheet hidden role="dialog" aria-labelledby="plus-title">
-        <p class="plus-kicker">${icon('spark', 16)}${T('クジラの見える海', 'Whale Ocean')}</p>
+        <p class="plus-kicker">${icon('spark', 16)}${T('クジラが見てる', 'Whale Watch')}</p>
         <h2 id="plus-title">${T('プラス', 'Plus')}</h2>
         <ul>
           <li><b>${T('えらんで呼ぶ', 'Choose what to see')}</b>${T('大ジャンプ、バブルネット、目が合う…見たい姿を、すぐに呼べます', 'Call up any of 17 behaviors, from full breaches to bubble-nets, right away')}</li>

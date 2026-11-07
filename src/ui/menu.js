@@ -96,7 +96,7 @@ export function createMenu(root, handlers) {
         <div class="pick-grid">
           ${PICKABLE.map(n => `<button data-pick="${n}">${patternLabel(n)}</button>`).join('')}
         </div>
-        <small>${T('数秒で来てくれます。えらんで呼んだクジラは、図鑑には数えません', 'It arrives in a few seconds. Whales you choose are not counted in your Book.')}</small>
+        <small>${T('数秒で来てくれます。来たクジラは図鑑にものります', 'It arrives in a few seconds and is added to your Book.')}</small>
       </div>
       <div class="plus-sheet" data-plussheet hidden role="dialog" aria-labelledby="plus-title">
         <p class="plus-kicker">${icon('spark', 16)}${T('クジラの見える海', 'Whale Ocean')}</p>
@@ -404,8 +404,12 @@ export function createMenu(root, handlers) {
       root.querySelectorAll('[data-pick]').forEach(b => { b.disabled = !enabled; });
     },
     // プラスが使えるか。使えないときは「プラス」の札を出し、押すと案内を出す
-    setPlus(unlocked, { price = '', canBuy = true } = {}) {
+    // offered: 売っているか。売っていなくて使えないときは、プラスの項目ごと隠す
+    setPlus(unlocked, { price = '', canBuy = true, offered = true } = {}) {
       plus = unlocked;
+      const show = unlocked || offered;
+      pickOpen.hidden = !show;
+      $('[data-interval="often"]').hidden = !show;
       root.querySelectorAll('[data-plustag]').forEach(t => { t.hidden = unlocked; });
       $('[data-plusprice]').textContent = price;
       $('[data-plusprice]').hidden = !price;

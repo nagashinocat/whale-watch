@@ -378,11 +378,11 @@ menu.setValues(settings);
 function setPlusUnlocked(on) {
   plus.unlocked = on;
   savePlus(safeStorage(), plus);
-  menu.setPlus(on, { canBuy: DEBUG });
+  menu.setPlus(on, { canBuy: DEBUG, offered: PLUS.offered });
   const usable = usableInterval(settings.interval, on);
   if (usable !== settings.interval) { settings.interval = usable; scheduler.setFrequency(usable, Date.now()); save(); }
 }
-menu.setPlus(plus.unlocked, { canBuy: DEBUG });
+menu.setPlus(plus.unlocked, { canBuy: DEBUG, offered: PLUS.offered });
 menu.showCredits(CREDITS);
 document.title = tr({ ja: 'クジラの見える海', en: 'Whale Ocean' });
 // 図鑑の中身と、パネルの図鑑のしるし(何頭のっているか)を新しくする

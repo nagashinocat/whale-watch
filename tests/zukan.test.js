@@ -60,7 +60,7 @@ test('「呼ぶ」ボタンで来たクジラは図鑑に数えない。自然�
   assert.equal(countsForZukan({ kind: 'debug', pattern: 'summon' }), false, '動作確認の「呼んだクジラ」も数えない');
   assert.equal(countsForZukan({ kind: 'natural', pattern: 'breach' }), true);
   assert.equal(countsForZukan({ kind: 'debug', pattern: 'spout' }), true);
-  assert.equal(countsForZukan({ kind: 'pick', pattern: 'breach' }), false, 'プラスでえらんで呼んだクジラも数えない');
+  assert.equal(countsForZukan({ kind: 'pick', pattern: 'breach' }), true, 'プラスでえらんで呼んだクジラは図鑑にのる');
 });
 
 test('全身の姿は、そのクジラの写真を撮ったときに図鑑にのる(1回目でも)', () => {

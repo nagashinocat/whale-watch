@@ -152,7 +152,9 @@
     .timer-pop small { color: rgba(238, 243, 247, 0.65); line-height: 1.5; }
     .interval { border-top: 1px solid rgba(255, 255, 255, 0.14); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
     .interval-title { margin: 0; font-weight: 700; }
-    .interval-chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .interval-chips { display: flex; gap: 6px; }
+    .interval-chips button { flex: 1 1 0; min-width: 0; }
+    .interval-chips button[hidden], .pick-open[hidden] { display: none !important; }
     .interval-chips button { font: inherit; color: var(--text); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 12px; min-height: 52px; padding: 4px 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
     .interval-chips b { font-size: 13px; }

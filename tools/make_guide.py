@@ -95,8 +95,8 @@ def page(L):
     <div class="feature-text">
       <span class="badge" aria-hidden="true">{ICON['whale']}</span>
       <h2>{T('クジラたちは、気まぐれにやってくる', 'The whales come when they please')}</h2>
-      <p class="lead">{T('ふつうは30〜90分に1回くらい。どんな姿を見せてくれるかは、そのときのお楽しみ。来る間隔は、時計のボタンで「よく来る(5〜15分)」から「ときどき(1〜3時間)」まで変えられます。',
-        'Usually about once every 30–90 minutes, and you never know what you will see. Use the clock button to change how often, from “Often” (5–15 min) to “Rarely” (1–3 h).')}</p>
+      <p class="lead">{T('ふつうは30〜90分に1回くらい。どんな姿を見せてくれるかは、そのときのお楽しみ。来る間隔は、時計のボタンで「多め(15〜45分)」から「ときどき(1〜3時間)」まで変えられます。',
+        'Usually about once every 30–90 minutes, and you never know what you will see. Use the clock button to change how often, from “More” (15–45 min) to “Rarely” (1–3 h).')}</p>
     </div>
     <ul class="chips">{chips}</ul>
     <p class="note">{T('どの動きも、記録計をつけたクジラの研究や図鑑の数値をもとに作っています。', 'Every move is based on figures from tagging studies and field guides.')}</p>
@@ -140,7 +140,7 @@ def page(L):
     faq = [
         (T('音が出ない', 'No sound'), T('マナーモードを切って、音量を上げてみてね。おやすみモードのときは、クジラの声は鳴りません。', 'Turn off silent mode and turn up the volume. In sleep mode, whale calls do not play.')),
         (T('しばらくすると止まる', 'It stops after a while'), T('画面が消えると止まります。スマホの自動ロックを長めにするか、充電しながら使ってね。', 'It pauses when the screen sleeps. Set a longer auto-lock or keep the phone charging.')),
-        (T('クジラが来ない', 'No whales come'), T('30〜90分に1回くらいです。待てないときは「呼ぶ」か、時計のボタンで「よく来る」に。', 'They come about once every 30–90 minutes. Tap “Call”, or choose “Often” under the clock button.')),
+        (T('クジラが来ない', 'No whales come'), T('30〜90分に1回くらいです。待てないときは「呼ぶ」か、時計のボタンで「多め」に。', 'They come about once every 30–90 minutes. Tap “Call”, or choose “More” under the clock button.')),
         (T('図鑑や写真は、どこにあるの?', 'Where are my Book and photos?'), T('このスマホのブラウザの中だけに保存されています。どこにも送っていません。', 'Only in this browser on this device. Nothing is sent anywhere.')),
     ]
     faq_html = ''.join(f'<details><summary>{q}</summary><p>{a}</p></details>' for q, a in faq)

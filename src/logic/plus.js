@@ -5,6 +5,8 @@ import { bookEntries } from './flukeId.js';
 
 export const PLUS = Object.freeze({
   storageKey: 'whale-ocean-plus',
+  // 支払いの方法が決まるまでは、プラスの項目を画面に出さない(使える状態にしたときだけ出る)
+  offered: false,
   // プラスでないと選べない「クジラが来る間隔」と、そのとき代わりに使う間隔
   lockedIntervals: Object.freeze(['often']),
   fallbackInterval: 'more',

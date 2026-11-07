@@ -55,3 +55,7 @@ test('来てほしいクジラに選べるのは、図鑑にのっている子�
   assert.deepEqual(list.map(w => w.id), [a.id]);
   assert.ok(list[0].name);
 });
+
+test('支払いの方法が決まるまでは、プラスの項目を画面に出さない', () => {
+  assert.equal(PLUS.offered, false);
+});

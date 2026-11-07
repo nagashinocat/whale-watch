@@ -23,3 +23,13 @@ test('指で操作してマウスのない端末だけを、スマホとみな�
   assert.equal(isPhoneLike(() => { throw new Error('x'); }), false);
   assert.ok(mm);
 });
+
+test('iPhone の「音の使い方」を切りかえる。ない端末や、こわれていても止まらない', async () => {
+  const { setAudioSession } = await import('../src/logic/away.js');
+  const nav = { audioSession: { type: 'auto' } };
+  assert.equal(setAudioSession(nav, 'playback'), true);
+  assert.equal(nav.audioSession.type, 'playback');
+  assert.equal(setAudioSession({}, 'playback'), true);   // ない端末では何もしない
+  const bad = { audioSession: { get type() { return 'auto'; }, set type(v) { throw new Error('x'); } } };
+  assert.equal(setAudioSession(bad, 'playback'), false);
+});

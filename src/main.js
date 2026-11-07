@@ -11,7 +11,7 @@ import { createMixer, loadBuffers, camerasWithoutWaves } from './audio/mixer.js'
 import { rangeLabel, createMenu } from './ui/menu.js';
 import { createScheduler } from './logic/scheduler.js';
 import { COMING, heraldWay, shouldGoBack } from './logic/comingSoon.js';
-import { AWAY, awayPlan, isPhoneLike } from './logic/away.js';
+import { AWAY, awayPlan, isPhoneLike, setAudioSession } from './logic/away.js';
 import { loadSettings, saveSettings } from './logic/settings.js';
 import { tr, listJoin } from './logic/i18n.js';
 import { hoursFor, blendHours } from './logic/time.js';
@@ -322,6 +322,8 @@ const menu = createMenu(document.getElementById('ui'), {
       if (!adPlaying) mixer?.setFade(1, 1500);   // 広告を流すときは、終わってから大きくする
       return;
     }
+    // iPhone: 音を鳴らすアプリだと伝える(ホーム画面にもどったときの「ピン」を出さない。src/logic/away.js)
+    setAudioSession(navigator, 'playback');
     const Ctx = window.AudioContext || window.webkitAudioContext;
     const ctx = new Ctx();
     audioCtx = ctx;
@@ -871,10 +873,15 @@ function onAway(hidden) {
   clearTimeout(awayTimer);
   if (plan.action === 'pause') {
     mixer.setAway(true, AWAY.fadeOutMs);
-    awayTimer = setTimeout(() => { if (document.hidden) audioCtx.suspend().catch(() => {}); }, AWAY.fadeOutMs + AWAY.suspendAfterMs);
+    awayTimer = setTimeout(() => {
+      if (!document.hidden) return;
+      // 静かになってから止めて、「音を鳴らすアプリ」の札もはずす(ロック画面に「再生中」を残さない)
+      audioCtx.suspend().catch(() => {}).finally(() => { if (document.hidden) setAudioSession(navigator, 'auto'); });
+    }, AWAY.fadeOutMs + AWAY.suspendAfterMs);
     return;
   }
   const show = () => mixer.setAway(false, AWAY.fadeInMs);
+  if (plan.resume) setAudioSession(navigator, 'playback');
   if (plan.resume && audioCtx.state !== 'running') audioCtx.resume().then(show, show);
   else show();
 }

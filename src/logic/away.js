@@ -17,6 +17,13 @@ export function isPhoneLike(matchMedia) {
 // iPhone では、アプリを切りかえはじめたとき(画面のフォーカスがはずれたとき: blur)のほうが、
 // 「見えなくなった」(visibilitychange)より先に届く。見えなくなるのを待つと、端末が先に音を止めて「ピー」が出るので、
 // フォーカスがはずれた時点で音を小さくする(止めるのは、本当に見えなくなってから)。
+// iPhone(iOS 17 から)の「音の使い方」(navigator.audioSession)。'playback' にすると、
+// ホーム画面にもどったとき、iPhone が音をいきなり切らなくなる(こちらで静かに小さくしてから止められる)。
+// マナーモードでも音が出るようになる。止めたあとは 'auto' にもどして、ロック画面に「再生中」が残らないようにする
+export function setAudioSession(nav, type) {
+  try { if (nav?.audioSession && nav.audioSession.type !== type) nav.audioSession.type = type; return true; } catch { return false; }
+}
+
 // 見えなくなった・もどってきたときにすること。
 // 'pause': 小さくして止める / 'show': 音を大きくもどす(resume: 音のしくみも動かすか)/ null: 何もしない
 export function awayPlan({ hidden, phone, resting = false }) {

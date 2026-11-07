@@ -3,8 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#000000">
+  <meta name="theme-color" content="#06223f">
   <title>クジラの見える海</title>
+  <meta name="description" content="波の音を流しっぱなしにできる海の定点カメラ。ときどきクジラがやってきます。赤ちゃんの寝かしつけや、作業のおともに。">
+  <!-- ホーム画面に追加したとき(アプリのように開く) -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="クジラの海">
+  <!-- リンクを送ったときに出る絵と説明(公開する場所が決まったら、絵のアドレスを https:// からに直す) -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="クジラの見える海">
+  <meta property="og:description" content="波の音と、ときどきクジラ。流しっぱなしにできる海の定点カメラ。">
+  <meta property="og:image" content="assets/icons/og.png">
+  <meta name="twitter:card" content="summary_large_image">
   <style>
     :root {
       --glass: rgba(10, 18, 28, 0.62);
@@ -216,6 +231,7 @@
     .shutter { width: 84px; height: 84px; min-height: 84px; padding: 0; border-radius: 50%; background: #fff; color: #0b2233;
       border: 6px solid rgba(255, 255, 255, 0.35); background-clip: padding-box; display: flex; align-items: center; justify-content: center; }
     .shutter:active { transform: scale(0.95); }
+    .about-link { display: block; text-align: center; font-size: 11px; color: rgba(159, 211, 230, 0.9); padding: 4px 0 2px; }
     .hud .credits { text-align: center; font-size: 10px; line-height: 1.5; color: rgba(238, 243, 247, 0.5); }
     .hud .notice { text-align: center; }
     /* ---- クジラ図鑑(調査ファイル) ---- */

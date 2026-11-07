@@ -20,6 +20,11 @@
 | tail-slap.wav | 尾びれで水面をたたく「バシーン」(約2.5秒) | このアプリで合成 `tools/audio/make_slap.py` | 自作(素材なし) | — |
 | pec-slap.wav | 胸びれで水面をたたく「ベチャン」(約1.8秒) | このアプリで合成 `tools/audio/make_slap.py` | 自作(素材なし) | — |
 
+## 公開用の軽い音
+
+公開するページでは、上の wav から作った m4a(AAC)を使う(`tools/audio/compress.sh`)。
+m4a を読めないブラウザでは、同じ名前の wav を読む。ライセンスは元の wav と同じ。
+
 ## 3Dモデル
 
 ザトウクジラとマッコウクジラの形は、このアプリの中で計算して作っている(`src/logic/whaleShape.js`)。外部のモデルは使っていない。

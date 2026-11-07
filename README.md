@@ -43,3 +43,12 @@ python3 -m http.server 8000
 ```
 npm test
 ```
+
+## 公開する前に
+
+1. 音を変えたら `tools/audio/compress.sh` で軽い m4a を作りなおす
+2. `python3 tools/build_sw.py` で `sw.js`(電波がなくても動くための仕組み)を作りなおす(テストでも確かめる)
+3. `npm test`
+4. 公開するのは、このフォルダの `index.html` `about.html` `manifest.webmanifest` `sw.js` `src/` `assets/`
+
+アイコンと、リンクを送ったときの絵は `tools/make_icons.py` で作る。

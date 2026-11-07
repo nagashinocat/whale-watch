@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#06223f">
+  <title>このアプリについて | クジラの見える海</title>
+  <meta name="description" content="クジラの見える海の使い方、使っている素材、データの扱いについて。">
+  <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+  <style>
+    :root { --bg: #06223f; --card: rgba(255, 255, 255, 0.06); --line: rgba(255, 255, 255, 0.16); --text: #eef3f7; --muted: rgba(238, 243, 247, 0.7); --accent: #9fd3e6; }
+    html { background: var(--bg); }
+    body { margin: 0; color: var(--text); font-family: "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif; line-height: 1.8;
+      background: linear-gradient(#1c2f78 0, #3a3f86 160px, var(--bg) 420px) no-repeat, var(--bg); }
+    main { box-sizing: border-box; width: min(720px, 100%); margin: 0 auto; padding: max(24px, env(safe-area-inset-top)) 16px 48px; }
+    a { color: var(--accent); }
+    .back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; text-decoration: none; font-size: 15px; }
+    h1 { font-size: 26px; margin: 8px 0 4px; letter-spacing: 0.04em; }
+    .lead { margin: 0 0 24px; color: var(--muted); }
+    h2 { font-size: 18px; margin: 32px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+    h3 { font-size: 15px; margin: 18px 0 4px; }
+    p, li { font-size: 15px; }
+    ul { padding-left: 1.3em; margin: 6px 0; }
+    .note { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin: 12px 0; }
+    .table { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; line-height: 1.6; }
+    th, td { text-align: left; vertical-align: top; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 500; white-space: nowrap; }
+    td a { word-break: break-all; }
+    footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+<main>
+  <a class="back" href="./">← 海にもどる</a>
+  <h1>クジラの見える海</h1>
+  <p class="lead">波の音を流しっぱなしにできる、海の定点カメラです。ときどきクジラがやってきます。赤ちゃんの寝かしつけや、作業のおともにどうぞ。</p>
+
+  <h2>使い方</h2>
+  <ul>
+    <li>画面をタップすると、操作パネルが出ます。しばらくさわらないと自動で消えます。</li>
+    <li>クジラは30〜90分に1回くらい、自然にやってきます。来る間隔は、右上の時計のボタンで変えられます。「呼ぶ」を押すと、すぐに来てくれます。</li>
+    <li>おやすみモード(右上の月のボタン)では、クジラの声は鳴らず、波の音だけになります。</li>
+    <li>タイマーを決めると、その時間にクジラが鳴きながら知らせに来ます。</li>
+    <li>シャッターで写真を撮ると、写ったクジラの全身の姿が図鑑にのります。</li>
+  </ul>
+  <div class="note">
+    <p><b>画面が消えると、音とタイマーが止まります。</b>ブラウザのページなので、スマホの画面が消えたりロックされたりすると動きが止まります。長く流すときは、スマホの自動ロックの時間を長くするか、充電しながら使ってください。</p>
+    <p>iPhone でマナーモードにしていると、音が出ないことがあります。</p>
+  </div>
+
+  <h3>ホーム画面に追加する(アプリのように使う)</h3>
+  <ul>
+    <li><b>iPhone(Safari)</b>: 下の共有ボタン(四角から矢印が出ている形)→「ホーム画面に追加」</li>
+    <li><b>Android(Chrome)</b>: 右上のメニュー(︙)→「ホーム画面に追加」または「アプリをインストール」</li>
+  </ul>
+  <p>一度開いたあとは、電波がないところでも動きます。</p>
+
+  <h2>データの扱い</h2>
+  <ul>
+    <li>このアプリは、名前やメールアドレスなどの個人の情報を集めていません。登録もいりません。</li>
+    <li>設定・図鑑・撮った写真は、お使いの端末のブラウザの中にだけ保存されます。どこにも送っていません。ブラウザのデータを消すと、いっしょに消えます。</li>
+    <li>アクセスの数を数える仕組みや、広告は入っていません。</li>
+    <li>3Dの絵を描く道具(three.js)を jsDelivr から、文字の形を Google Fonts から読みこんでいます。読みこむときに、端末の通信のための情報(IPアドレスなど)がそれぞれのサービスに伝わります。</li>
+  </ul>
+
+  <h2>使っている素材</h2>
+  <div class="table">
+  <table>
+    <tr><th>音</th><td>遠くで岩に打ちよせる波(崖の上・上空)</td><td><a href="https://freesound.org/s/156354">Rmutt / Freesound</a> ・ CC0</td></tr>
+    <tr><th>音</th><td>砂州に寄せる小さな波(間近)</td><td><a href="https://freesound.org/people/plantmonkey/sounds/459813">plantmonkey / Freesound</a> ・ CC0</td></tr>
+    <tr><th>音</th><td>水しぶき</td><td><a href="https://freesound.org/people/Fission9/sounds/583348/">Fission9 / Freesound</a> ・ CC0</td></tr>
+    <tr><th>声</th><td>ザトウクジラの歌、マッコウクジラのクリック音</td><td><a href="https://www.fisheries.noaa.gov/">NOAA Fisheries</a>(Passive Acoustics Group「Sounds in the Ocean」) ・ パブリックドメイン(アメリカ政府の著作物)</td></tr>
+    <tr><th>声</th><td>ザトウクジラの短い鳴き声</td><td><a href="https://pmel.noaa.gov/acoustics/multimedia.html">NOAA PMEL Acoustics Program</a></td></tr>
+    <tr><th>音</th><td>潮吹き・泡・ジャンプ・ひれでたたく音</td><td>このアプリで作った音</td></tr>
+    <tr><th>形</th><td>クジラの3Dの形・動き</td><td>このアプリで、本物の計測の数値から計算して作っています</td></tr>
+    <tr><th>道具</th><td>3Dの絵を描く道具</td><td><a href="https://threejs.org/">three.js</a> ・ MITライセンス</td></tr>
+    <tr><th>文字</th><td>Zen Kaku Gothic New、M PLUS 1 Code</td><td><a href="https://fonts.google.com/">Google Fonts</a> ・ SIL Open Font License</td></tr>
+  </table>
+  </div>
+  <p>クジラの形・動き・声は、研究の論文や図鑑(国立科学博物館の海棲哺乳類図鑑など)の数値をもとにしています。</p>
+
+  <footer>
+    <p>© クジラの見える海</p>
+    <a class="back" href="./">← 海にもどる</a>
+  </footer>
+</main>
+</body>
+</html>

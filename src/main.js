@@ -382,6 +382,12 @@ ocean.setCamera(settings.camera);
 updateTime();
 ocean.start();
 
+// 一度開いたら電波がなくても動くように、アプリのファイルを端末にとっておく(sw.js)。
+// 動作確認のページと、https でないところでは使わない
+if ('serviceWorker' in navigator && !DEBUG && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  navigator.serviceWorker.register('sw.js').catch(() => { /* 使えなくても、ふつうに動く */ });
+}
+
 // 出番係は描画と独立して動かす(画面が隠れていても音のクジラは来る)
 setInterval(() => {
   const event = scheduler.tick(Date.now());

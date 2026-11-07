@@ -2,23 +2,24 @@ import { AUDIO } from '../logic/config.js';
 import { AUDIO_DISTANCE, waveTargetGain, whaleTargetGain } from '../logic/gains.js';
 
 export const SOUND_FILES = Object.freeze({
-  // 波の音はくり返しても継ぎ目が出ないよう、圧縮しない形式(wav)にしてある
-  'waves-cliff': 'assets/audio/waves-cliff.wav',
-  'waves-surface': 'assets/audio/waves-surface.wav',
-  humpback: 'assets/audio/humpback-song.wav',
-  'humpback-call': 'assets/audio/humpback-call.wav',
-  sperm: 'assets/audio/sperm-clicks.wav',
-  splash: 'assets/audio/splash.wav',
+  // 公開用に軽くした形(m4a)。読めないブラウザでは、同じ名前の wav を読む(tools/audio/compress.sh)。
+  // 波の音のくり返しの継ぎ目は、重ねてなめらかにつなぐので、圧縮しても出ない
+  'waves-cliff': 'assets/audio/waves-cliff.m4a',
+  'waves-surface': 'assets/audio/waves-surface.m4a',
+  humpback: 'assets/audio/humpback-song.m4a',
+  'humpback-call': 'assets/audio/humpback-call.m4a',
+  sperm: 'assets/audio/sperm-clicks.m4a',
+  splash: 'assets/audio/splash.m4a',
   // 潮吹きの息の音(合成。tools/audio/make_blow.py)
-  blow: 'assets/audio/blow.wav',
+  blow: 'assets/audio/blow.m4a',
   // ジャンプの着水の「ドーン」と、飛び出すときの「ザバァ」(合成。tools/audio/make_breach.py)
-  breach: 'assets/audio/breach.wav',
-  'breach-rise': 'assets/audio/breach-rise.wav',
+  breach: 'assets/audio/breach.m4a',
+  'breach-rise': 'assets/audio/breach-rise.m4a',
   // 尾びれ・胸びれで水面をたたく「バシーン」「ベチャン」(合成。tools/audio/make_slap.py)
-  'tail-slap': 'assets/audio/tail-slap.wav',
-  'pec-slap': 'assets/audio/pec-slap.wav',
+  'tail-slap': 'assets/audio/tail-slap.m4a',
+  'pec-slap': 'assets/audio/pec-slap.m4a',
   // 泡の網の泡がはじける音(合成。tools/audio/make_bubbles.py)
-  bubbles: 'assets/audio/bubbles.wav',
+  bubbles: 'assets/audio/bubbles.m4a',
 });
 
 // 音ファイルをまとめて読む。読めなかったものは null。
@@ -34,16 +35,27 @@ export async function loadBuffers(ctx, files = SOUND_FILES, onLoaded = null) {
 
 // 1つ読む。大きなファイル(波の音)は、電波が弱いと途中で失敗することがあるので、もう一度だけ読みなおす
 async function loadOne(ctx, url) {
-  for (let attempt = 0; attempt < 2; attempt++) {
+  // 軽い m4a を2回ためして、だめなら予備の wav
+  const tries = url.endsWith('.m4a') ? [url, url, url.replace(/\.m4a$/, '.wav')] : [url, url];
+  for (const u of tries) {
     try {
-      const res = await fetch(url);
+      const res = await fetch(u);
       if (!res.ok) continue;
       return await ctx.decodeAudioData(await res.arrayBuffer());
     } catch {
-      // もう一度
+      // つぎをためす
     }
   }
   return null;
+}
+
+// 波の音のくり返し: 同じ音を、終わりの OVERLAP 秒と次のはじめを重ねて、つぎつぎに鳴らす(継ぎ目が聞こえない)。
+// 重ねるところは、音の大きさが変わらないように、片方を sin、もう片方を cos の形で入れかえる
+export const WAVE_LOOP = Object.freeze({ overlap: 3, ahead: 40 });
+export function crossfadeCurve(n = 64, rising = true) {
+  const c = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const x = i / (n - 1); c[i] = rising ? Math.sin(x * Math.PI / 2) : Math.cos(x * Math.PI / 2); }
+  return c;
 }
 
 // カメラごとの波の音。上空は崖の上と同じ遠い波の音を使う
@@ -70,7 +82,8 @@ function rampTo(param, ctx, target, ms) {
 }
 
 // 波とクジラの音の経路。
-export function createMixer(ctx, buffers) {
+// options.waveAhead: 波の音を何秒先まで予約しておくか(ためすときに長くする)
+export function createMixer(ctx, buffers, { waveAhead = WAVE_LOOP.ahead } = {}) {
   let mode = 'normal';
   let volume = 0.5;
   let camera = 'cliff';
@@ -94,18 +107,45 @@ export function createMixer(ctx, buffers) {
   const waveGains = {};
   let listenerAt = [0, 0, 0];
 
+  // 波の音を、重ねながらつぎつぎに鳴らす(WAVE_LOOP)。先の ahead 秒ぶんまで予約しておき、ときどき足す
+  const waveNext = {};
+  function scheduleWave(name) {
+    const buffer = buffers[`waves-${name}`];
+    const g = waveGains[name];
+    if (!buffer || !g) return;
+    const X = Math.min(WAVE_LOOP.overlap, buffer.duration / 4);
+    const step = buffer.duration - X;
+    // 画面が止まっていて予約が切れていたら、いまから(ふわっと)はじめなおす
+    if (waveNext[name] < ctx.currentTime) waveNext[name] = ctx.currentTime + 0.05;
+    while (waveNext[name] < ctx.currentTime + waveAhead) {
+      const at = waveNext[name];
+      const first = at <= ctx.currentTime + 0.2 && !waveNext[`${name}:started`];
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      const env = ctx.createGain();
+      if (first) env.gain.setValueAtTime(1, at);
+      else { env.gain.setValueAtTime(0, at); env.gain.setValueCurveAtTime(crossfadeCurve(64, true), at, X); }
+      env.gain.setValueCurveAtTime(crossfadeCurve(64, false), at + step, X);
+      src.connect(env).connect(g);
+      src.start(at);
+      src.stop(at + buffer.duration + 0.05);
+      waveNext[`${name}:started`] = true;
+      waveNext[name] = at + step;
+    }
+  }
   function startWave(name) {
     const buffer = buffers[`waves-${name}`];
     if (!buffer || waveGains[name]) return;
-    const src = ctx.createBufferSource();
-    src.buffer = buffer;
-    src.loop = true;
     const g = ctx.createGain();
     g.gain.value = name === waveSound(camera) ? 1 : 0;
-    src.connect(g).connect(waveBus);
-    src.start();
+    g.connect(waveBus);
     waveGains[name] = g;
+    waveNext[name] = ctx.currentTime + 0.05;
+    scheduleWave(name);
   }
+  // 先の予約をときどき足す(画面が止まっているあいだも、予約したぶんは鳴りつづける)
+  const waveTimer = typeof setInterval === 'function' ? setInterval(() => { for (const n of ['cliff', 'surface']) scheduleWave(n); }, 5000) : null;
+  void waveTimer;
   function startWaves() {
     for (const name of ['cliff', 'surface']) startWave(name);
   }

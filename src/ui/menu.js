@@ -111,6 +111,7 @@ export function createMenu(root, handlers) {
         </div>
         <p class="notice" data-notice hidden></p>
         <small class="credits" data-credits></small>
+        <a class="about-link" href="about.html">このアプリについて(使い方・素材・データの扱い)</a>
       </div>
     </div>
     <button class="float-shutter" data-floatshutter hidden aria-label="写真を撮る">${icon('camera', 26)}</button>

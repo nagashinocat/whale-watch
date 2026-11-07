@@ -10,3 +10,6 @@
 !/CLAUDE.md
 !/package.json
 !/.gitignore
+!/about.html
+!/manifest.webmanifest
+!/sw.js

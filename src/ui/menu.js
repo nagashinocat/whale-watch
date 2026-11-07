@@ -3,6 +3,7 @@ import { TIMER, remainingText, clockText, atClock } from '../logic/timer.js';
 import { tr } from '../logic/i18n.js';
 import { PICKABLE } from '../logic/plus.js';
 import { SLEEP_TIMER } from '../logic/sleepTimer.js';
+import { ADS, skipLabel } from '../logic/ads.js';
 import { patternLabel } from '../logic/patterns.js';
 
 // 操作パネル(カメラアプリのような形)。
@@ -14,6 +15,8 @@ const T = (ja, en) => tr({ ja, en });
 const CAMERA_LABELS = { cliff: T('崖の上', 'Cliff'), sky: T('上空', 'Sky'), near: T('間近', 'Up close') };
 const TIME_LABELS = { auto: T('自動', 'Auto'), morning: T('朝', 'Morning'), day: T('昼', 'Day'), evening: T('夕方', 'Evening'), night: T('夜', 'Night'), golden: T('ゴールデンアワー', 'Golden hour'), blue: T('ブルーアワー', 'Blue hour') };
 const TIMER_IDLE = () => T('決めた時間になると、クジラが鳴きながら知らせに来ます', 'When the time comes, a whale swims up calling to let you know.');
+// バナー広告の場所(広告が使えるときだけ見える。中身は広告の会社のタグを入れる)
+const adSlot = b => `<div class="ad-slot" data-ad="${b.id}" style="--w:${b.width}px;--h:${b.height}px" hidden><span>${T('広告', 'Ad')}</span></div>`;
 const SLEEP_IDLE = () => T('波の音をだんだん小さくして、静かに止めます。小さくなりはじめたら、クジラは来ません', 'Fades the waves out slowly, then stops. No whales come once it starts fading.');
 const LANG_LABELS = { auto: T('自動', 'Auto'), ja: '日本語', en: 'English' };
 
@@ -41,6 +44,7 @@ const SCENES = {
 
 // 線の絵のアイコン
 const ICON = {
+  panel: '<rect x="4" y="4" width="16" height="16" rx="4"></rect><path d="M8 15h8M8 11h5"></path>',
   moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"></path>',
   sound: '<path d="M4 10h4l5-4v12l-5-4H4z"></path><path d="M16 9a4 4 0 0 1 0 6"></path>',
   full: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path>',
@@ -57,11 +61,33 @@ const icon = (name, size = 22) => `<svg viewBox="0 0 24 24" width="${size}" heig
 
 export function createMenu(root, handlers) {
   root.innerHTML = `
-    <div class="start" data-start>
-      <div class="start-inner">
-        <p>${T('さぁ、クジラたちに会いにいこう', 'Let\'s go meet the whales')}</p>
+    <div class="landing" data-landing>
+      <div class="landing-inner">
+        ${adSlot(ADS.banners[0])}
+        <header class="landing-hero">
+          <img src="assets/icons/icon-192.png" alt="" width="96" height="96">
+          <h1>${T('クジラが<span>見</span>てる', 'Whale <span>Watch</span>')}</h1>
+          <p class="landing-tag">${T('波の音と、ときどきクジラ。', 'Ocean waves, and now and then, a whale.')}</p>
+        </header>
+        <button class="landing-start" data-start>${T('さぁ、クジラたちに会いにいこう', 'Let\'s go meet the whales')}</button>
         <small class="start-note">${T('海のむこうから、クジラたちが見守っています', 'From across the sea, the whales are watching over you')}</small>
+        <section class="landing-guide" aria-labelledby="landing-guide-title">
+          <h2 id="landing-guide-title">${T('かんたんガイド', 'Quick guide')}</h2>
+          <ol>
+            <li>${icon('panel', 22)}<div><b>${T('海をタップ', 'Tap the sea')}</b><span>${T('操作パネルが出ます。もう一度タップで閉じます', 'to open the control panel. Tap again to close it')}</span></div></li>
+            <li>${icon('whale', 22)}<div><b>${T('ときどきクジラが来る', 'Whales drop by')}</b><span>${T('30〜90分に1回くらい。待てないときは「呼ぶ」', 'about every 30–90 minutes. Can\'t wait? Tap “Call”')}</span></div></li>
+            <li>${icon('book', 22)}<div><b>${T('写真を撮って図鑑に', 'Snap and collect')}</b><span>${T('尾びれの模様で1頭ずつ見分けて、回遊の旅も追えます', 'Tell whales apart by their flukes and follow their migrations')}</span></div></li>
+            <li>${icon('moon', 22)}<div><b>${T('寝かしつけにも', 'For bedtime')}</b><span>${T('おやすみタイマーで、波の音が静かに止まります', 'The sleep timer fades the waves out gently')}</span></div></li>
+          </ol>
+          <p class="landing-links"><a href="guide.html">${T('くわしい使い方ガイド', 'Full guide')}</a><span aria-hidden="true">・</span><a href="about.html">${T('このアプリについて', 'About this app')}</a></p>
+        </section>
+        ${adSlot(ADS.banners[1])}
       </div>
+    </div>
+    <div class="adplayer" data-adplayer hidden role="dialog" aria-label="${T('広告', 'Advertisement')}">
+      <span class="ad-badge">${T('広告', 'Ad')}</span>
+      <video data-advideo playsinline preload="none"></video>
+      <button class="ad-skip" data-adskip disabled></button>
     </div>
     <div class="hud" data-menu hidden>
       <div class="hud-top">
@@ -238,19 +264,62 @@ export function createMenu(root, handlers) {
     floatShutter.classList.toggle('dim', current.mode === 'sleep');   // おやすみモードでは暗めに
   }
 
+  const landing = $('[data-landing]');
+  const adPlayer = $('[data-adplayer]');
+  const adVideo = $('[data-advideo]');
+  const adSkip = $('[data-adskip]');
+  let adOn = false;
   start.addEventListener('click', () => {
     if (started) return;
     started = true;
-    start.hidden = true;
+    landing.hidden = true;
+    // 広告動画は、押したこの瞬間に流しはじめる(スマホは、押したときでないと音つきで流せない)
+    const ad = handlers.adToPlay?.();
+    if (ad) playAd(ad);
     showSleepMark();
-    handlers.onStart();
+    handlers.onStart({ ad: !!ad });
   });
+  // 広告動画: 数秒たつとスキップできる。終わったら(見られなかったときも)アプリへ
+  function playAd(ad) {
+    adOn = true;
+    adPlayer.hidden = false;
+    adVideo.src = ad.src;
+    const t0 = performance.now();
+    let timer = null;
+    const done = () => {
+      if (!adOn) return;
+      adOn = false;
+      clearInterval(timer);
+      adVideo.pause();
+      adVideo.removeAttribute('src');
+      adVideo.load();
+      adPlayer.hidden = true;
+      handlers.onAdDone?.();
+    };
+    const tick = () => {
+      const sec = (performance.now() - t0) / 1000;
+      const s2 = skipLabel(sec, tr);
+      adSkip.textContent = s2.text;
+      adSkip.disabled = !s2.ready;
+      if (sec > ad.maxSec) done();
+    };
+    tick();
+    timer = setInterval(tick, 250);
+    adSkip.onclick = done;
+    adVideo.onended = done;
+    adVideo.onerror = done;
+    adVideo.play().catch(() => {
+      // 音つきで流せないときは、音を消して流す。それもだめなら、すぐアプリへ
+      adVideo.muted = true;
+      adVideo.play().catch(done);
+    });
+  }
 
   // 海をタップするとパネルが出て、もう一度タップすると消える
   document.addEventListener('pointerdown', e => {
     if (!started) return;
     // 真っ暗な画面と「おやすみなさい」は、タップ(click)でもどす。ここではパネルを出さない
-    if (blackout.contains(e.target) || rest.contains(e.target) || update.contains(e.target)) return;
+    if (blackout.contains(e.target) || rest.contains(e.target) || update.contains(e.target) || adOn) return;
     if (!hint.hidden) hideHint();
     // 図鑑や写真を見ているあいだは、パネルを出したり隠したりしない
     if (handlers.isOverlay?.(e.target)) return;
@@ -502,6 +571,8 @@ export function createMenu(root, handlers) {
       update.onclick = () => { update.disabled = true; onTap(); };
     },
     isOpen: () => !menu.hidden,
+    // 広告の場所を見せる(広告が使えるとき)
+    showAdSlots(on) { root.querySelectorAll('[data-ad]').forEach(s => { s.hidden = !on; }); },
     setSummonStatus(text) {
       status.hidden = !text;
       status.textContent = text ?? '';

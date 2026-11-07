@@ -33,13 +33,44 @@
     #sea { display: block; width: 100vw; height: 100vh; }
     #ui [hidden] { display: none !important; }
 
-    .start { position: fixed; inset: 0; display: grid; place-items: center; cursor: pointer;
-      background: linear-gradient(to bottom, rgba(0,0,0,0) 40%, rgba(0,0,0,0.35)); }
-    .start p { margin: 0; padding: 12px 22px; border: 1px solid var(--line); border-radius: 999px;
-      background: var(--glass); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-      letter-spacing: 0.08em; font-size: 15px; }
-    .start-inner { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 0 24px; text-align: center; }
-    .start-note { font-size: 12px; letter-spacing: 0.08em; color: rgba(238, 243, 247, 0.78); text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5); }
+    /* はじめのページ: アプリの紹介・かんたんガイド・広告の場所・スタートボタン */
+    .landing { position: fixed; inset: 0; z-index: 30; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      background: linear-gradient(rgba(5, 13, 26, 0.35), rgba(5, 13, 26, 0.88) 55%); }
+    .landing-inner { box-sizing: border-box; min-height: 100%; width: min(460px, 100%); margin: 0 auto;
+      padding: max(18px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
+      display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
+    .landing-hero { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 12px; }
+    .landing-hero img { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 0 40px rgba(255, 210, 138, 0.3); }
+    .landing-hero h1 { margin: 0; font-size: 34px; letter-spacing: 0.06em; color: #fdf6e3; text-shadow: 0 2px 14px rgba(0, 0, 0, 0.5); }
+    .landing-hero h1 span { color: #ffd28a; }
+    .landing-tag { margin: 0; font-size: 15px; color: rgba(238, 243, 247, 0.9); }
+    .landing-start { min-height: 56px; padding: 0 28px; border-radius: 999px; border: 0; background: #ffd28a; color: #0a1a2e;
+      font: inherit; font-size: 17px; font-weight: 700; letter-spacing: 0.06em; box-shadow: 0 8px 26px rgba(255, 210, 138, 0.35); cursor: pointer; }
+    .landing-start:active { transform: scale(0.98); }
+    .start-note { font-size: 12px; letter-spacing: 0.08em; color: rgba(238, 243, 247, 0.78); text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5); margin-top: -8px; }
+    .landing-guide { width: 100%; box-sizing: border-box; padding: 16px; border: 1px solid var(--line); border-radius: 18px;
+      background: var(--glass); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); text-align: left; }
+    .landing-guide h2 { margin: 0 0 10px; font-size: 14px; letter-spacing: 0.1em; color: #ffd28a; }
+    .landing-guide ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
+    .landing-guide li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: start; }
+    .landing-guide li svg { width: 22px; height: 22px; padding: 6px; border-radius: 10px; background: rgba(159, 211, 230, 0.15); stroke: #9fd3e6; }
+    .landing-guide li div { display: flex; flex-direction: column; gap: 2px; }
+    .landing-guide b { font-size: 14px; }
+    .landing-guide li span { font-size: 12px; line-height: 1.6; color: rgba(238, 243, 247, 0.75); }
+    .landing-links { margin: 14px 0 0; display: flex; gap: 8px; justify-content: center; font-size: 13px; }
+    .landing-links a { color: #9fd3e6; }
+    /* バナー広告の場所 */
+    .ad-slot { width: min(var(--w), 100%); height: var(--h); box-sizing: border-box; border: 1px dashed rgba(238, 243, 247, 0.4);
+      border-radius: 8px; display: grid; place-items: center; background: rgba(255, 255, 255, 0.05); position: relative; flex-shrink: 0; }
+    .ad-slot span { position: absolute; top: 4px; left: 6px; font-size: 10px; letter-spacing: 0.1em; color: rgba(238, 243, 247, 0.6); }
+    /* 広告動画 */
+    .adplayer { position: fixed; inset: 0; z-index: 45; background: #000; display: grid; place-items: center; }
+    .adplayer video { width: 100%; height: 100%; object-fit: contain; }
+    .ad-badge { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 14px; z-index: 1; padding: 3px 10px; border-radius: 6px;
+      background: rgba(255, 210, 138, 0.9); color: #0a1a2e; font-size: 12px; font-weight: 700; }
+    .ad-skip { position: absolute; right: 14px; bottom: max(24px, env(safe-area-inset-bottom)); z-index: 1; min-height: 44px; padding: 0 18px;
+      border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.5); background: rgba(0, 0, 0, 0.6); color: #fff; font: inherit; font-size: 14px; }
+    .ad-skip:disabled { opacity: 0.75; }
 
     .menu { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom));
       transform: translateX(-50%); width: min(440px, calc(100vw - 32px)); box-sizing: border-box;

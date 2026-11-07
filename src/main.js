@@ -28,6 +28,7 @@ import { patternLabel } from './logic/patterns.js';
 import { SLEEP_TIMER, sleepTimerFor, sleepPhase, fadeLevel } from './logic/sleepTimer.js';
 import { loadHints, markHint, nextHint, HINT_TEXT } from './logic/hints.js';
 import { makeBackup, parseBackup, mergeBooks, newPhotos, backupFileName } from './logic/backup.js';
+import { ADS, shouldPlayAd } from './logic/ads.js';
 
 // メニューに表示する素材のクレジット(assets/CREDITS.md と合わせる)
 const CREDITS = [
@@ -40,6 +41,8 @@ const params = new URLSearchParams(location.search);
 // 動作確認用のページでは window.WHALE_DEBUG = true にしてある
 const DEBUG = window.WHALE_DEBUG === true || params.has('debug') || location.hash.startsWith('#debug');
 const FAST = params.has('fast') || location.hash === '#debug-fast';
+// 広告を出すか(動作確認のページでは、場所と動画を確かめられるように出す)
+const adsOn = ADS.enabled || DEBUG;
 
 const settings = loadSettings(safeStorage());
 // 有料の「プラス」が使えるか。使えないのに「よく来る」が保存されていたら、「たくさん来る」にする
@@ -59,6 +62,8 @@ const scheduler = createScheduler({ now: Date.now(), intervalScale: FAST ? 1 / 3
 
 let mixer = null;
 let audioCtx = null;
+// 広告: 本番では広告の会社が決まるまで出さない。動作確認のページでは、出して確かめられる
+let adPlayed = false, adPlaying = false;
 const effects = createEffects(ocean.scene);
 ocean.addUpdater(effects.update);
 // 潜ったクジラの足あと(海面のなめらかな跡)
@@ -262,11 +267,24 @@ if (DEBUG) {
 }
 
 const menu = createMenu(document.getElementById('ui'), {
+  // スタートを押したときに流す広告動画(1回だけ)。流さないときは null
+  adToPlay() {
+    if (!shouldPlayAd({ enabled: adsOn, alreadyPlayed: adPlayed })) return null;
+    adPlayed = true;
+    adPlaying = true;
+    return { src: ADS.video.src, maxSec: ADS.video.maxSec };
+  },
+  // 広告が終わったら、波の音を大きくして、はじめての案内を出す
+  onAdDone() {
+    adPlaying = false;
+    mixer?.setFade(1, 1500);
+    setTimeout(() => showHint(false), 1200);
+  },
   async onStart() {
     const Ctx = window.AudioContext || window.webkitAudioContext;
     const ctx = new Ctx();
     audioCtx = ctx;
-    setTimeout(() => showHint(false), 1500);   // はじめての人には「海をタップすると…」
+    if (!adPlaying) setTimeout(() => showHint(false), 1500);   // はじめての人には「海をタップすると…」
     await ctx.resume();
     // iPhone などでは、電話や通知、ほかのアプリに切りかえたあと、音が止まったままになることがある。
     // 画面をさわったときと、画面にもどってきたときに、音をもう一度動かす
@@ -275,6 +293,7 @@ const menu = createMenu(document.getElementById('ui'), {
     document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
     // 音は読めたものから順に使う(大きな波の音を待たずに、鳴き声や水の音を鳴らせる)
     mixer = createMixer(ctx, {});
+    if (adPlaying) mixer.setFade(0, 10);   // 広告のあいだは、波の音を出さない
     mixer.setMode(settings.mode);
     mixer.setVolume(settings.volume);
     mixer.start(settings.camera);
@@ -415,6 +434,7 @@ function setPlusUnlocked(on) {
   if (usable !== settings.interval) { settings.interval = usable; scheduler.setFrequency(usable, Date.now()); save(); }
 }
 menu.setPlus(plus.unlocked, { canBuy: DEBUG, offered: PLUS.offered });
+menu.showAdSlots(adsOn);
 menu.showCredits(CREDITS);
 document.title = tr({ ja: 'クジラが見てる', en: 'Whale Watch' });
 // 図鑑の中身と、パネルの図鑑のしるし(何頭のっているか)を新しくする

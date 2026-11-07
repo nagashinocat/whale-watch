@@ -356,7 +356,9 @@ function mouthTheta(kind, u) {
 export function jawWeights(kind, u, theta, belowOverride = null) {
   if (kind !== 'humpback') return NO_JAW;
   const side = Math.abs(angleDiff(theta, 0));
-  const below = belowOverride ?? smoothstep(mouthTheta(kind, u) - 0.03, mouthTheta(kind, u) + 0.03, side);
+  // 口の端よりうしろは、口の線の下の境目をなだらかに広げる(下あごといっしょに下がる皮が、段にならずに体へつながる)
+  const behind = Math.max(0, u - FACES[kind].mouth[FACES[kind].mouth.length - 1].u);
+  const below = belowOverride ?? smoothstep(mouthTheta(kind, u) - 0.03, mouthTheta(kind, u) + 0.03 + JAW_MOVE.widen * behind, side);
   // 下あごの関節は口の端。そこまでに動きを弱め、うしろはのどの皮がのびてつながる
   const lower = below * (1 - smoothstep(0.17, 0.29, u));
   // 上あごは目より前だけ(目は動かさない)
@@ -410,20 +412,41 @@ export function pouchDirection(p) {
   return d.map(v => v / n);
 }
 
+// 下あごの動かし方(シェーダーでも同じ式)。
+// 下あごを関節のまわりにそのまま回すと、関節の下の深いところ(のど)がうしろへ振れて、うしろの皮と重なって折れてしまう。
+// そこで、関節より前の点は「くちびるの線が関節のまわりに回るのと同じだけ下がる」ようにして、のどの皮はその下にぶら下がったままにする。
+// 口先の近く(関節から rigidFrom〜rigidTo より前)だけは、そのまま回す(とがった口先の形をくずさない)。
+// 関節のすぐうしろの皮も、少しだけいっしょに引っぱられる(back の長さで消える)。
+//   widen: 10口の端よりうしろで、口の線の下の境目を広げる割合 / back: 関節のうしろで引っぱられる長さ(体長に対する比率)
+export const JAW_MOVE = Object.freeze({ rigidFrom: 0.18, rigidTo: 0.23, back: 0.04, widen: 10 });
+// dy・dz: 関節からの位置(上あごを回したあと)。lower: 下あごの角度×重み。もどり値は動かしたあとの [dy, dz]
+export function jawMove(dy, dz, lower) {
+  if (lower <= 0) return [dy, dz];
+  const c = Math.cos(lower), s = Math.sin(lower);
+  const f = dz <= 0 ? dz : dz * Math.exp(-((dz / JAW_MOVE.back) ** 2));
+  const sy = dy + f * s, sz = dz + f * (c - 1);
+  const rig = smoothstep(-JAW_MOVE.rigidFrom, -JAW_MOVE.rigidTo, dz);
+  if (rig <= 0) return [sy, sz];
+  const ry = dy * c + dz * s, rz = -dy * s + dz * c;
+  return [sy + (ry - sy) * rig, sz + (rz - sz) * rig];
+}
+
 // あごを開いたときの、体の点の位置(体長1)。lower・upper はあごの角度(ラジアン)、pouch はのどのふくらみ(0〜1)
 export function jawPoint(kind, u, theta, lower, upper = 0, pouch = 0) {
-  const [wl, wu, wp] = jawWeights(kind, u, theta);
+  const [wl, wu, wp, below] = jawWeights(kind, u, theta);
   let p = bodyPoint(kind, u, theta);
   const d = pouchDirection(p);
   p = p.map((v, i) => v + d[i] * POUCH_SWELL * pouch * wp);
   // 左右の下あごが外へ回って、口が横に広がる
   p[0] *= 1 + ENGULF.splay * lower * wl;
   const [hy, hz] = jawHinge(kind);
-  const a = lower * wl - upper * wu;   // 下あごは前が下がる向き、上あごはその反対
-  const y = p[1] - hy, z = p[2] - hz;
-  const c = Math.cos(a), s = Math.sin(a);
-  // 頭は -z の向き。前(-z)が下がる回転
-  return [p[0], hy + y * c + z * s, hz - y * s + z * c];
+  let y = p[1] - hy, z = p[2] - hz;
+  // 上あご(頭)は、関節のまわりに少し持ち上がる(頭は -z の向き。前が上がる回転)
+  const a = -upper * wu, c = Math.cos(a), s = Math.sin(a);
+  [y, z] = [y * c + z * s, -y * s + z * c];
+  // 下あご: 前が下がる
+  [y, z] = jawMove(y, z, lower * below);
+  return [p[0], hy + y, hz + z];
 }
 
 // ひげ板: 上あごの口の線から、左右に黒いカーテンのように下がる。口を閉じているときは下あごの中に隠れる。

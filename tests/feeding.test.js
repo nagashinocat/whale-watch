@@ -162,3 +162,25 @@ test('ひげ板は上あごから下がり、長さは0.7m以下。口を閉じ�
     assert.ok(Math.abs(x) < bodyPoint('humpback', u, Math.PI / 2)[0] * 1.05, `outside at u ${u}`);
   }
 });
+
+test('口を開けたりとじたりするあいだ、のどの皮が前後に折れかえらない(段ができない)', () => {
+  for (const t of [12.4, 13.2, 14, 16, 18.8, 19.6, 20.4]) {
+    const { gape, pouch } = feedingPose(t);
+    for (const theta of [1.95, 2.2, 2.5, 2.8, Math.PI]) {
+      let prev = null, prevDir = null;
+      for (let u = 0.02; u <= 0.5; u += 0.005) {
+        const p = jawPoint('humpback', u, theta, gape * FEEDING.lowerJaw, gape * FEEDING.upperJaw, pouch);
+        if (prev) {
+          assert.ok(p[2] > prev[2], `t=${t} θ=${theta} u=${u.toFixed(3)}: folds back (${prev[2]} -> ${p[2]})`);
+          const dir = [p[1] - prev[1], p[2] - prev[2]]; const n = Math.hypot(...dir);
+          if (prevDir) {
+            const cos = (dir[0] * prevDir[0] + dir[1] * prevDir[1]) / n;
+            assert.ok(cos > Math.cos((60 * Math.PI) / 180), `t=${t} θ=${theta} u=${u.toFixed(3)}: sharp crease`);
+          }
+          prevDir = dir.map(v => v / n);
+        }
+        prev = p;
+      }
+    }
+  }
+});

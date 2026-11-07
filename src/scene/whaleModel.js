@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildWhaleGeometry, SWIM, strokesPerSecond, WHALE_SPECS, jawHinge, POUCH_SWELL, POUCH_SIDEWAYS, ENGULF, BODY_GRID, ringU, aroundTheta, bodyPoint, flukeOutline } from '../logic/whaleShape.js';
+import { buildWhaleGeometry, SWIM, strokesPerSecond, WHALE_SPECS, jawHinge, JAW_MOVE, POUCH_SWELL, POUCH_SIDEWAYS, ENGULF, BODY_GRID, ringU, aroundTheta, bodyPoint, flukeOutline } from '../logic/whaleShape.js';
 import { traitBodyColor, traitFinColor, flukeBite } from '../logic/traits.js';
 import { specialMotif } from '../logic/specialCoats.js';
 import { buildFeatures } from '../logic/features3d.js';
@@ -324,11 +324,31 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
         varying vec4 vJaw;${glows ? `
         attribute vec4 aGlow;
         varying vec4 vGlow;` : ''}
-        // あごの軸(口の端)のまわりに回す。前(-z)が下がる向き
-        vec3 jawTurn(vec3 p, float a) {
-          float c = cos(a), s = sin(a);
-          float y = p.y - ${f(hingeY)}, z = p.z - ${f(hingeZ)};
-          return vec3(p.x, ${f(hingeY)} + y * c + z * s, ${f(hingeZ)} - y * s + z * c);
+        // あごの動き(jawMove と同じ式)。上あごは関節(口の端)のまわりに少し持ち上がり、
+        // 下あごは、関節より前の点が、くちびるの線が回るのと同じだけ下がる(口先の近くだけは、そのまま回す)
+        vec2 jawTurn2(vec2 d, float a) { float c = cos(a), s = sin(a); return vec2(d.x * c + d.y * s, -d.x * s + d.y * c); }
+        float jawRigid(float dz) { return 1.0 - smoothstep(${f(-JAW_MOVE.rigidTo)}, ${f(-JAW_MOVE.rigidFrom)}, dz); }
+        vec2 jawMove(vec2 d, float lo) {
+          if (lo <= 0.0) return d;
+          float c = cos(lo), s = sin(lo);
+          float q = d.y / ${f(JAW_MOVE.back)};
+          float f = d.y <= 0.0 ? d.y : d.y * exp(-q * q);
+          vec2 sh = vec2(d.x + f * s, d.y + f * (c - 1.0));
+          return mix(sh, jawTurn2(d, lo), jawRigid(d.y));
+        }
+        // 面の向き(陰のつけ方)も同じように動かす
+        vec2 jawMoveNormal(vec2 n, vec2 d, float lo) {
+          if (lo <= 0.0) return n;
+          float c = cos(lo), s = sin(lo);
+          float q = d.y / ${f(JAW_MOVE.back)};
+          float h = d.y <= 0.0 ? 1.0 : exp(-q * q) * (1.0 - 2.0 * q * q);
+          vec2 sh = vec2(n.x, (n.y - h * s * n.x) / (1.0 + h * (c - 1.0)));
+          return normalize(mix(normalize(sh), jawTurn2(n, lo), jawRigid(d.y)));
+        }
+        vec3 jawApply(vec3 p) {
+          vec2 d = jawTurn2(vec2(p.y - ${f(hingeY)}, p.z - ${f(hingeZ)}), -uUpperJaw * aJaw.y);
+          d = jawMove(d, uLowerJaw * aJaw.w);
+          return vec3(p.x, ${f(hingeY)} + d.x, ${f(hingeZ)} + d.y);
         }`)
       // 体がしなった向きに合わせて、陰のつけ方も曲げる(しなりの傾きは swimSlope と同じ式)
       .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
@@ -337,8 +357,12 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
         float bendSlope = uSwim * ${SWIM.amplitude.toFixed(4)} * (${SWIM.power.toFixed(2)} * pow(max(bendS, 1e-4), ${(SWIM.power - 1).toFixed(2)}) * sin(bendA)
           - ${SWIM.wave.toFixed(2)} * pow(bendS, ${SWIM.power.toFixed(2)}) * cos(bendA));
         objectNormal = normalize(vec3(objectNormal.x, objectNormal.y, objectNormal.z - bendSlope * objectNormal.y));
-        float jawA = uLowerJaw * aJaw.x - uUpperJaw * aJaw.y;
-        objectNormal = vec3(objectNormal.x, objectNormal.y * cos(jawA) + objectNormal.z * sin(jawA), -objectNormal.y * sin(jawA) + objectNormal.z * cos(jawA));
+        {
+          float upA = -uUpperJaw * aJaw.y;
+          vec2 jd = jawTurn2(vec2(position.y - ${f(hingeY)}, position.z - ${f(hingeZ)}), upA);
+          vec2 jn = jawMoveNormal(jawTurn2(objectNormal.yz, upA), jd, uLowerJaw * aJaw.w);
+          objectNormal = vec3(objectNormal.x, jn);
+        }
         vJaw = aJaw;${glows ? `
         vGlow = aGlow;` : ''}`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -352,7 +376,7 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
         if (aJaw.z < 0.0) transformed.y += aJaw.z * smoothstep(0.05, 0.5, uLowerJaw);
         // 左右の下あごが外へ回って、口が横に広がる
         transformed.x *= 1.0 + ${f(ENGULF.splay)} * uLowerJaw * aJaw.x;
-        transformed = jawTurn(transformed, jawA);
+        transformed = jawApply(transformed);
         float swimS = clamp(position.z + 0.5, 0.0, 1.0);
         transformed.y += uSwim * ${SWIM.amplitude.toFixed(4)} * pow(swimS, ${SWIM.power.toFixed(2)})
           * sin(uPhase - ${SWIM.wave.toFixed(2)} * swimS);`);

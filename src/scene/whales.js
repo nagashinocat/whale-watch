@@ -168,6 +168,12 @@ function fallingSpeed(w) {
   return best;
 }
 
+// 粒の数だけを k 倍にする(高さや広がりはそのまま)
+function fewer(s, k) {
+  if (k >= 1) return s;
+  return { ...s, crown: Math.round(s.crown * k), droplets: Math.round(s.droplets * k), mist: Math.round(s.mist * k), column: Math.round(s.column * k) };
+}
+
 // 水面をたたいた水しぶき一式(王冠・水滴・霧・水の柱・波の輪・泡・画面の揺れ)。大きさは impactSplash で計算する
 function slam(fx, p, heading, s) {
   fx.effects.splash(p, s, heading);
@@ -178,7 +184,8 @@ function slam(fx, p, heading, s) {
 }
 
 // ジャンプの水しぶきと音(i 番目のクジラ)。しぶきの大きさは、体の重さと、そのときの体の速さから計算する
-function breachCues(i, launch) {
+// crowd: 何頭もいっしょに跳ぶときに、1頭ぶんの粒をへらす割合
+function breachCues(i, launch, crowd = 1) {
   return [
     {
       at: launch + 0.4,
@@ -187,7 +194,7 @@ function breachCues(i, launch) {
         const p = onWater(bodyPoint(w, 0.4));
         // 水を割って飛び出す体が、まわりの水を押しのけて持ち上げる(体の前の3分の1くらいの重さ)
         const up = Math.max(2, pointVelocity(w, [0, 0, -0.4])[1]);
-        const s = impactSplash({ mass: whaleMass(w.length) * 0.3, speed: up * 0.6, length: 0.35 * w.length, width: 0.23 * w.length });
+        const s = fewer(impactSplash({ mass: whaleMass(w.length) * 0.3, speed: up * 0.6, length: 0.35 * w.length, width: 0.23 * w.length }), crowd);
         fx.effects.splash(p, { ...s, column: 0 }, headingOf(w));
         fx.effects.foam(p, s.foamMs * 0.6, { radius: s.foamRadius * 0.7, count: 200 });
         // 水を割って体が出てくる「ザバァ」
@@ -200,7 +207,7 @@ function breachCues(i, launch) {
         const w = ws[i];
         const p = onWater(bodyPoint(w, 0));
         const speed = fallingSpeed(w) || 6;
-        const s = impactSplash({ mass: whaleMass(w.length), speed, length: w.length, width: 0.23 * w.length });
+        const s = fewer(impactSplash({ mass: whaleMass(w.length), speed, length: w.length, width: 0.23 * w.length }), crowd);
         slam(fx, p, headingOf(w), s);
         // 着水の「ドーン」(勢いが小さいときは軽い音)
         fx.playSound(s.strength > 0.45 ? 'breach' : 'splash', { gain: Math.min(1, 0.35 + 0.65 * s.strength), position: p });
@@ -372,11 +379,18 @@ const MOTIONS = {
   // 群れでジャンプ: 2〜3頭が横にならび、少しずつずれて跳ぶ。外側の2頭は鏡に映したように反対へ倒れる
   groupBreach({ start, yaw }) {
     const plan = groupBreachPlan();
-    const r = rightOf(forward(yaw));
+    const f = forward(yaw), r = rightOf(f);
+    // 群れのまん中(出る場所)。反対向きに跳ぶクジラは、そこから反対側へずらして出発する
+    const back = SWIM_SPEED.groupBreach * (PATTERNS.groupBreach.durationMs / 1000) / 2;
+    const center = offsetBy(start, f, back);
+    const starts = plan.map(p => offsetBy(offsetBy(offsetBy(center, f, -back * p.facing), r, p.side), f, p.along));
+    const yaws = plan.map(p => (p.facing > 0 ? yaw : yaw + 180));
+    // 何頭も跳ぶときは、1頭ぶんの水しぶきの粒を少しへらす(全部の粒が出せるように)
+    const crowd = Math.min(1, 2.5 / plan.length);
     return {
       whales: plan.map(() => ({ kind: 'humpback' })),
-      each(ws, t) { ws.forEach((w, i) => breachAt(w, t, plan[i].launch, offsetBy(start, r, plan[i].side), yaw, plan[i].rollSign)); },
-      cues: plan.flatMap((p, i) => breachCues(i, p.launch)),
+      each(ws, t) { ws.forEach((w, i) => breachAt(w, t, plan[i].launch, starts[i], yaws[i], plan[i].rollSign)); },
+      cues: plan.flatMap((p, i) => breachCues(i, p.launch, crowd)),
     };
   },
 

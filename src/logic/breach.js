@@ -36,15 +36,36 @@ export function breachPose(L, k = 1) {
   return { y: y * h, pitch, roll, along: along * k };
 }
 
-// 群れでジャンプ: 2〜3頭が横にならび、0.3〜0.8秒ずつずれて跳ぶ。外側の2頭は鏡に映したように反対へ倒れる。
-// side は横の位置(m)、launch は飛び出す時刻(秒)、rollSign は倒れる向き
+// 群れでジャンプ: 2〜5頭が、0.3〜0.8秒ずつずれて次々に跳ぶ。跳び方は2とおり:
+//   same(同じ向き): みんな同じ向きに泳いで、ならんで跳ぶ。倒れる向きもそろう
+//   alternate(互い違い): となりどうしが反対の向きに跳ぶ。2列にならび、すれちがうように跳ぶ(ぶつからない)
+// along は進む向きのずれ、side は横のずれ(m)、facing は向き(1 で前、-1 で反対)、
+// launch は飛び出す時刻(秒)、rollSign は倒れる向き
+export const GROUP_BREACH = Object.freeze({ whales: [2, 5], gap: [0.3, 0.8], spacing: 7, rowGap: 9 });
+
 export function groupBreachPlan(rng = Math.random) {
-  const n = 2 + (rng() < 0.5 ? 1 : 0);
-  const sides = n === 2 ? [-5.5, 5.5] : [-10, 0, 10];
-  const order = sides.map((_, i) => i).sort(() => rng() - 0.5);
-  const plan = sides.map(side => ({ side: side + (rng() - 0.5) * 2, launch: 0, rollSign: side < 0 ? -1 : 1 }));
+  const [lo, hi] = GROUP_BREACH.whales;
+  const n = lo + Math.floor(rng() * (hi - lo + 1));
+  const style = rng() < 0.5 ? 'same' : 'alternate';
+  const roll = rng() < 0.5 ? 1 : -1;
+  // 5頭でも画面からはみださないよう、頭数が多いほど少しつめる
+  const spacing = GROUP_BREACH.spacing * (n >= 5 ? 0.85 : 1);
+  const plan = [];
+  for (let i = 0; i < n; i++) {
+    const c = i - (n - 1) / 2;
+    if (style === 'same') {
+      // 横にならび(奥行きの方向)、少しずつ前後にずれる
+      plan.push({ side: c * spacing + (rng() - 0.5) * 1.5, along: (rng() - 0.5) * 4, facing: 1, rollSign: roll, launch: 0 });
+    } else {
+      // となりどうしが反対向き。向きごとに列を分けて、すれちがう
+      const facing = i % 2 === 0 ? 1 : -1;
+      plan.push({ side: facing * GROUP_BREACH.rowGap / 2 + (rng() - 0.5) * 1.2, along: c * spacing * 0.9, facing, rollSign: facing * roll, launch: 0 });
+    }
+  }
+  const order = plan.map((_, i) => i).sort(() => rng() - 0.5);
   let t = BREACH.approach;
-  for (const i of order) { plan[i].launch = t; t += 0.3 + rng() * 0.5; }
+  for (const i of order) { plan[i].launch = t; t += GROUP_BREACH.gap[0] + rng() * (GROUP_BREACH.gap[1] - GROUP_BREACH.gap[0]); }
+  plan.style = style;
   return plan;
 }
 

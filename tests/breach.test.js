@@ -15,15 +15,33 @@ test('ジャンプの形は体の大きさに合わせる(子どもは低く跳�
   assert.ok(breachPose(BREACH.air + 8, 1).y < -6, 'gone after the jump');
 });
 
-test('群れでジャンプ: 2〜3頭が、少しずつずれて並んで跳ぶ(ぶつからない間隔)', () => {
+test('群れでジャンプ: 2〜5頭が、少しずつずれて跳ぶ(ぶつからない間隔)', () => {
   for (let k = 1; k < 20; k++) {
     const g = groupBreachPlan(seeded(k));
-    assert.ok(g.length >= 2 && g.length <= 3);
+    assert.ok(g.length >= 2 && g.length <= 5);
     const t = g.map(w => w.launch).sort((a, b) => a - b);
-    assert.ok(t.at(-1) - t[0] <= 2 && t.every((x, i) => i === 0 || x - t[i - 1] >= 0.25));
-    for (let i = 0; i < g.length; i++) for (let j = i + 1; j < g.length; j++) assert.ok(Math.abs(g[i].side - g[j].side) >= 8);
+    assert.ok(t.at(-1) - t[0] <= 3.5 && t.every((x, i) => i === 0 || x - t[i - 1] >= 0.25));
     assert.ok(t.at(-1) + BREACH.air + 8 <= PATTERNS.groupBreach.durationMs / 1000);
+    // ぶつからない: 同じ向きどうしは7m近く、反対向き(すれちがう)は別の列
+    for (let i = 0; i < g.length; i++) for (let j = i + 1; j < g.length; j++) {
+      const a = g[i], b = g[j];
+      if (a.facing === b.facing) assert.ok(Math.hypot(a.side - b.side, a.along - b.along) >= 5.5, `k ${k}`);
+      else assert.ok(Math.abs(a.side - b.side) >= 7.5, `すれちがう列 k ${k}`);
+    }
+    // 互い違いでは、となりどうしが反対向きで、倒れる向きも反対
+    if (g.style === 'alternate') assert.ok(g.some(w => w.facing === -1) && g.some(w => w.facing === 1));
+    else assert.ok(g.every(w => w.facing === 1 && w.rollSign === g[0].rollSign));
+    // 画面に入る広さ(横の広がりと前後)
+    assert.ok(Math.max(...g.map(w => Math.abs(w.side))) <= 12.5 && Math.max(...g.map(w => Math.abs(w.along))) <= 13);
   }
+});
+
+test('群れでジャンプは、2〜5頭のどれも、同じ向きと互い違いのどちらも出る', () => {
+  const sizes = new Set(), styles = new Set();
+  const rng = seeded(11);
+  for (let k = 0; k < 400; k++) { const g = groupBreachPlan(rng); sizes.add(g.length); styles.add(g.style); }
+  assert.deepEqual([...sizes].sort(), [2, 3, 4, 5]);
+  assert.deepEqual([...styles].sort(), ['alternate', 'same']);
 });
 
 test('親子でジャンプ: 子どもが何度も練習して跳び、最後は母親といっしょに跳ぶ', () => {

@@ -1,4 +1,4 @@
-import { CAMERAS, DEFAULTS, INTERVALS, MODES, STORAGE_KEY, TIME_PRESETS } from './config.js';
+import { CAMERAS, DEFAULTS, INTERVALS, MODES, SHUTTER_SPOTS, STORAGE_KEY, TIME_PRESETS } from './config.js';
 
 const isVolume = v => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1;
 
@@ -18,6 +18,7 @@ export function loadSettings(storage) {
     volume: isVolume(saved.volume) ? saved.volume : DEFAULTS.volume,
     time: Object.hasOwn(TIME_PRESETS, saved.time) ? saved.time : DEFAULTS.time,
     interval: Object.hasOwn(INTERVALS, saved.interval) ? saved.interval : DEFAULTS.interval,
+    shutter: Object.hasOwn(SHUTTER_SPOTS, saved.shutter) ? saved.shutter : DEFAULTS.shutter,
   };
 }
 
@@ -30,6 +31,7 @@ export function saveSettings(storage, settings) {
       volume: settings.volume,
       time: settings.time,
       interval: settings.interval,
+      shutter: settings.shutter,
     }));
   } catch {
     // プライベートブラウズなどで保存できなくても続ける

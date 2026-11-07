@@ -312,6 +312,11 @@ const menu = createMenu(document.getElementById('ui'), {
   // 図鑑のクジラに名前を付ける
   onZukan() { zukan.open(); },
   onPhoto() { takePhoto(); },
+  // パネルを閉じても残る写真のボタンの場所
+  onShutterSpot(spot) {
+    settings.shutter = spot;
+    save();
+  },
   isOverlay: target => zukan.contains(target),
   onFullscreen() {
     if (document.fullscreenElement) document.exitFullscreen?.();

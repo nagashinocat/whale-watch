@@ -1,4 +1,4 @@
-import { MENU_HIDE_MS, TIME_PRESETS, INTERVALS } from '../logic/config.js';
+import { MENU_HIDE_MS, TIME_PRESETS, INTERVALS, SHUTTER_SPOTS } from '../logic/config.js';
 import { TIMER, remainingText, clockText, atClock } from '../logic/timer.js';
 
 // 操作パネル(カメラアプリのような形)。
@@ -105,10 +105,15 @@ export function createMenu(root, handlers) {
           <button class="shutter" data-photo aria-label="写真を撮る">${icon('camera', 30)}</button>
           <button class="act act-main" data-summon>${icon('whale', 24)}呼ぶ</button>
         </div>
+        <div class="shutter-spot" role="group" aria-label="パネルを閉じても残る、写真のボタンの場所">
+          <span>${icon('camera', 16)}閉じても残るボタン</span>
+          ${Object.entries(SHUTTER_SPOTS).map(([k, v]) => `<button data-spot="${k}" aria-pressed="false">${v}</button>`).join('')}
+        </div>
         <p class="notice" data-notice hidden></p>
         <small class="credits" data-credits></small>
       </div>
     </div>
+    <button class="float-shutter" data-floatshutter hidden aria-label="写真を撮る">${icon('camera', 26)}</button>
     <span class="timer-mark" data-timermark hidden>${icon('clock', 16)}<span data-timermarktext></span></span>
     <div class="alarm" data-alarm hidden role="alert">
       <p>${icon('clock', 22)}<span data-alarmtext>時間です</span></p>
@@ -140,6 +145,8 @@ export function createMenu(root, handlers) {
   const timerMark = $('[data-timermark]');
   const alarm = $('[data-alarm]');
   let timerAt = null;
+  const floatShutter = $('[data-floatshutter]');
+  let shutterSpot = 'center';
   const sleepMark = $('[data-sleepmark]');
   let started = false;
   let toastTimer = null;
@@ -167,12 +174,17 @@ export function createMenu(root, handlers) {
   function showSleepMark() {
     sleepMark.hidden = !(started && current.mode === 'sleep' && menu.hidden);
     timerMark.hidden = !(started && timerAt != null && menu.hidden);
+    // パネルを閉じているあいだだけ出す(開いているときはパネルの中のシャッターを使う)
+    floatShutter.hidden = !(started && menu.hidden && shutterSpot !== 'off');
+    floatShutter.dataset.at = shutterSpot;
+    floatShutter.classList.toggle('dim', current.mode === 'sleep');   // おやすみモードでは暗めに
   }
 
   start.addEventListener('click', () => {
     if (started) return;
     started = true;
     start.hidden = true;
+    showSleepMark();
     handlers.onStart();
   });
 
@@ -182,6 +194,7 @@ export function createMenu(root, handlers) {
     // 図鑑や写真を見ているあいだは、パネルを出したり隠したりしない
     if (handlers.isOverlay?.(e.target)) return;
     if (alarm.contains(e.target)) return;
+    if (floatShutter.contains(e.target)) return;   // 残したシャッターを押してもパネルは出さない
     if (menu.contains(e.target)) scheduleHide();
     else if (menu.hidden) showMenu();
     else { menu.hidden = true; showSleepMark(); }
@@ -219,6 +232,12 @@ export function createMenu(root, handlers) {
     scheduleHide();
   }));
   $('[data-alarmstop]').addEventListener('click', () => handlers.onAlarmStop?.());
+  // パネルを閉じても残るシャッター
+  floatShutter.addEventListener('click', () => handlers.onPhoto());
+  root.querySelectorAll('[data-spot]').forEach(b => b.addEventListener('click', () => {
+    handlers.onShutterSpot?.(b.dataset.spot);
+    scheduleHide();
+  }));
   root.querySelectorAll('[data-camera]').forEach(b =>
     b.addEventListener('click', () => handlers.onCamera(b.dataset.camera)));
   root.querySelectorAll('[data-time]').forEach(b =>
@@ -253,8 +272,13 @@ export function createMenu(root, handlers) {
   }
 
   return {
-    setValues({ mode, camera, volume: v, time, interval = 'normal' }) {
+    setValues({ mode, camera, volume: v, time, interval = 'normal', shutter = 'center' }) {
       current = { mode, camera, time };
+      shutterSpot = shutter;
+      root.querySelectorAll('[data-spot]').forEach(b => {
+        b.classList.toggle('on', b.dataset.spot === shutter);
+        b.setAttribute('aria-pressed', String(b.dataset.spot === shutter));
+      });
       root.querySelectorAll('[data-interval]').forEach(b => {
         b.classList.toggle('on', b.dataset.interval === interval);
         b.setAttribute('aria-pressed', String(b.dataset.interval === interval));

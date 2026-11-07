@@ -14,8 +14,8 @@ test('何も保存されていなければ初期設定', () => {
 
 test('保存した設定を読み戻せる', () => {
   const s = mem();
-  saveSettings(s, { mode: 'sleep', camera: 'sky', volume: 0.3, time: 'night', interval: 'often' });
-  assert.deepEqual(loadSettings(s), { mode: 'sleep', camera: 'sky', volume: 0.3, time: 'night', interval: 'often' });
+  saveSettings(s, { mode: 'sleep', camera: 'sky', volume: 0.3, time: 'night', interval: 'often', shutter: 'right' });
+  assert.deepEqual(loadSettings(s), { mode: 'sleep', camera: 'sky', volume: 0.3, time: 'night', interval: 'often', shutter: 'right' });
 });
 
 test('時間の設定は最初は自動、不正な値なら自動に戻す', () => {
@@ -30,7 +30,7 @@ test('壊れたJSONなら初期設定', () => {
 
 test('不正な項目だけ初期値に戻す', () => {
   const s = mem({ 'whale-ocean-settings': JSON.stringify({ mode: 'party', camera: 'near', volume: 7 }) });
-  assert.deepEqual(loadSettings(s), { mode: 'normal', camera: 'near', volume: 0.5, time: 'auto', interval: 'normal' });
+  assert.deepEqual(loadSettings(s), { mode: 'normal', camera: 'near', volume: 0.5, time: 'auto', interval: 'normal', shutter: 'center' });
 });
 
 test('来る間隔は最初は「ふつう」、知らない値なら「ふつう」に戻す', () => {
@@ -56,4 +56,10 @@ test('来る間隔のことば', async () => {
   const { INTERVALS } = await import('../src/logic/config.js');
   assert.equal(rangeLabel(INTERVALS.often), '5〜15分');
   assert.equal(rangeLabel(INTERVALS.rare), '1〜3時間');
+});
+
+test('写真のボタンの場所は最初は真ん中、知らない値なら真ん中に戻す', () => {
+  assert.equal(loadSettings(mem()).shutter, 'center');
+  assert.equal(loadSettings(mem({ 'whale-ocean-settings': JSON.stringify({ shutter: 'top' }) })).shutter, 'center');
+  for (const k of ['left', 'center', 'right', 'off']) assert.equal(loadSettings(mem({ 'whale-ocean-settings': JSON.stringify({ shutter: k }) })).shutter, k);
 });

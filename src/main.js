@@ -14,7 +14,7 @@ import { loadSettings, saveSettings } from './logic/settings.js';
 import { hoursFor, blendHours } from './logic/time.js';
 import { realSky } from './logic/places.js';
 import { AUDIO, INTERVALS } from './logic/config.js';
-import { loadBook, saveBook, nextVisitor, recordSighting, bookEntries, setNickname, displayName, population, FLUKE_ID } from './logic/flukeId.js';
+import { loadBook, saveBook, nextVisitor, recordSighting, recordPhoto, bookEntries, setNickname, displayName, population, FLUKE_ID } from './logic/flukeId.js';
 import { traitsText } from './logic/traits.js';
 import { sightingMessage, countsForZukan } from './logic/zukan.js';
 import { TIMER, timerState, loadTimer, saveTimer, clockText } from './logic/timer.js';
@@ -322,6 +322,15 @@ const menu = createMenu(document.getElementById('ui'), {
 menu.setValues(settings);
 menu.showCredits(CREDITS);
 // 図鑑の中身と、パネルの図鑑のしるし(何頭のっているか)を新しくする
+// これまでに撮った写真に写っているクジラも、全身の姿がのるようにする(この決まりにする前に撮った写真)
+photos.list().then(list => {
+  const r = recordPhoto(book, list.flatMap(p => p.whales ?? []), Date.now());
+  if (r.book === book || Object.keys(r.book).every(k => r.book[k] === book[k])) return;
+  book = r.book;
+  saveBook(safeStorage(), book);
+  showBook();
+}).catch(() => {});
+
 function showBook() {
   const list = bookEntries(book);
   zukan.setEntries(list);
@@ -329,7 +338,7 @@ function showBook() {
 }
 
 // 図鑑(メニューのあとに作る。メニューが画面の部品を作りなおすので)
-const nameOf = id => (book[id] ? displayName(id, book) : 'まだ図鑑にいないクジラ');
+const nameOf = id => (book[id]?.count > 0 ? displayName(id, book) : 'まだ図鑑にいないクジラ');
 const zukan = createZukan(document.getElementById('ui'), {
   photos,
   portrait: portraitOf,
@@ -352,7 +361,13 @@ async function takePhoto() {
     if (!blob) throw new Error('no image');
     const { saved } = await photos.add({ time: Date.now(), whales: ids, camera: settings.camera, blob });
     const names = ids.map(nameOf);
-    menu.showToast(`写真を撮りました${names.length ? `(${names.join('、')}が写っています)` : ''}。図鑑の「写真」で見られます${saved ? '' : '(この端末に保存できないので、ページを閉じると消えます)'}`);
+    // 写ったクジラは、図鑑に全身の姿がのる
+    const r = recordPhoto(book, ids, Date.now());
+    book = r.book;
+    saveBook(safeStorage(), book);
+    showBook();
+    const unlocked = r.newly.map(nameOf);
+    menu.showToast(`写真を撮りました${names.length ? `(${names.join('、')}が写っています)` : ''}。${unlocked.length ? `図鑑に${unlocked.join('、')}の全身の姿がのりました。` : ''}図鑑の「写真」で見られます${saved ? '' : '(この端末に保存できないので、ページを閉じると消えます)'}`);
     zukan.refresh();
   } catch {
     menu.showToast('写真を撮れませんでした');

@@ -147,7 +147,7 @@ export function individual(id) {
 // つぎに来るクジラの番号。図鑑にのっているクジラが、ときどきもう一度来る
 export function nextVisitor(book, rng = Math.random) {
   const all = population().map(i => i.id);
-  const seen = Object.keys(book ?? {}).map(Number).filter(id => all.includes(id) && book[id]);
+  const seen = Object.keys(book ?? {}).map(Number).filter(id => all.includes(id) && book[id]?.count > 0);   // 写真だけのクジラは、まだ会っていない
   if (seen.length && rng() < FLUKE_ID.returnChance) return seen[Math.floor(rng() * seen.length)];
   const fresh = all.filter(id => !seen.includes(id));
   const pool = fresh.length ? fresh : all;
@@ -157,10 +157,28 @@ export function nextVisitor(book, rng = Math.random) {
 // 見たことを図鑑に書く。first: はじめて見た、count: 見た回数
 export function recordSighting(book, id, now = Date.now()) {
   const prev = book?.[id];
-  const entry = prev
-    ? { ...prev, count: (prev.count ?? 1) + 1, last: now }
-    : { count: 1, first: now, last: now };
-  return { book: { ...book, [id]: entry }, first: !prev, count: entry.count };
+  // 写真だけ先に撮れていた(会えた回数0)クジラは、ここではじめて会ったことになる
+  const met = prev && prev.count > 0;
+  const entry = met
+    ? { ...prev, count: prev.count + 1, last: now }
+    : { ...prev, count: 1, first: now, last: now };
+  return { book: { ...book, [id]: entry }, first: !met, count: entry.count };
+}
+
+// 写真に写ったクジラを記録する(全身の姿が図鑑にのる)。写真を消しても、この記録は残る。
+// まだ図鑑にいないクジラ(呼んで来たクジラなど)も記録だけしておき、あとで会えたときに姿がのっている。
+// newly は、図鑑にいて、はじめて全身の姿がのったクジラ
+export function recordPhoto(book, ids, now = Date.now()) {
+  const next = { ...book };
+  const newly = [];
+  for (const id of new Set(ids)) {
+    if (!individual(id)) continue;
+    const prev = next[id];
+    if (prev?.photographed) continue;
+    next[id] = prev ? { ...prev, photographed: true, photoAt: now } : { count: 0, first: 0, last: 0, photographed: true, photoAt: now };
+    if (prev?.count > 0) newly.push(id);
+  }
+  return { book: next, newly };
 }
 
 // ---- 図鑑の保存(この端末のブラウザに保存する) ----
@@ -174,8 +192,10 @@ export function loadBook(storage) {
     const book = {};
     for (const [k, v] of Object.entries(raw)) {
       const id = Number(k);
-      if (ids.has(id) && v && Number.isFinite(v.count) && v.count > 0) {
-        book[id] = { count: v.count, first: Number(v.first) || 0, last: Number(v.last) || 0 };
+      const photographed = v?.photographed === true;
+      if (ids.has(id) && v && Number.isFinite(v.count) && (v.count > 0 || photographed)) {
+        book[id] = { count: Math.max(0, v.count), first: Number(v.first) || 0, last: Number(v.last) || 0 };
+        if (photographed) { book[id].photographed = true; book[id].photoAt = Number(v.photoAt) || 0; }
         const nick = cleanName(v.nickname);
         if (nick) book[id].nickname = nick;
       }
@@ -219,6 +239,6 @@ export function displayName(id, book) {
 export function bookEntries(book) {
   return Object.entries(book)
     .map(([id, e]) => ({ ...individual(Number(id)), ...e, autoName: individual(Number(id))?.name, displayName: displayName(Number(id), book) }))
-    .filter(e => e.name)
+    .filter(e => e.name && e.count > 0)   // 写真だけで、まだ会っていないクジラは一覧に出さない
     .sort((a, b) => b.last - a.last);
 }

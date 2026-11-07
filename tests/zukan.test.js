@@ -36,8 +36,10 @@ test('会えた回数で、図鑑の情報が少しずつわかっていく', ()
   assert.equal(one.open.weight, false);
   assert.equal(one.next.count, ZUKAN_LEVELS[1].at);
   const two = zukanInfo(ind, { count: 2 });
-  assert.equal(two.open.portrait, true); assert.equal(two.open.length, true); assert.equal(two.open.weight, false);
-  const all = zukanInfo(ind, { count: 9 });
+  assert.equal(two.open.length, true); assert.equal(two.open.weight, false);
+  // 全身の姿は、何回会っても写真を撮るまではのらない
+  assert.equal(zukanInfo(ind, { count: 9 }).open.portrait, false);
+  const all = zukanInfo(ind, { count: 9, photographed: true });
   assert.ok(Object.values(all.open).every(Boolean));
   assert.equal(all.next, null);
   assert.ok(/[ぁ-んァ-ン一-龥]/.test(one.next.text));
@@ -58,4 +60,10 @@ test('「呼ぶ」ボタンで来たクジラは図鑑に数えない。自然�
   assert.equal(countsForZukan({ kind: 'debug', pattern: 'summon' }), false, '動作確認の「呼んだクジラ」も数えない');
   assert.equal(countsForZukan({ kind: 'natural', pattern: 'breach' }), true);
   assert.equal(countsForZukan({ kind: 'debug', pattern: 'spout' }), true);
+});
+
+test('全身の姿は、そのクジラの写真を撮ったときに図鑑にのる(1回目でも)', () => {
+  const ind = population()[2];
+  assert.equal(zukanInfo(ind, { count: 1, photographed: true }).open.portrait, true);
+  assert.equal(zukanInfo(ind, { count: 1 }).open.portrait, false);
 });

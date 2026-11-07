@@ -109,3 +109,28 @@ test('自分で名前を付けられる。前後の空白はとり、長すぎ�
   // 見たことのないクジラには付けられない
   assert.equal(setNickname({}, 4, 'タロウ')[4], undefined);
 });
+
+test('写真に写ったクジラは「写真を撮った」と記録され、写真を消しても、保存しなおしても残る', async () => {
+  const { recordPhoto, recordSighting, loadBook, saveBook, bookEntries } = await import('../src/logic/flukeId.js');
+  const mem = () => { const m = new Map(); return { getItem: k => m.get(k) ?? null, setItem: (k, v) => m.set(k, v) }; };
+  let book = recordSighting({}, 5, 1000).book;
+  let r = recordPhoto(book, [5, 6], 2000);
+  assert.deepEqual(r.newly, [5], 'はじめて全身の姿がのったのは、図鑑にいる5番だけ');
+  assert.equal(r.book[5].photographed, true);
+  assert.equal(r.book[5].count, 1, '写真では会えた回数はふえない');
+  // 図鑑にまだいない6番(呼んで来たクジラなど)も記録だけしておく。一覧には出ない
+  assert.equal(r.book[6].photographed, true);
+  assert.deepEqual(bookEntries(r.book).map(e => e.id), [5]);
+  assert.deepEqual(recordPhoto(r.book, [5], 3000).newly, [], '2枚目からは「はじめて」ではない');
+  // あとで自然に会えたら、はじめて会ったことになり、全身の姿もすぐにのっている
+  const s6 = recordSighting(r.book, 6, 4000);
+  assert.equal(s6.first, true); assert.equal(s6.count, 1); assert.equal(s6.book[6].photographed, true);
+  // 保存しなおしても残る
+  const st = mem();
+  saveBook(st, s6.book);
+  const back = loadBook(st);
+  assert.equal(back[5].photographed, true); assert.equal(back[6].photographed, true); assert.equal(back[6].count, 1);
+  // 会っていない・写真もない記録は読みこまない
+  saveBook(st, { 7: { count: 0 } });
+  assert.deepEqual(loadBook(st), {});
+});

@@ -164,7 +164,7 @@ export function createZukan(root, { onRename, photos, portrait, nameOf }) {
         : el('div', { cls: 'zk-portrait zk-locked', text: '全身の姿を描けませんでした' }));
       clip.append(el('span', { cls: 'zk-caption', text: '全身の姿' }));
     } else {
-      clip.append(el('div', { cls: 'zk-portrait zk-locked', text: `全身の姿は、${ZUKAN_LEVELS[1].at}回会うとわかります` }));
+      clip.append(el('div', { cls: 'zk-portrait zk-locked', text: 'このクジラの写真を撮ると、全身の姿がのります' }));
     }
     out.append(clip);
 

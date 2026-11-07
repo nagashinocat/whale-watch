@@ -38,10 +38,10 @@ export function commentFor(ind) {
   return out.join('');
 }
 
-// 会えた回数でわかっていく情報
+// 会えた回数でわかっていく情報。全身の姿(portrait)だけは、会えた回数ではなく、写真を撮るとのる
 export const ZUKAN_LEVELS = Object.freeze([
   { at: 1, items: ['fluke', 'name', 'count'], text: '尾びれの模様と名前' },
-  { at: 2, items: ['portrait', 'length'], text: '全身の姿と全長' },
+  { at: 2, items: ['length'], text: '全長' },
   { at: 3, items: ['weight', 'comment'], text: '体重と特徴' },
 ]);
 
@@ -50,6 +50,7 @@ export function zukanInfo(ind, entry) {
   const count = entry?.count ?? 0;
   const open = {};
   for (const level of ZUKAN_LEVELS) for (const item of level.items) open[item] = count >= level.at;
+  open.portrait = entry?.photographed === true;
   const nextLevel = ZUKAN_LEVELS.find(l => count < l.at);
   return {
     count,

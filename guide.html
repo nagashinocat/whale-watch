@@ -94,12 +94,28 @@
   details { border: 2px solid var(--line); border-radius: 16px; background: var(--bg); padding: 4px 16px; }
   summary { cursor: pointer; font-family: var(--display); font-weight: 800; font-size: 17px; min-height: 44px; display: flex; align-items: center; }
   details p { margin: 0 0 12px; }
+  .pr { display: inline-block; vertical-align: middle; margin-left: 6px; padding: 2px 10px; border: 2px solid var(--line); border-radius: 999px;
+    background: var(--sun); color: #0b2f5b; font-size: 14px; letter-spacing: 0.08em; }
+  .aff { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .aff-card { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 4px 12px; align-items: start; height: 100%; padding: 14px 16px;
+    border: 2px solid var(--line); border-radius: 18px; background: var(--bg); color: var(--ink); text-decoration: none; box-shadow: 4px 4px 0 var(--shadow); }
+  a.aff-card:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--shadow); }
+  .aff-icon { display: grid; place-items: center; width: 44px; height: 44px; border: 2px solid var(--line); border-radius: 14px; background: var(--sun); }
+  .aff-icon svg { width: 24px; height: 24px; fill: none; stroke: #0b2f5b; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .aff-text { display: grid; gap: 2px; }
+  .aff-text b { font-family: var(--display); font-weight: 800; font-size: 17px; }
+  .aff-text span { font-size: 14px; color: var(--muted); line-height: 1.6; }
+  .aff-card em { grid-column: 2; font-style: normal; font-weight: 700; font-size: 14px; color: var(--sea); }
+  .aff-card.soon { box-shadow: none; border-style: dashed; }
+  .aff-card.soon em { color: var(--muted); }
+  .aff-note { margin: 14px 0 0; font-size: 13px; line-height: 1.7; color: var(--muted); }
   .foot { text-align: center; padding-block: 20px 8px; display: grid; justify-items: center; gap: 8px; }
   @media (max-width: 720px) {
     .hero { grid-template-columns: minmax(0, 1fr); }
     .hero-shot { order: -1; }
     .feature { grid-template-columns: minmax(0, 1fr); padding: 22px 18px; }
     .legend div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+    .aff { grid-template-columns: minmax(0, 1fr); }
   }
   @media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
 </style>
@@ -120,7 +136,7 @@
     </div>
     <div class="hero-shot"><figure class="phone" style="--tilt:4deg"><img src="assets/guide/ja-closed.jpg" alt="海とクジラ" loading="lazy" width="520" height="1126"></figure></div>
   </header>
-  <nav class="toc" aria-label="もくじ"><a href="#start-ja">はじめる</a><a href="#panel-ja">操作パネル</a><a href="#whales-ja">クジラの出かた</a><a href="#book-ja">写真と図鑑</a><a href="#share-ja">シェア</a><a href="#timer-ja">タイマー</a><a href="#sleep-ja">おやすみ</a><a href="#night-ja">寝かしつけ</a><a href="#help-ja">こまったとき</a></nav>
+  <nav class="toc" aria-label="もくじ"><a href="#start-ja">はじめる</a><a href="#panel-ja">操作パネル</a><a href="#whales-ja">クジラの出かた</a><a href="#book-ja">写真と図鑑</a><a href="#share-ja">シェア</a><a href="#timer-ja">タイマー</a><a href="#sleep-ja">おやすみ</a><a href="#night-ja">寝かしつけ</a><a href="#more-ja">もっと知る</a><a href="#help-ja">こまったとき</a></nav>
   
   <section class="feature" id="start-ja" style="--c: var(--sun)">
     <div class="feature-text">
@@ -234,6 +250,15 @@
     </div>
     <div class="shots"><figure class="phone" style="--tilt:-2deg"><img src="assets/guide/ja-sleeptimer.jpg" alt="おやすみタイマー" loading="lazy" width="520" height="1126"></figure></div>
   </section>
+  <section class="feature wide" id="more-ja" style="--c: var(--sun)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg></span>
+      <h2>クジラをもっと知る <span class="pr">PR</span></h2>
+      <p class="lead">アプリで会ったクジラの、本物に会いに行ったり、本で調べたり。</p>
+    </div>
+    <ul class="aff"><li><div class="aff-card soon"><span class="aff-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 15h18l-2.5 4h-13z"/><path d="M12 4v11M12 5l6 8h-6"/></svg></span><span class="aff-text"><b>本物のクジラに会いに行く</b><span>沖縄・奄美・小笠原では、冬から春にザトウクジラに会えます。ホエールウォッチングのツアー</span></span><em>準備中</em></div></li><li><div class="aff-card soon"><span class="aff-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg></span><span class="aff-text"><b>クジラの本・図鑑</b><span>尾びれでの見分け方や、歌のふしぎ。研究者ごっこが楽しくなる本</span></span><em>準備中</em></div></li><li><div class="aff-card soon"><span class="aff-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 16l5-5 4 4 2-2 5 5"/><circle cx="15.5" cy="9.5" r="1.5"/></svg></span><span class="aff-text"><b>クジラの絵本</b><span>寝る前に、子どもといっしょに読める絵本</span></span><em>準備中</em></div></li><li><div class="aff-card soon"><span class="aff-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></span><span class="aff-text"><b>クジラのぬいぐるみ</b><span>ザトウクジラのぬいぐるみ。寝るときのおともに</span></span><em>準備中</em></div></li></ul>
+    <p class="aff-note">この欄のリンクは広告(アフィリエイト)です。リンクから買ったり申し込んだりすると、このアプリの作者が紹介料を受け取ることがあります。値段は変わりません。</p>
+  </section>
   <section class="feature wide" id="help-ja" style="--c: var(--sea)">
     <div class="feature-text">
       <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01"/></svg></span>
@@ -260,7 +285,7 @@
     </div>
     <div class="hero-shot"><figure class="phone" style="--tilt:4deg"><img src="assets/guide/en-closed.jpg" alt="The sea and a whale" loading="lazy" width="520" height="1126"></figure></div>
   </header>
-  <nav class="toc" aria-label="Contents"><a href="#start-en">Start</a><a href="#panel-en">Panel</a><a href="#whales-en">Whales</a><a href="#book-en">Photos & Book</a><a href="#share-en">Share</a><a href="#timer-en">Timer</a><a href="#sleep-en">Sleep</a><a href="#night-en">Bedtime</a><a href="#help-en">Help</a></nav>
+  <nav class="toc" aria-label="Contents"><a href="#start-en">Start</a><a href="#panel-en">Panel</a><a href="#whales-en">Whales</a><a href="#book-en">Photos & Book</a><a href="#share-en">Share</a><a href="#timer-en">Timer</a><a href="#sleep-en">Sleep</a><a href="#night-en">Bedtime</a><a href="#more-en">Learn more</a><a href="#help-en">Help</a></nav>
   
   <section class="feature" id="start-en" style="--c: var(--sun)">
     <div class="feature-text">
@@ -373,6 +398,15 @@
         </ul>
     </div>
     <div class="shots"><figure class="phone" style="--tilt:-2deg"><img src="assets/guide/en-sleeptimer.jpg" alt="Sleep timer" loading="lazy" width="520" height="1126"></figure></div>
+  </section>
+  <section class="feature wide" id="more-en" style="--c: var(--sun)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg></span>
+      <h2>Learn more about whales <span class="pr">PR</span></h2>
+      <p class="lead">Go meet the real ones, or read more about the whales you met in the app.</p>
+    </div>
+    <ul class="aff"><li><div class="aff-card soon"><span class="aff-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 15h18l-2.5 4h-13z"/><path d="M12 4v11M12 5l6 8h-6"/></svg></span><span class="aff-text"><b>Meet real whales</b><span>In Okinawa, Amami and Ogasawara, humpbacks visit from winter to spring. Whale-watching tours</span></span><em>Coming soon</em></div></li><li><div class="aff-card soon"><span class="aff-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg></span><span class="aff-text"><b>Whale books</b><span>How flukes tell whales apart, and the mystery of their songs</span></span><em>Coming soon</em></div></li><li><div class="aff-card soon"><span class="aff-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 16l5-5 4 4 2-2 5 5"/><circle cx="15.5" cy="9.5" r="1.5"/></svg></span><span class="aff-text"><b>Picture books</b><span>Whale stories to read together at bedtime</span></span><em>Coming soon</em></div></li><li><div class="aff-card soon"><span class="aff-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></span><span class="aff-text"><b>Whale plushies</b><span>A cuddly humpback to keep you company</span></span><em>Coming soon</em></div></li></ul>
+    <p class="aff-note">Links in this section are ads (affiliate links). If you buy or book through them, the maker of this app may earn a fee. It does not change your price.</p>
   </section>
   <section class="feature wide" id="help-en" style="--c: var(--sea)">
     <div class="feature-text">

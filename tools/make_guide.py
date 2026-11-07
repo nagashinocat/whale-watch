@@ -28,6 +28,24 @@ PATTERNS = [
     ('？？？', '???', '会えたときのお楽しみ', 'A surprise for when you see it', 3),
 ]
 
+# 「クジラをもっと知る(PR)」の紹介リンク(アフィリエイト)。url に紹介リンクを入れると、そのカードが押せるようになる。
+# 空のあいだは「準備中」と出る。provider が 'amazon' のリンクが1つでもあると、Amazon アソシエイトの決まった文を出す
+# (ステマ規制のため、見出しに「PR」を付け、紹介料を受け取ることをはっきり書いている)
+AFFILIATE = [
+    {'icon': 'boat', 'url': '', 'provider': '',
+     'ja': ('本物のクジラに会いに行く', '沖縄・奄美・小笠原では、冬から春にザトウクジラに会えます。ホエールウォッチングのツアー'),
+     'en': ('Meet real whales', 'In Okinawa, Amami and Ogasawara, humpbacks visit from winter to spring. Whale-watching tours')},
+    {'icon': 'book', 'url': '', 'provider': '',
+     'ja': ('クジラの本・図鑑', '尾びれでの見分け方や、歌のふしぎ。研究者ごっこが楽しくなる本'),
+     'en': ('Whale books', 'How flukes tell whales apart, and the mystery of their songs')},
+    {'icon': 'picture', 'url': '', 'provider': '',
+     'ja': ('クジラの絵本', '寝る前に、子どもといっしょに読める絵本'),
+     'en': ('Picture books', 'Whale stories to read together at bedtime')},
+    {'icon': 'heart', 'url': '', 'provider': '',
+     'ja': ('クジラのぬいぐるみ', 'ザトウクジラのぬいぐるみ。寝るときのおともに'),
+     'en': ('Whale plushies', 'A cuddly humpback to keep you company')},
+]
+
 def t(ja, en):
     return {'ja': ja, 'en': en}
 
@@ -56,6 +74,10 @@ ICON = {
     'clock': '<svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7.5"/><path d="M12 9v4l2.5 2M9.5 3h5"/></svg>',
     'moon': '<svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>',
     'camera': '<svg viewBox="0 0 24 24"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+    'boat': '<svg viewBox="0 0 24 24"><path d="M3 15h18l-2.5 4h-13z"/><path d="M12 4v11M12 5l6 8h-6"/></svg>',
+    'picture': '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 16l5-5 4 4 2-2 5 5"/><circle cx="15.5" cy="9.5" r="1.5"/></svg>',
+    'heart': '<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>',
+    'more': '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>',
     'help': '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01"/></svg>',
 }
 
@@ -67,7 +89,7 @@ def page(L):
         for a, b, c, d, r in PATTERNS)
     nav = [('start', T('はじめる', 'Start')), ('panel', T('操作パネル', 'Panel')), ('whales', T('クジラの出かた', 'Whales')),
            ('book', T('写真と図鑑', 'Photos & Book')), ('share', T('シェア', 'Share')), ('timer', T('タイマー', 'Timer')),
-           ('sleep', T('おやすみ', 'Sleep')), ('night', T('寝かしつけ', 'Bedtime')), ('help', T('こまったとき', 'Help'))]
+           ('sleep', T('おやすみ', 'Sleep')), ('night', T('寝かしつけ', 'Bedtime')), ('more', T('もっと知る', 'Learn more')), ('help', T('こまったとき', 'Help'))]
     nav_html = ''.join(f'<a href="#{k}-{L}">{v}</a>' for k, v in nav)
     S = []
     S.append(section(L, 'start', 'sun', ICON['start'], T('まずは、海へ', 'First, head to the sea'),
@@ -163,6 +185,26 @@ def page(L):
         (T('図鑑や写真は、どこにあるの?', 'Where are my Book and photos?'), T('このスマホのブラウザの中だけに保存されています。どこにも送っていません。', 'Only in this browser on this device. Nothing is sent anywhere.')),
     ]
     faq_html = ''.join(f'<details><summary>{q}</summary><p>{a}</p></details>' for q, a in faq)
+    # クジラをもっと知る(PR)
+    cards = []
+    for a in AFFILIATE:
+        title, text = a[L]
+        inner = f'<span class="aff-icon" aria-hidden="true">{ICON[a["icon"]]}</span><span class="aff-text"><b>{title}</b><span>{text}</span></span>'
+        if a['url']:
+            cards.append(f'<li><a class="aff-card" href="{html.escape(a["url"])}" target="_blank" rel="sponsored noopener">{inner}<em>{T("見てみる", "Take a look")} ↗</em></a></li>')
+        else:
+            cards.append(f'<li><div class="aff-card soon">{inner}<em>{T("準備中", "Coming soon")}</em></div></li>')
+    amazon = any(a['provider'] == 'amazon' and a['url'] for a in AFFILIATE)
+    S.append(f'''
+  <section class="feature wide" id="more-{L}" style="--c: var(--sun)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true">{ICON['more']}</span>
+      <h2>{T('クジラをもっと知る', 'Learn more about whales')} <span class="pr">PR</span></h2>
+      <p class="lead">{T('アプリで会ったクジラの、本物に会いに行ったり、本で調べたり。', 'Go meet the real ones, or read more about the whales you met in the app.')}</p>
+    </div>
+    <ul class="aff">{''.join(cards)}</ul>
+    <p class="aff-note">{T('この欄のリンクは広告(アフィリエイト)です。リンクから買ったり申し込んだりすると、このアプリの作者が紹介料を受け取ることがあります。値段は変わりません。', 'Links in this section are ads (affiliate links). If you buy or book through them, the maker of this app may earn a fee. It does not change your price.')}{(' ' + T('Amazonのアソシエイトとして、このアプリの作者は適格販売により収入を得ています。', 'As an Amazon Associate, the maker of this app earns from qualifying purchases.')) if amazon else ''}</p>
+  </section>''')
     S.append(f'''
   <section class="feature wide" id="help-{L}" style="--c: var(--sea)">
     <div class="feature-text">
@@ -277,12 +319,28 @@ CSS = '''
   details { border: 2px solid var(--line); border-radius: 16px; background: var(--bg); padding: 4px 16px; }
   summary { cursor: pointer; font-family: var(--display); font-weight: 800; font-size: 17px; min-height: 44px; display: flex; align-items: center; }
   details p { margin: 0 0 12px; }
+  .pr { display: inline-block; vertical-align: middle; margin-left: 6px; padding: 2px 10px; border: 2px solid var(--line); border-radius: 999px;
+    background: var(--sun); color: #0b2f5b; font-size: 14px; letter-spacing: 0.08em; }
+  .aff { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .aff-card { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 4px 12px; align-items: start; height: 100%; padding: 14px 16px;
+    border: 2px solid var(--line); border-radius: 18px; background: var(--bg); color: var(--ink); text-decoration: none; box-shadow: 4px 4px 0 var(--shadow); }
+  a.aff-card:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--shadow); }
+  .aff-icon { display: grid; place-items: center; width: 44px; height: 44px; border: 2px solid var(--line); border-radius: 14px; background: var(--sun); }
+  .aff-icon svg { width: 24px; height: 24px; fill: none; stroke: #0b2f5b; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .aff-text { display: grid; gap: 2px; }
+  .aff-text b { font-family: var(--display); font-weight: 800; font-size: 17px; }
+  .aff-text span { font-size: 14px; color: var(--muted); line-height: 1.6; }
+  .aff-card em { grid-column: 2; font-style: normal; font-weight: 700; font-size: 14px; color: var(--sea); }
+  .aff-card.soon { box-shadow: none; border-style: dashed; }
+  .aff-card.soon em { color: var(--muted); }
+  .aff-note { margin: 14px 0 0; font-size: 13px; line-height: 1.7; color: var(--muted); }
   .foot { text-align: center; padding-block: 20px 8px; display: grid; justify-items: center; gap: 8px; }
   @media (max-width: 720px) {
     .hero { grid-template-columns: minmax(0, 1fr); }
     .hero-shot { order: -1; }
     .feature { grid-template-columns: minmax(0, 1fr); padding: 22px 18px; }
     .legend div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+    .aff { grid-template-columns: minmax(0, 1fr); }
   }
   @media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
 '''

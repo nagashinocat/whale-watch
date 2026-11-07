@@ -120,6 +120,31 @@
       border: 1px solid rgba(255, 255, 255, 0.2); color: var(--text); display: inline-flex; align-items: center; justify-content: center;
       backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     .round.on { background: rgba(159, 211, 230, 0.3); border-color: rgba(159, 211, 230, 0.7); }
+    /* タイマー: 右上の時計のボタンから。決めているあいだは右上に残り時間、鳴ったら「時間です」と止めるボタン */
+    .timer-pop { position: fixed; top: calc(max(16px, env(safe-area-inset-top)) + 58px); right: 14px; width: min(320px, calc(100vw - 28px));
+      box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 14px; font-size: 13px; z-index: 6;
+      background: rgba(10, 18, 28, 0.9); border: 1px solid var(--line); border-radius: 16px; }
+    .timer-pop[hidden], .timer-mark[hidden], .alarm[hidden] { display: none; }
+    .timer-now { margin: 0; line-height: 1.5; }
+    .timer-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .timer-chips button, .timer-clock button, .timer-cancel { font: inherit; font-size: 13px; color: var(--text); min-height: 40px; padding: 0 12px;
+      background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 999px; }
+    .timer-clock { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .timer-clock label { display: flex; align-items: center; gap: 8px; }
+    .timer-clock input { font: inherit; font-size: 15px; color: var(--text); background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 10px; min-height: 40px; padding: 0 8px; color-scheme: dark; }
+    .timer-cancel { align-self: flex-start; color: #ffd0c8; border-color: rgba(255, 180, 170, 0.45); }
+    .timer-pop small { color: rgba(238, 243, 247, 0.65); line-height: 1.5; }
+    .timer-mark { position: fixed; top: max(18px, env(safe-area-inset-top)); left: 18px; z-index: 5; color: #cfe6f0; opacity: 0.4;
+      pointer-events: none; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
+    .alarm { position: fixed; left: 50%; top: 24%; transform: translate(-50%, -50%); z-index: 20; width: min(320px, calc(100vw - 32px));
+      box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 20px;
+      background: rgba(10, 18, 28, 0.86); border: 1px solid rgba(159, 211, 230, 0.6); border-radius: 22px; text-align: center;
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); animation: alarmIn .4s ease-out; }
+    @keyframes alarmIn { from { opacity: 0; transform: translate(-50%, -46%); } }
+    .alarm p { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 700; }
+    .alarm button { font: inherit; font-size: 16px; font-weight: 700; color: #0b2233; background: #9fd3e6; border: 0;
+      border-radius: 999px; min-height: 52px; min-width: 160px; }
     /* おやすみモード: 月のボタンは月明かりの色で光る。パネルの下に説明、閉じているあいだは右上に暗い月 */
     .round[data-sleep].on { background: rgba(255, 214, 140, 0.22); border-color: rgba(255, 214, 140, 0.85); color: #ffd68c;
       box-shadow: 0 0 0 3px rgba(255, 214, 140, 0.18), 0 0 16px rgba(255, 214, 140, 0.35); }

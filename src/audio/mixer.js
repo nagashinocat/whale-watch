@@ -118,7 +118,43 @@ export function createMixer(ctx, buffers) {
     rampTo(whaleBus.gain, ctx, whaleTargetGain({ mode, volume }), AUDIO.fadeMs);
   }
 
+  // タイマーの知らせ。おやすみモードでも鳴らす(自分で決めた時間なので)。
+  // 音量が小さくても聞こえるよう、いちばん小さくても 0.3 にする。距離で小さくしない
+  function playAlarm({ ringMs = 60000, everyMs = 11000, name = 'humpback-call' } = {}) {
+    const buffer = buffers[name] ?? buffers.humpback;
+    if (!buffer) return () => {};
+    const bus = ctx.createGain();
+    bus.gain.value = Math.max(0.3, waveTargetGain(volume)) * 0.9;
+    bus.connect(limiter);
+    const now = ctx.currentTime + 0.05;
+    const sources = [];
+    for (let t = 0; t < ringMs / 1000; t += everyMs / 1000) {
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      // 毎回少しだけ高さを変えて、同じ声のくり返しに聞こえないようにする
+      src.playbackRate.value = 0.94 + 0.12 * ((sources.length * 0.618) % 1);
+      const env = ctx.createGain();
+      const len = Math.min(buffer.duration / src.playbackRate.value, ringMs / 1000 - t);
+      env.gain.setValueAtTime(0, now + t);
+      env.gain.linearRampToValueAtTime(1, now + t + 0.6);
+      env.gain.setValueAtTime(1, now + t + Math.max(0.7, len - 1));
+      env.gain.linearRampToValueAtTime(0, now + t + len);
+      src.connect(env).connect(bus);
+      src.start(now + t);
+      src.stop(now + t + len + 0.05);
+      sources.push(src);
+    }
+    let stopped = false;
+    return function stop() {
+      if (stopped) return;
+      stopped = true;
+      rampTo(bus.gain, ctx, 0, 800);
+      setTimeout(() => { for (const s of sources) { try { s.stop(); } catch { /* もう止まっている */ } } bus.disconnect(); }, 900);
+    };
+  }
+
   return {
+    playAlarm,
     start(cam) {
       if (started) return;
       started = true;

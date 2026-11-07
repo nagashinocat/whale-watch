@@ -80,7 +80,7 @@ export function sightingMessage(items) {
 }
 
 // この出方で会ったクジラを、図鑑の「会えた回数」に数えるか。
-// 「呼ぶ」ボタンで来てもらったクジラは数えない(自然に出会ったクジラだけを記録する)
+// 「呼ぶ」ボタンやタイマーで来てもらったクジラは数えない(自然に出会ったクジラだけを記録する)
 export function countsForZukan(event) {
-  return event?.kind !== 'summon' && event?.pattern !== 'summon';
+  return event?.kind !== 'summon' && event?.kind !== 'timer' && event?.pattern !== 'summon';
 }

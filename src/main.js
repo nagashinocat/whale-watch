@@ -17,6 +17,7 @@ import { AUDIO } from './logic/config.js';
 import { loadBook, saveBook, nextVisitor, recordSighting, bookEntries, setNickname, displayName, population, FLUKE_ID } from './logic/flukeId.js';
 import { traitsText } from './logic/traits.js';
 import { sightingMessage, countsForZukan } from './logic/zukan.js';
+import { TIMER, timerState, loadTimer, saveTimer, clockText } from './logic/timer.js';
 import { PHOTOS } from './logic/photos.js';
 import { createZukan } from './ui/zukan.js';
 import { createPhotoStore } from './ui/photoStore.js';
@@ -173,7 +174,8 @@ async function handleEvent(event) {
       new Promise(r => setTimeout(r, durationMs + 1000)),
     ]);
   } finally {
-    if (event.kind !== 'debug') scheduler.endEvent(Date.now());
+    // 動作確認とタイマーは、出番係の順番とは別に出す
+    if (event.kind !== 'debug' && event.kind !== 'timer') scheduler.endEvent(Date.now());
     refreshSummonButton();
   }
 }
@@ -269,6 +271,22 @@ const menu = createMenu(document.getElementById('ui'), {
     updateTime(true);
     save();
   },
+  onTimerSet(at) {
+    timer = { at };
+    saveTimer(safeStorage(), timer);
+    menu.setTimer(at);
+    keepScreenOn(true);
+    menu.showToast(`${clockText(at)}に、クジラが鳴きながら知らせに来ます`);
+  },
+  onTimerCancel() {
+    timer = null;
+    saveTimer(safeStorage(), null);
+    menu.setTimer(null);
+    keepScreenOn(false);
+  },
+  onAlarmStop() {
+    stopAlarm();
+  },
   onVolume(volume) {
     settings.volume = volume;
     mixer?.setVolume(volume);
@@ -340,6 +358,66 @@ setInterval(() => {
 }, 1000);
 // 空はなめらかに変わるよう10秒ごとに合わせる
 setInterval(updateTime, 10 * 1000);
+
+// ---- タイマー ----
+// 決めた時間になったら、クジラが鳴きながら来て知らせる(図鑑には数えない)。
+// 時刻は端末の時計でくらべるので、画面が止まっていても、もどってきたときにすぐ知らせる
+let timer = loadTimer(safeStorage());
+let alarmStop = null, alarmTimer = null;
+menu.setTimer(timer?.at ?? null);
+
+// タイマーのあいだは、画面が消えないようにたのむ(できない端末では何もしない)
+let wakeLock = null;
+async function keepScreenOn(on) {
+  try {
+    if (on && !wakeLock && navigator.wakeLock) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener?.('release', () => { wakeLock = null; });
+    } else if (!on && wakeLock) {
+      await wakeLock.release();
+      wakeLock = null;
+    }
+  } catch {
+    wakeLock = null;
+  }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && timer) keepScreenOn(true); });
+if (timer) keepScreenOn(true);
+
+function stopAlarm() {
+  alarmStop?.();
+  alarmStop = null;
+  clearTimeout(alarmTimer);
+  menu.hideAlarm();
+}
+
+function ringTimer(at) {
+  timer = null;
+  saveTimer(safeStorage(), null);
+  menu.setTimer(null);
+  keepScreenOn(false);
+  stopAlarm();
+  menu.showAlarm(`時間です(${clockText(at)})`);
+  // おやすみモードでも鳴らす。止めるボタンを押すか、しばらくすると止まる
+  alarmStop = mixer?.playAlarm({ ringMs: TIMER.ringMs, everyMs: TIMER.callEveryMs }) ?? null;
+  alarmTimer = setTimeout(stopAlarm, TIMER.ringMs + 1000);
+  // クジラが顔を出して知らせに来る(間近のカメラでは、すぐ目の前まで)
+  handleEvent({ kind: 'timer', pattern: settings.camera === 'near' ? 'eyeContact' : 'spyhop' });
+}
+
+setInterval(() => {
+  if (!timer) return;
+  const now = Date.now();
+  const state = timerState(timer.at, now);
+  if (state === 'ring') ringTimer(timer.at);
+  else if (state === 'missed') {
+    menu.showToast(`タイマーの時間(${clockText(timer.at)})を過ぎていました`);
+    timer = null;
+    saveTimer(safeStorage(), null);
+    menu.setTimer(null);
+    keepScreenOn(false);
+  } else menu.setTimer(timer.at);   // 残り時間の表示を新しくする
+}, 1000);
 
 // 見えていないときは描画を止めて電池を節約する
 document.addEventListener('visibilitychange', () => {

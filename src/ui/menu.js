@@ -1,4 +1,5 @@
 import { MENU_HIDE_MS, TIME_PRESETS } from '../logic/config.js';
+import { TIMER, remainingText, clockText, atClock } from '../logic/timer.js';
 
 // 操作パネル(カメラアプリのような形)。
 // 上: いまの見え方(カメラ・時間)と、おやすみ・音量・全画面の丸いボタン
@@ -35,6 +36,7 @@ const ICON = {
   camera: '<path d="M4 8h3l1.5-2h7L17 8h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle>',
   whale: '<path d="M3 13c2-4 7-6 12-5l3-2v3c1.5 1 2.5 2 3 3l-3 1c-3 4-10 5-15 0z"></path>',
   sun: '<circle cx="12" cy="12" r="4"></circle><path d="M12 3v2M12 19v2M3 12h2M19 12h2"></path>',
+  clock: '<circle cx="12" cy="13" r="7.5"></circle><path d="M12 9v4l2.5 2M9.5 3h5"></path>',
 };
 const icon = (name, size = 22) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[name]}</svg>`;
 
@@ -48,9 +50,22 @@ export function createMenu(root, handlers) {
         <span class="pill" data-now></span>
         <div class="hud-round">
           <button class="round" data-full aria-label="全画面">${icon('full', 20)}</button>
+          <button class="round" data-timer aria-label="タイマー" aria-expanded="false">${icon('clock', 21)}</button>
           <button class="round" data-sound aria-label="音量" aria-expanded="false">${icon('sound', 20)}</button>
           <button class="round" data-sleep aria-label="おやすみモード" aria-pressed="false">${icon('moon', 22)}</button>
         </div>
+      </div>
+      <div class="timer-pop" data-timerpop hidden>
+        <p class="timer-now" data-timernow>決めた時間になると、クジラが鳴きながら知らせに来ます</p>
+        <div class="timer-chips" role="group" aria-label="何分後">
+          ${TIMER.presets.map(m => `<button data-after="${m}">${m < 60 ? `${m}分` : `${m / 60}時間`}後</button>`).join('')}
+        </div>
+        <form class="timer-clock" data-timerclock>
+          <label>時刻で<input type="time" data-timertime required></label>
+          <button type="submit">この時刻に</button>
+        </form>
+        <button class="timer-cancel" data-timercancel hidden>タイマーをやめる</button>
+        <small>画面をつけたまま、このページを開いておいてください(画面が消えると鳴りません)</small>
       </div>
       <label class="vol-pop" data-volpop hidden>音量<input type="range" min="0" max="1" step="0.01" data-volume></label>
       <div class="hud-bottom">
@@ -85,6 +100,11 @@ export function createMenu(root, handlers) {
         <small class="credits" data-credits></small>
       </div>
     </div>
+    <span class="timer-mark" data-timermark hidden>${icon('clock', 16)}<span data-timermarktext></span></span>
+    <div class="alarm" data-alarm hidden role="alert">
+      <p>${icon('clock', 22)}<span data-alarmtext>時間です</span></p>
+      <button data-alarmstop>止める</button>
+    </div>
     <span class="sleep-mark" data-sleepmark hidden aria-label="おやすみモード中">${icon('moon', 18)}</span>
     <p class="toast" data-toast hidden></p>
     <div class="flash" data-flash hidden></div>`;
@@ -104,6 +124,13 @@ export function createMenu(root, handlers) {
   const sun = $('[data-sun]');
   const now = $('[data-now]');
   const sleepNote = $('[data-sleepnote]');
+  const timerBtn = $('[data-timer]');
+  const timerPop = $('[data-timerpop]');
+  const timerNow = $('[data-timernow]');
+  const timerCancel = $('[data-timercancel]');
+  const timerMark = $('[data-timermark]');
+  const alarm = $('[data-alarm]');
+  let timerAt = null;
   const sleepMark = $('[data-sleepmark]');
   let started = false;
   let toastTimer = null;
@@ -114,7 +141,11 @@ export function createMenu(root, handlers) {
 
   function scheduleHide() {
     clearTimeout(hideTimer);
-    hideTimer = setTimeout(() => { menu.hidden = true; volpop.hidden = true; soundBtn.setAttribute('aria-expanded', 'false'); showSleepMark(); }, MENU_HIDE_MS);
+    hideTimer = setTimeout(() => {
+      // タイマーを決めているあいだは隠さない
+      if (!timerPop.hidden) { scheduleHide(); return; }
+      menu.hidden = true; volpop.hidden = true; soundBtn.setAttribute('aria-expanded', 'false'); showSleepMark();
+    }, MENU_HIDE_MS);
   }
 
   function showMenu() {
@@ -126,6 +157,7 @@ export function createMenu(root, handlers) {
   // パネルを閉じているあいだも、おやすみモードなら右上に小さく暗い月を出す(夜でもまぶしくない明るさ)
   function showSleepMark() {
     sleepMark.hidden = !(started && current.mode === 'sleep' && menu.hidden);
+    timerMark.hidden = !(started && timerAt != null && menu.hidden);
   }
 
   start.addEventListener('click', () => {
@@ -140,6 +172,7 @@ export function createMenu(root, handlers) {
     if (!started) return;
     // 図鑑や写真を見ているあいだは、パネルを出したり隠したりしない
     if (handlers.isOverlay?.(e.target)) return;
+    if (alarm.contains(e.target)) return;
     if (menu.contains(e.target)) scheduleHide();
     else if (menu.hidden) showMenu();
     else { menu.hidden = true; showSleepMark(); }
@@ -150,7 +183,29 @@ export function createMenu(root, handlers) {
   soundBtn.addEventListener('click', () => {
     volpop.hidden = !volpop.hidden;
     soundBtn.setAttribute('aria-expanded', String(!volpop.hidden));
+    if (!volpop.hidden) { timerPop.hidden = true; timerBtn.setAttribute('aria-expanded', 'false'); }
   });
+  // タイマー
+  timerBtn.addEventListener('click', () => {
+    timerPop.hidden = !timerPop.hidden;
+    timerBtn.setAttribute('aria-expanded', String(!timerPop.hidden));
+    if (!timerPop.hidden) { volpop.hidden = true; soundBtn.setAttribute('aria-expanded', 'false'); }
+    scheduleHide();
+  });
+  const closeTimerPop = () => { timerPop.hidden = true; timerBtn.setAttribute('aria-expanded', 'false'); scheduleHide(); };
+  root.querySelectorAll('[data-after]').forEach(b => b.addEventListener('click', () => {
+    handlers.onTimerSet?.(Date.now() + Number(b.dataset.after) * 60000);
+    closeTimerPop();
+  }));
+  $('[data-timerclock]').addEventListener('submit', e => {
+    e.preventDefault();
+    const at = atClock($('[data-timertime]').value, Date.now());
+    if (at == null) return;
+    handlers.onTimerSet?.(at);
+    closeTimerPop();
+  });
+  timerCancel.addEventListener('click', () => { handlers.onTimerCancel?.(); closeTimerPop(); });
+  $('[data-alarmstop]').addEventListener('click', () => handlers.onAlarmStop?.());
   root.querySelectorAll('[data-camera]').forEach(b =>
     b.addEventListener('click', () => handlers.onCamera(b.dataset.camera)));
   root.querySelectorAll('[data-time]').forEach(b =>
@@ -204,6 +259,26 @@ export function createMenu(root, handlers) {
       const night = h < 5.5 || h > 19;
       sun.classList.toggle('night', night);
       sun.innerHTML = icon(night ? 'moon' : 'sun', 18);
+    },
+    // タイマー(at: 鳴る時刻のミリ秒。null でなし)。残り時間の表示も、これで新しくする
+    setTimer(at) {
+      timerAt = at;
+      const on = at != null;
+      timerBtn.classList.toggle('on', on);
+      timerCancel.hidden = !on;
+      const left = on ? `${clockText(at)}に鳴ります(${remainingText(at - Date.now())})` : '';
+      timerNow.textContent = on ? left : '決めた時間になると、クジラが鳴きながら知らせに来ます';
+      timerBtn.setAttribute('aria-label', on ? `タイマー: ${left}` : 'タイマー');
+      $('[data-timermarktext]').textContent = on ? remainingText(at - Date.now()) : '';
+      showSleepMark();
+    },
+    // 「時間です」の知らせ
+    showAlarm(text = '時間です') {
+      $('[data-alarmtext]').textContent = text;
+      alarm.hidden = false;
+    },
+    hideAlarm() {
+      alarm.hidden = true;
     },
     // 図鑑にのっている数
     setZukanCount(n, total) {

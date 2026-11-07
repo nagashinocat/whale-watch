@@ -5,7 +5,8 @@
 import hashlib, json, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-FILES = ['./', 'index.html', 'about.html', 'manifest.webmanifest']
+FILES = ['./', 'index.html', 'about.html', 'guide.html', 'manifest.webmanifest']
+FILES += sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'assets/guide').glob('*.jpg'))
 FILES += sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'src').rglob('*.js'))
 FILES += sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'assets/audio').glob('*.m4a'))
 FILES += sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'assets/icons').glob('*.png'))

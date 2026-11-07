@@ -1,13 +1,33 @@
 // このファイルは tools/build_sw.py で作る(手で書きかえない)
 // 一度開いたら、電波がなくても動くように、アプリのファイルを端末にとっておく
-const VERSION = '51220e8846cb';
+const VERSION = '1503dec5081c';
 const APP = `whale-ocean-${VERSION}`;
 const EXTRA = 'whale-ocean-extra';   // 文字の形など、あとから読みこんだもの
 const FILES = [
   "./",
   "index.html",
   "about.html",
+  "guide.html",
   "manifest.webmanifest",
+  "assets/guide/en-alarm.jpg",
+  "assets/guide/en-book.jpg",
+  "assets/guide/en-card.jpg",
+  "assets/guide/en-closed.jpg",
+  "assets/guide/en-panel.jpg",
+  "assets/guide/en-sleep.jpg",
+  "assets/guide/en-start.jpg",
+  "assets/guide/en-timer.jpg",
+  "assets/guide/en-whale.jpg",
+  "assets/guide/ja-alarm.jpg",
+  "assets/guide/ja-book.jpg",
+  "assets/guide/ja-card.jpg",
+  "assets/guide/ja-closed.jpg",
+  "assets/guide/ja-panel.jpg",
+  "assets/guide/ja-sleep.jpg",
+  "assets/guide/ja-start.jpg",
+  "assets/guide/ja-timer.jpg",
+  "assets/guide/ja-whale.jpg",
+  "assets/guide/scene.jpg",
   "src/audio/mixer.js",
   "src/logic/astro.js",
   "src/logic/behavior.js",

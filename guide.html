@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>クジラの見える海 ガイド</title>
+<meta name="description" content="クジラの見える海の使い方ガイド。カメラ、クジラの出かた、写真と図鑑、シェア、タイマー、おやすみモード。">
+<meta name="theme-color" content="#1f7ae0">
+<link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800;900&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  /* 海のポップなガイド: 太いふちと、ずらした影のステッカー風。色は空・海・太陽・サンゴ・ミントの5色 */
+  :root {
+    --bg: #eaf7ff; --paper: #ffffff; --ink: #0b2f5b; --muted: #43628a; --line: #0b2f5b;
+    --sea: #1f7ae0; --coral: #ff6b57; --sun: #ffc23d; --mint: #22c3a2; --night: #3a3f9a;
+    --wave: #cdeeff; --shadow: #0b2f5b;
+    --display: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Zen Maru Gothic", system-ui, sans-serif;
+    --body: "Zen Maru Gothic", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #071a33; --paper: #0e2a4d; --ink: #eaf4ff; --muted: #a9c3e2; --line: #9fd3ff;
+    --sea: #4aa3ff; --coral: #ff8a78; --sun: #ffd166; --mint: #3fe0bf; --night: #8f95ff; --wave: #0c2747; --shadow: #000814; color-scheme: dark; } }
+  :root[data-theme="dark"] {
+    --bg: #071a33; --paper: #0e2a4d; --ink: #eaf4ff; --muted: #a9c3e2; --line: #9fd3ff;
+    --sea: #4aa3ff; --coral: #ff8a78; --sun: #ffd166; --mint: #3fe0bf; --night: #8f95ff; --wave: #0c2747; --shadow: #000814; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.75;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: max(16px, env(safe-area-inset-top, 0px)) max(32px, env(safe-area-inset-bottom, 0px));
+    background-image: radial-gradient(circle at 12% 8%, var(--wave) 0 120px, transparent 121px), radial-gradient(circle at 92% 30%, var(--wave) 0 160px, transparent 161px); }
+  [hidden] { display: none !important; }
+  a { color: var(--sea); font-weight: 700; }
+  a:focus-visible, summary:focus-visible { outline: 3px solid var(--coral); outline-offset: 3px; border-radius: 8px; }
+  main { width: min(1040px, 100%); margin: 0 auto; }
+  h1, h2 { font-family: var(--display); text-wrap: balance; margin: 0; }
+  .hero { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: 24px; align-items: center; padding-block: 24px 8px; }
+  .kicker { display: inline-block; margin: 0 0 10px; padding: 4px 14px; border: 3px solid var(--line); border-radius: 999px;
+    background: var(--sun); color: #0b2f5b; font-family: var(--display); font-weight: 800; letter-spacing: 0.06em; box-shadow: 3px 3px 0 var(--shadow); }
+  h1 { font-size: clamp(52px, 12vw, 104px); line-height: 1.02; font-weight: 900; letter-spacing: 0.01em; color: var(--sea);
+    text-shadow: 4px 4px 0 var(--sun); }
+  .hero-lead { font-size: 18px; max-width: 30em; margin: 16px 0 20px; }
+  .hero-actions { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; }
+  .btn { display: inline-flex; align-items: center; min-height: 52px; padding: 0 24px; border: 3px solid var(--line); border-radius: 999px;
+    background: var(--coral); color: #fff; text-decoration: none; font-family: var(--display); font-weight: 800; font-size: 18px; box-shadow: 4px 4px 0 var(--shadow);
+    transition: transform .12s, box-shadow .12s; }
+  .btn:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--shadow); }
+  .switch { font-size: 14px; display: inline-flex; gap: 10px; }
+  .hero-shot { justify-self: center; }
+  .phone { margin: 0; width: min(240px, 70vw); border: 4px solid var(--line); border-radius: 34px; overflow: hidden; background: #06325a;
+    box-shadow: 6px 6px 0 var(--shadow); transform: rotate(var(--tilt)); }
+  .phone img { display: block; width: 100%; height: auto; }
+  .toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 8px; }
+  .toc a { padding: 6px 14px; border: 2px solid var(--line); border-radius: 999px; background: var(--paper); text-decoration: none; color: var(--ink);
+    font-size: 14px; box-shadow: 2px 2px 0 var(--shadow); }
+  .feature { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px 32px; align-items: center; margin: 36px 0;
+    padding: 28px; border: 3px solid var(--line); border-radius: 28px; background: var(--paper); box-shadow: 6px 6px 0 var(--c); }
+  .feature.wide { grid-template-columns: minmax(0, 1fr); }
+  .feature-text { min-width: 0; }
+  .badge { display: inline-grid; place-items: center; width: 56px; height: 56px; border: 3px solid var(--line); border-radius: 18px; background: var(--c);
+    box-shadow: 3px 3px 0 var(--shadow); margin-bottom: 12px; transform: rotate(-6deg); }
+  .badge svg { width: 30px; height: 30px; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .badge svg path[d^="M8 5v14"] { fill: #fff; }
+  h2 { font-size: clamp(26px, 5vw, 36px); line-height: 1.25; font-weight: 800; }
+  .lead { font-size: 17px; margin: 10px 0 14px; max-width: 34em; }
+  .shots { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; }
+  .shots .phone { width: min(200px, 42vw); }
+  .card-shot { margin: 0; width: min(300px, 80vw); border: 4px solid var(--line); border-radius: 18px; overflow: hidden; box-shadow: 6px 6px 0 var(--shadow); transform: rotate(2deg); }
+  .card-shot img { display: block; width: 100%; height: auto; }
+  .steps { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+  .steps .tip { list-style: none; margin-left: -1.2em; padding: 8px 12px; border-radius: 14px; background: var(--wave); font-size: 14px; }
+  .legend { display: grid; gap: 8px; margin: 0; }
+  .legend div { display: grid; grid-template-columns: 6.5em minmax(0, 1fr); gap: 10px; align-items: baseline; }
+  .legend dt { justify-self: start; padding: 2px 10px; border: 2px solid var(--line); border-radius: 10px; background: var(--sun); color: #0b2f5b;
+    font-family: var(--display); font-weight: 800; font-size: 14px; }
+  .legend dd { margin: 0; min-width: 0; }
+  .chips { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); gap: 12px; }
+  .chip { position: relative; padding: 12px 14px 12px; border: 2px solid var(--line); border-radius: 18px; background: var(--bg); display: grid; gap: 2px; }
+  .chip b { font-family: var(--display); font-size: 17px; }
+  .chip span { font-size: 14px; color: var(--muted); line-height: 1.55; }
+  .chip em { position: absolute; top: -10px; right: 10px; font-style: normal; font-size: 11px; font-weight: 800; padding: 1px 9px; border: 2px solid var(--line); border-radius: 999px; color: #0b2f5b; }
+  .chip.r1 em { background: var(--mint); } .chip.r2 em { background: var(--sun); } .chip.r3 em { background: var(--coral); color: #fff; }
+  .note { margin: 14px 0 0; font-size: 13px; color: var(--muted); }
+  .levels { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
+  .levels li { display: grid; grid-template-columns: 3.4em minmax(0, 1fr); gap: 10px; align-items: center; }
+  .levels b { display: grid; place-items: center; height: 38px; border: 2px solid var(--line); border-radius: 12px; background: var(--mint); color: #0b2f5b;
+    font-family: var(--display); font-weight: 900; font-variant-numeric: tabular-nums; }
+  .levels .cam b { background: var(--coral); }
+  .levels .cam svg { width: 22px; height: 22px; fill: none; stroke: #fff; stroke-width: 2; }
+  .faq { display: grid; gap: 10px; }
+  details { border: 2px solid var(--line); border-radius: 16px; background: var(--bg); padding: 4px 16px; }
+  summary { cursor: pointer; font-family: var(--display); font-weight: 800; font-size: 17px; min-height: 44px; display: flex; align-items: center; }
+  details p { margin: 0 0 12px; }
+  .foot { text-align: center; padding-block: 20px 8px; display: grid; justify-items: center; gap: 8px; }
+  @media (max-width: 720px) {
+    .hero { grid-template-columns: minmax(0, 1fr); }
+    .hero-shot { order: -1; }
+    .feature { grid-template-columns: minmax(0, 1fr); padding: 22px 18px; }
+    .legend div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+
+<div data-l="ja" lang="ja">
+  <header class="hero">
+    <div class="hero-text">
+      <p class="kicker">つかいかたガイド</p>
+      <h1>クジラの<br>見える海</h1>
+      <p class="hero-lead">波の音を流しっぱなしにできる、海の定点カメラ。ときどき、クジラがやってきます。</p>
+      <div class="hero-actions">
+        <a class="btn" href="./">海を見に行く</a>
+        <span class="switch"><b>日本語</b> <a href="#" data-to="en">English</a></span>
+      </div>
+    </div>
+    <div class="hero-shot"><figure class="phone" style="--tilt:4deg"><img src="assets/guide/ja-closed.jpg" alt="海とクジラ" loading="lazy" width="520" height="1126"></figure></div>
+  </header>
+  <nav class="toc" aria-label="もくじ"><a href="#start-ja">はじめる</a><a href="#panel-ja">操作パネル</a><a href="#whales-ja">クジラの出かた</a><a href="#book-ja">写真と図鑑</a><a href="#share-ja">シェア</a><a href="#timer-ja">タイマー</a><a href="#sleep-ja">おやすみ</a><a href="#help-ja">こまったとき</a></nav>
+  
+  <section class="feature" id="start-ja" style="--c: var(--sun)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+      <h2>まずは、海へ</h2>
+      <p class="lead">画面の「さぁ、クジラたちに会いに行こう」をタップすると、波の音が流れはじめます。あとは、のんびり待つだけ。</p>
+      <ul class="steps">
+          <li>音を出したいときは、iPhone のマナーモードを切っておいてね。</li>
+          <li>ホーム画面に追加すると、アプリみたいに開けます。一度開けば、電波がなくても動きます。</li>
+          <li class="tip"><b>iPhone</b> 共有ボタン →「ホーム画面に追加」　<b>Android</b> メニュー →「ホーム画面に追加」</li>
+        </ul>
+    </div>
+    <div class="shots"><figure class="phone" style="--tilt:-3deg"><img src="assets/guide/ja-start.jpg" alt="はじめの画面" loading="lazy" width="520" height="1126"></figure></div>
+  </section>
+  <section class="feature" id="panel-ja" style="--c: var(--sea)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 15h8M8 11h5"/></svg></span>
+      <h2>タップでパネルが出るよ</h2>
+      <p class="lead">海をタップすると操作パネルが出て、しばらくすると自動で消えます。赤ちゃんの寝かしつけ中も、じゃまになりません。</p>
+      <dl class="legend">
+          <div><dt>景色</dt><dd>崖の上・上空・間近の3つのカメラ</dd></div>
+          <div><dt>空</dt><dd>帯をタップして朝・昼・夕方・夜。ゴールデンアワーやブルーアワーも。「自動」は本物の空に合わせます</dd></div>
+          <div><dt>図鑑</dt><dd>会えたクジラの記録</dd></div>
+          <div><dt>シャッター</dt><dd>いまの海を写真に</dd></div>
+          <div><dt>呼ぶ</dt><dd>すぐにクジラが来てくれる(図鑑には数えません)</dd></div>
+          <div><dt>右上</dt><dd>全画面・タイマー・音量・おやすみモード</dd></div>
+          <div><dt>言語</dt><dd>日本語と English を切りかえ</dd></div>
+        </dl>
+    </div>
+    <div class="shots"><figure class="phone" style="--tilt:2deg"><img src="assets/guide/ja-panel.jpg" alt="操作パネル" loading="lazy" width="520" height="1126"></figure></div>
+  </section>
+  <section class="feature wide" id="whales-ja" style="--c: var(--coral)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 13c2-4 7-6 12-5l3-2v3c1.5 1 2.5 2 3 3l-3 1c-3 4-10 5-15 0z"/></svg></span>
+      <h2>クジラたちは、気まぐれにやってくる</h2>
+      <p class="lead">ふつうは30〜90分に1回くらい。どんな姿を見せてくれるかは、そのときのお楽しみ。来る間隔は、時計のボタンで「よく来る(5〜15分)」から「ときどき(1〜3時間)」まで変えられます。</p>
+    </div>
+    <ul class="chips"><li class="chip r1"><b>潮吹きと背中</b><span>息をしながら、背中を見せてゆっくり泳ぐ</span><em>よく出る</em></li><li class="chip r1"><b>鳴き声だけ</b><span>姿は見えず、遠くから歌が聞こえる</span><em>よく出る</em></li><li class="chip r1"><b>尾びれを上げて潜る</b><span>大きな尾びれを見せて深く潜る</span><em>よく出る</em></li><li class="chip r1"><b>ジャンプ</b><span>体の半分以上が水から飛び出す</span><em>よく出る</em></li><li class="chip r2"><b>親子で泳ぐ</b><span>お母さんと子どもがならんで泳ぐ</span><em>ときどき</em></li><li class="chip r2"><b>寝ているクジラ</b><span>水面に浮かんで、うとうと休む</span><em>ときどき</em></li><li class="chip r2"><b>群れで泳ぐ</b><span>付きそいのオスもいっしょに旅をする</span><em>ときどき</em></li><li class="chip r2"><b>大ジャンプ</b><span>尾びれの先まで、体全体が空中に!</span><em>ときどき</em></li><li class="chip r2"><b>親子でジャンプ</b><span>子どもが何度もジャンプの練習</span><em>ときどき</em></li><li class="chip r2"><b>スパイホップ</b><span>水面から顔を出して、まわりを見る</span><em>ときどき</em></li><li class="chip r2"><b>胸びれでたたく</b><span>長い胸びれで水面をバシャン</span><em>ときどき</em></li><li class="chip r2"><b>尾びれでたたく</b><span>尾びれで水面をバシーン</span><em>ときどき</em></li><li class="chip r3"><b>群れでジャンプ</b><span>2〜5頭がつぎつぎに。互い違いのことも</span><em>めったにない</em></li><li class="chip r3"><b>群れでスパイホップ</b><span>みんなで顔を出して、きょろきょろ</span><em>めったにない</em></li><li class="chip r3"><b>目が合う</b><span>間近のカメラのすぐ前に来て、目が合う</span><em>めったにない</em></li><li class="chip r3"><b>捕食</b><span>口を大きく開けて、水ごとのみこむ</span><em>めったにない</em></li><li class="chip r3"><b>バブルネット</b><span>泡の輪で魚を囲んで、群れでいっせいに</span><em>めったにない</em></li></ul>
+    <p class="note">どの動きも、記録計をつけたクジラの研究や図鑑の数値をもとに作っています。</p>
+  </section>
+  <section class="feature" id="book-ja" style="--c: var(--mint)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg></span>
+      <h2>写真を撮って、図鑑をうめよう</h2>
+      <p class="lead">水面に姿を見せたクジラは、図鑑にのります。尾びれの裏の模様は1頭ずつちがうので、同じ子が来るとわかるよ。</p>
+      <ul class="levels">
+          <li><b>1回</b>尾びれの模様と名前</li>
+          <li><b>2回</b>全長</li>
+          <li><b>3回</b>体重と特徴</li>
+          <li class="cam"><b><svg viewBox="0 0 24 24"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></b>その子の写真を撮ると、全身の姿がのる</li>
+        </ul>
+        <p>「名前を付ける」で、好きな名前に変えられます。真っ白な子やフジツボだらけの子など、24頭の個性をさがしてね。</p>
+    </div>
+    <div class="shots"><figure class="phone" style="--tilt:-2deg"><img src="assets/guide/ja-book.jpg" alt="図鑑の一覧" loading="lazy" width="520" height="1126"></figure><figure class="phone" style="--tilt:3deg"><img src="assets/guide/ja-whale.jpg" alt="1頭のページ" loading="lazy" width="520" height="1126"></figure></div>
+  </section>
+  <section class="feature" id="share-ja" style="--c: var(--sea)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 13v6h14v-6"/></svg></span>
+      <h2>お気に入りを、シェア</h2>
+      <p class="lead">図鑑の「この子をシェアする」や「写真と名前を1枚にまとめてシェア」で、X や Instagram にそのまま投稿できる1枚ができます。</p>
+      <ul class="steps">
+          <li>大きさは Instagram の縦長(4:5)。X でもきれいに見えます。</li>
+          <li>共有の画面が出ないときは、画像を長押しして保存してから投稿してね。</li>
+        </ul>
+    </div>
+    <div class="shots"><figure class="card-shot"><img src="assets/guide/ja-card.jpg" alt="シェア用の1枚" loading="lazy" width="720" height="900"></figure></div>
+  </section>
+  <section class="feature" id="timer-ja" style="--c: var(--sun)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7.5"/><path d="M12 9v4l2.5 2M9.5 3h5"/></svg></span>
+      <h2>クジラが時間を教えてくれる</h2>
+      <p class="lead">時計のボタンでタイマーを決めると、その時間にクジラが鳴きながら顔を出して知らせてくれます。おやすみモードでも鳴るよ。</p>
+      <ul class="steps">
+          <li>「5分後」〜「1時間後」か、「時刻で」決められます。</li>
+          <li>タイマーのあいだは、ほかのクジラは来ません。</li>
+          <li class="tip">画面が消えると鳴らないので、画面はつけたままにしてね。</li>
+        </ul>
+    </div>
+    <div class="shots"><figure class="phone" style="--tilt:-2deg"><img src="assets/guide/ja-timer.jpg" alt="タイマーを決める" loading="lazy" width="520" height="1126"></figure><figure class="phone" style="--tilt:3deg"><img src="assets/guide/ja-alarm.jpg" alt="時間になったとき" loading="lazy" width="520" height="1126"></figure></div>
+  </section>
+  <section class="feature" id="sleep-ja" style="--c: var(--night)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></span>
+      <h2>おやすみモード</h2>
+      <p class="lead">右上の月のボタンで、波の音だけのおやすみモードに。クジラの声は鳴らないので、赤ちゃんの寝かしつけにぴったり。</p>
+      <ul class="steps">
+          <li>オンのあいだは月のボタンが光り、パネルを閉じても右上に小さな月が出ます。</li>
+          <li>パネルの下の「閉じても残るボタン」で、写真のボタンを左下・真ん中・右下に残せます。</li>
+        </ul>
+    </div>
+    <div class="shots"><figure class="phone" style="--tilt:2deg"><img src="assets/guide/ja-sleep.jpg" alt="おやすみモード" loading="lazy" width="520" height="1126"></figure><figure class="phone" style="--tilt:-3deg"><img src="assets/guide/ja-closed.jpg" alt="パネルを閉じたところ" loading="lazy" width="520" height="1126"></figure></div>
+  </section>
+  <section class="feature wide" id="help-ja" style="--c: var(--sea)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01"/></svg></span>
+      <h2>こまったときは</h2>
+    </div>
+    <div class="faq"><details><summary>音が出ない</summary><p>マナーモードを切って、音量を上げてみてね。おやすみモードのときは、クジラの声は鳴りません。</p></details><details><summary>しばらくすると止まる</summary><p>画面が消えると止まります。スマホの自動ロックを長めにするか、充電しながら使ってね。</p></details><details><summary>クジラが来ない</summary><p>30〜90分に1回くらいです。待てないときは「呼ぶ」か、時計のボタンで「よく来る」に。</p></details><details><summary>図鑑や写真は、どこにあるの?</summary><p>このスマホのブラウザの中だけに保存されています。どこにも送っていません。</p></details></div>
+  </section>
+  <footer class="foot">
+    <a class="btn" href="./">さぁ、クジラたちに会いに行こう</a>
+    <p><a href="about.html">このアプリについて(素材・データの扱い)</a></p>
+  </footer>
+</div>
+
+<div data-l="en" lang="en" hidden>
+  <header class="hero">
+    <div class="hero-text">
+      <p class="kicker">How to use</p>
+      <h1>Whale<br>Ocean</h1>
+      <p class="hero-lead">A fixed camera on the sea with endless waves. Now and then, whales come by.</p>
+      <div class="hero-actions">
+        <a class="btn" href="./">Go to the sea</a>
+        <span class="switch"><a href="#" data-to="ja">日本語</a> <b>English</b></span>
+      </div>
+    </div>
+    <div class="hero-shot"><figure class="phone" style="--tilt:4deg"><img src="assets/guide/en-closed.jpg" alt="The sea and a whale" loading="lazy" width="520" height="1126"></figure></div>
+  </header>
+  <nav class="toc" aria-label="Contents"><a href="#start-en">Start</a><a href="#panel-en">Panel</a><a href="#whales-en">Whales</a><a href="#book-en">Photos & Book</a><a href="#share-en">Share</a><a href="#timer-en">Timer</a><a href="#sleep-en">Sleep</a><a href="#help-en">Help</a></nav>
+  
+  <section class="feature" id="start-en" style="--c: var(--sun)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+      <h2>First, head to the sea</h2>
+      <p class="lead">Tap “Let’s go meet the whales” and the waves start rolling in. Then just relax and wait.</p>
+      <ul class="steps">
+          <li>Turn off silent mode on iPhone to hear the sound.</li>
+          <li>Add it to your home screen to open it like an app. After the first visit it even works offline.</li>
+          <li class="tip"><b>iPhone</b> Share button → “Add to Home Screen”　<b>Android</b> Menu → “Add to Home screen”</li>
+        </ul>
+    </div>
+    <div class="shots"><figure class="phone" style="--tilt:-3deg"><img src="assets/guide/en-start.jpg" alt="Start screen" loading="lazy" width="520" height="1126"></figure></div>
+  </section>
+  <section class="feature" id="panel-en" style="--c: var(--sea)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 15h8M8 11h5"/></svg></span>
+      <h2>Tap for the control panel</h2>
+      <p class="lead">Tap the sea to show the panel. It hides by itself after a while, so it never gets in the way.</p>
+      <dl class="legend">
+          <div><dt>View</dt><dd>Three cameras: Cliff, Sky and Up close</dd></div>
+          <div><dt>Sky</dt><dd>Tap the bar for morning, day, evening or night, plus golden and blue hour. “Auto” follows the real sky</dd></div>
+          <div><dt>Book</dt><dd>Your record of whales you have met</dd></div>
+          <div><dt>Shutter</dt><dd>Take a photo of the sea right now</dd></div>
+          <div><dt>Call</dt><dd>A whale comes right away (not counted in your Book)</dd></div>
+          <div><dt>Top right</dt><dd>Full screen, timer, volume and sleep mode</dd></div>
+          <div><dt>Language</dt><dd>Switch between Japanese and English</dd></div>
+        </dl>
+    </div>
+    <div class="shots"><figure class="phone" style="--tilt:2deg"><img src="assets/guide/en-panel.jpg" alt="Control panel" loading="lazy" width="520" height="1126"></figure></div>
+  </section>
+  <section class="feature wide" id="whales-en" style="--c: var(--coral)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 13c2-4 7-6 12-5l3-2v3c1.5 1 2.5 2 3 3l-3 1c-3 4-10 5-15 0z"/></svg></span>
+      <h2>The whales come when they please</h2>
+      <p class="lead">Usually about once every 30–90 minutes, and you never know what you will see. Use the clock button to change how often, from “Often” (5–15 min) to “Rarely” (1–3 h).</p>
+    </div>
+    <ul class="chips"><li class="chip r1"><b>Blow & back</b><span>Breathes and rolls its back at the surface</span><em>Common</em></li><li class="chip r1"><b>Song only</b><span>No whale in sight, just a song from afar</span><em>Common</em></li><li class="chip r1"><b>Fluke-up dive</b><span>Lifts its big tail and dives deep</span><em>Common</em></li><li class="chip r1"><b>Breach</b><span>Leaps half its body out of the water</span><em>Common</em></li><li class="chip r2"><b>Mother & calf</b><span>A mother and calf swim side by side</span><em>Sometimes</em></li><li class="chip r2"><b>Sleeping whales</b><span>Float at the surface and rest</span><em>Sometimes</em></li><li class="chip r2"><b>Pod</b><span>A small group travels together</span><em>Sometimes</em></li><li class="chip r2"><b>Full breach</b><span>The whole body clears the water!</span><em>Sometimes</em></li><li class="chip r2"><b>Calf breach</b><span>The calf practices leaping again and again</span><em>Sometimes</em></li><li class="chip r2"><b>Spyhop</b><span>Pokes its head up to look around</span><em>Sometimes</em></li><li class="chip r2"><b>Flipper slap</b><span>Slaps the water with its long flipper</span><em>Sometimes</em></li><li class="chip r2"><b>Tail slap</b><span>Smacks the water with its tail</span><em>Sometimes</em></li><li class="chip r3"><b>Group breach</b><span>2 to 5 whales leap one after another</span><em>Rare</em></li><li class="chip r3"><b>Group spyhop</b><span>Several heads pop up together</span><em>Rare</em></li><li class="chip r3"><b>Eye to eye</b><span>Comes right up to the close-up camera</span><em>Rare</em></li><li class="chip r3"><b>Lunge feeding</b><span>Opens wide and gulps a huge mouthful</span><em>Rare</em></li><li class="chip r3"><b>Bubble-net</b><span>A team traps fish in a ring of bubbles</span><em>Rare</em></li></ul>
+    <p class="note">Every move is based on figures from tagging studies and field guides.</p>
+  </section>
+  <section class="feature" id="book-en" style="--c: var(--mint)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg></span>
+      <h2>Snap photos, fill your Book</h2>
+      <p class="lead">Whales that show themselves at the surface are added to your Book. Each has its own fluke pattern, so you will know when an old friend returns.</p>
+      <ul class="levels">
+          <li><b>1×</b>Fluke pattern and name</li>
+          <li><b>2×</b>Length</li>
+          <li><b>3×</b>Weight and features</li>
+          <li class="cam"><b><svg viewBox="0 0 24 24"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></b>Photograph it to add its full-body portrait</li>
+        </ul>
+        <p>Tap “Rename” to give it any name you like. Look for all 24, from a pure white whale to one covered in barnacles.</p>
+    </div>
+    <div class="shots"><figure class="phone" style="--tilt:-2deg"><img src="assets/guide/en-book.jpg" alt="Whale Book list" loading="lazy" width="520" height="1126"></figure><figure class="phone" style="--tilt:3deg"><img src="assets/guide/en-whale.jpg" alt="A whale’s page" loading="lazy" width="520" height="1126"></figure></div>
+  </section>
+  <section class="feature" id="share-en" style="--c: var(--sea)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 13v6h14v-6"/></svg></span>
+      <h2>Share your favorites</h2>
+      <p class="lead">Use “Share this whale” or “Share my photos and whales” in the Book to make a ready-to-post image for X or Instagram.</p>
+      <ul class="steps">
+          <li>It is sized for Instagram portrait posts (4:5) and looks great on X too.</li>
+          <li>If the share sheet does not open, long-press the image to save it, then post it.</li>
+        </ul>
+    </div>
+    <div class="shots"><figure class="card-shot"><img src="assets/guide/en-card.jpg" alt="Share image" loading="lazy" width="720" height="900"></figure></div>
+  </section>
+  <section class="feature" id="timer-en" style="--c: var(--sun)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7.5"/><path d="M12 9v4l2.5 2M9.5 3h5"/></svg></span>
+      <h2>A whale tells you the time</h2>
+      <p class="lead">Set a timer with the clock button. When time is up, a whale pops up calling to let you know, even in sleep mode.</p>
+      <ul class="steps">
+          <li>Choose 5 minutes to 1 hour, or pick a time.</li>
+          <li>No other whales come while the timer is running.</li>
+          <li class="tip">Keep the screen on. It cannot ring once the screen sleeps.</li>
+        </ul>
+    </div>
+    <div class="shots"><figure class="phone" style="--tilt:-2deg"><img src="assets/guide/en-timer.jpg" alt="Setting a timer" loading="lazy" width="520" height="1126"></figure><figure class="phone" style="--tilt:3deg"><img src="assets/guide/en-alarm.jpg" alt="When time is up" loading="lazy" width="520" height="1126"></figure></div>
+  </section>
+  <section class="feature" id="sleep-en" style="--c: var(--night)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></span>
+      <h2>Sleep mode</h2>
+      <p class="lead">The moon button switches to sleep mode: waves only, no whale calls. Perfect for bedtime.</p>
+      <ul class="steps">
+          <li>The moon button glows while it is on, and a tiny moon stays in the corner when the panel is closed.</li>
+          <li>Under “Photo button” you can keep a shutter on screen at the left, center or right.</li>
+        </ul>
+    </div>
+    <div class="shots"><figure class="phone" style="--tilt:2deg"><img src="assets/guide/en-sleep.jpg" alt="Sleep mode" loading="lazy" width="520" height="1126"></figure><figure class="phone" style="--tilt:-3deg"><img src="assets/guide/en-closed.jpg" alt="Panel closed" loading="lazy" width="520" height="1126"></figure></div>
+  </section>
+  <section class="feature wide" id="help-en" style="--c: var(--sea)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01"/></svg></span>
+      <h2>If something seems off</h2>
+    </div>
+    <div class="faq"><details><summary>No sound</summary><p>Turn off silent mode and turn up the volume. In sleep mode, whale calls do not play.</p></details><details><summary>It stops after a while</summary><p>It pauses when the screen sleeps. Set a longer auto-lock or keep the phone charging.</p></details><details><summary>No whales come</summary><p>They come about once every 30–90 minutes. Tap “Call”, or choose “Often” under the clock button.</p></details><details><summary>Where are my Book and photos?</summary><p>Only in this browser on this device. Nothing is sent anywhere.</p></details></div>
+  </section>
+  <footer class="foot">
+    <a class="btn" href="./">Let’s go meet the whales</a>
+    <p><a href="about.html">About this app (credits, privacy)</a></p>
+  </footer>
+</div>
+</main>
+
+<script>
+  // アプリで選んだ言語(なければ端末の言語)で見せる。上の「日本語 / English」でも切りかえられる
+  (function () {
+    var pick = 'ja';
+    try {
+      var saved = JSON.parse(localStorage.getItem('whale-ocean-settings') || 'null');
+      var l = saved && saved.lang;
+      pick = l === 'ja' || l === 'en' ? l : (/^ja/i.test((navigator.languages && navigator.languages[0]) || navigator.language || 'ja') ? 'ja' : 'en');
+    } catch (e) {}
+    function show(l) {
+      document.querySelectorAll('[data-l]').forEach(function (d) { d.hidden = d.getAttribute('data-l') !== l; });
+      document.documentElement.lang = l;
+      document.title = l === 'en' ? 'Whale Ocean Guide' : 'クジラの見える海 ガイド';
+    }
+    show(pick);
+    document.querySelectorAll('[data-to]').forEach(function (a) {
+      a.addEventListener('click', function (e) { e.preventDefault(); show(a.getAttribute('data-to')); window.scrollTo(0, 0); });
+    });
+  })();
+</script>
+</body>
+</html>

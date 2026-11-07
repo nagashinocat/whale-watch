@@ -120,7 +120,8 @@ export function createMenu(root, handlers) {
           <span>言語 / Language</span>
           ${Object.entries(LANG_LABELS).map(([k, v]) => `<button data-lang="${k}" aria-pressed="false">${v}</button>`).join('')}
         </div>
-        <a class="about-link" href="about.html">${T('このアプリについて(使い方・素材・データの扱い)', 'About this app (how to use, credits, privacy)')}</a>
+        <a class="about-link guide-link" href="guide.html">${T('使い方ガイド', 'How to use')}</a>
+        <a class="about-link" href="about.html">${T('このアプリについて(素材・データの扱い)', 'About this app (credits, privacy)')}</a>
       </div>
     </div>
     <button class="float-shutter" data-floatshutter hidden aria-label="${T('写真を撮る', 'Take a photo')}">${icon('camera', 26)}</button>

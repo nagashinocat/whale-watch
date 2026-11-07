@@ -183,7 +183,7 @@
       background: rgba(10, 18, 28, 0.86); border: 1px solid rgba(159, 211, 230, 0.6); border-radius: 22px; text-align: center;
       backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); animation: alarmIn .4s ease-out; }
     @keyframes alarmIn { from { opacity: 0; transform: translate(-50%, -46%); } }
-    .alarm p { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 700; }
+    .alarm p { margin: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 8px; font-size: 18px; font-weight: 700; line-height: 1.5; }
     .alarm button { font: inherit; font-size: 16px; font-weight: 700; color: #0b2233; background: #9fd3e6; border: 0;
       border-radius: 999px; min-height: 52px; min-width: 160px; }
     /* おやすみモード: 月のボタンは月明かりの色で光る。パネルの下に説明、閉じているあいだは右上に暗い月 */

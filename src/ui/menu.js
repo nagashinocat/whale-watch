@@ -51,7 +51,7 @@ const icon = (name, size = 22) => `<svg viewBox="0 0 24 24" width="${size}" heig
 export function createMenu(root, handlers) {
   root.innerHTML = `
     <div class="start" data-start>
-      <p>${T('タップしてはじめる', 'Tap to start')}</p>
+      <p>${T('さぁ、クジラたちに会いに行こう', 'Let\'s go meet the whales')}</p>
     </div>
     <div class="hud" data-menu hidden>
       <div class="hud-top">

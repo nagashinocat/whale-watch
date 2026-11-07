@@ -40,6 +40,7 @@ const settings = loadSettings(safeStorage());
 // クジラ図鑑(尾びれの模様で見分けたクジラの記録)
 let book = loadBook(safeStorage());
 let forcedVisitor = null;
+let timerVisitor = null;   // タイマーで知らせに来るクジラの番号
 let countingSightings = true;   // いまの出方を図鑑に数えるか(「呼ぶ」で来たクジラは数えない)
 let pendingSightings = [], sightingTimer = null;   // まとめて出すお知らせ   // 動作確認用: 出すクジラの番号
 // 撮った写真(この端末のブラウザに保存する)
@@ -71,6 +72,8 @@ const whalesReady = createWhales(ocean.scene, {
   visitor(taken = []) {
     // 動作確認のページで「出すクジラ」を選んでいたら、その子を出す
     if (forcedVisitor && !taken.includes(forcedVisitor)) return forcedVisitor;
+    // タイマーで知らせに来るクジラは、先に決めてある(お知らせに名前を出すため)
+    if (timerVisitor && !taken.includes(timerVisitor)) { const id = timerVisitor; timerVisitor = null; return id; }
     let id = nextVisitor(book);
     for (let k = 0; k < 20 && taken.includes(id); k++) id = nextVisitor(book);
     return id;
@@ -451,7 +454,10 @@ function ringTimer(at) {
   menu.setTimer(null);
   keepScreenOn(false);
   stopAlarm();
-  menu.showAlarm(tr({ ja: `時間です(${clockText(at)})`, en: `Time's up (${clockText(at)})` }));
+  // 知らせに来るクジラを先に決めて、その子の名前で知らせる
+  timerVisitor = forcedVisitor ?? nextVisitor(book);
+  const who = displayName(timerVisitor, book);
+  menu.showAlarm(tr({ ja: `${who}が時間を教えてくれたよ(${clockText(at)})`, en: `${who} came to tell you it's time (${clockText(at)})` }));
   // おやすみモードでも鳴らす。止めるボタンを押すか、しばらくすると止まる
   alarmStop = mixer?.playAlarm({ ringMs: TIMER.ringMs, everyMs: TIMER.callEveryMs }) ?? null;
   alarmTimer = setTimeout(stopAlarm, TIMER.ringMs + 1000);

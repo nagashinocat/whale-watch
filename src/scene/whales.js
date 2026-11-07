@@ -379,9 +379,11 @@ const MOTIONS = {
   // 大ジャンプ: 体全体が水から出て、尾びれまで空中に浮かぶ
   bigBreach({ start, yaw }) {
     const launch = BREACH.approach;
+    // 倒れる向きは、はじめに1回だけ決める(こまごとに決めなおすと、体が左右にふるえてしまう)
+    const rollSign = Math.random() < 0.5 ? 1 : -1;
     return {
       whales: [{ kind: 'humpback' }],
-      each([w], t) { breachAt(w, t, launch, start, yaw, Math.random() < 0.5 ? 1 : -1, true); },
+      each([w], t) { breachAt(w, t, launch, start, yaw, rollSign, true); },
       cues: breachCues(0, launch),
     };
   },

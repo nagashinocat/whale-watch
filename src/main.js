@@ -94,7 +94,8 @@ function playWhaleSound(name, opts = {}) {
 // 広告: 本番では広告の会社が決まるまで出さない。動作確認のページでは、出して確かめられる
 let adPlayed = false, adPlaying = false;
 // 音の止め方(動作確認のページだけ、えらべる。src/logic/away.js)と、<audio> を通すときの部品
-const awayMode = DEBUG ? loadAwayMode(safeStorage()) : 'fade';
+const AUDIO_TEST = window.WHALE_AUDIO_TEST === true;
+const awayMode = DEBUG || AUDIO_TEST ? loadAwayMode(safeStorage()) : 'fade';
 let outEl = null;
 let dark = false;      // 真っ暗画面(音を流しっぱなしにして休んでいるので、知らせない)
 let onLanding = true;   // はじめのページを出しているあいだ(スタートを押すまで・しばらく使わなくてもどったとき)
@@ -297,7 +298,12 @@ if (DEBUG) {
   plusText();
   plusToggle.addEventListener('pointerdown', e => e.stopPropagation());
   plusToggle.addEventListener('click', () => { setPlusUnlocked(!plus.unlocked); plusText(); });
-  // iPhone の「ピン」をくらべる: 音の止め方と、アプリを離れたときの合図の記録
+  panel.append(clear, plusToggle, ...audioTestControls(status), status);
+  document.body.append(panel);
+}
+
+// iPhone の「ピン」をくらべる: 音の止め方と、アプリを離れたときの合図の記録(動作確認のページと、お試し版の「音のテスト」)
+function audioTestControls(status) {
   const awaySel = document.createElement('select');
   awaySel.setAttribute('aria-label', '音の止め方');
   for (const [k, v] of Object.entries(AWAY_MODES)) awaySel.append(new Option(`止め方: ${v}`, k));
@@ -320,8 +326,27 @@ if (DEBUG) {
   logClear.textContent = '記録を消す';
   logClear.addEventListener('pointerdown', e => e.stopPropagation());
   logClear.addEventListener('click', () => { clearAwayLog(safeStorage()); status.textContent = '記録を消しました'; });
-  panel.append(clear, plusToggle, awaySel, logBtn, logClear, status);
-  document.body.append(panel);
+  return [awaySel, logBtn, logClear];
+}
+
+// お試し版だけの「音のテスト」(window.WHALE_AUDIO_TEST = true のとき)。小さなボタンを押すと開く
+if (AUDIO_TEST && !DEBUG) {
+  const box = document.createElement('div');
+  box.className = 'audio-test';
+  const toggle = document.createElement('button');
+  toggle.className = 'audio-test-toggle';
+  toggle.textContent = '音のテスト';
+  const body = document.createElement('div');
+  body.className = 'audio-test-body';
+  body.hidden = true;
+  const status = document.createElement('p');
+  status.className = 'audio-test-status';
+  status.textContent = `いまの止め方: ${AWAY_MODES[awayMode]}`;
+  body.append(...audioTestControls(status), status);
+  toggle.addEventListener('click', () => { body.hidden = !body.hidden; });
+  for (const el of [box, toggle]) el.addEventListener('pointerdown', e => e.stopPropagation());
+  box.append(toggle, body);
+  document.body.append(box);
 }
 
 const menu = createMenu(document.getElementById('ui'), {
@@ -904,7 +929,7 @@ const phoneLike = isPhoneLike(q => window.matchMedia(q));
 let awayTimer = 0;
 function onAway(hidden, ev) {
   if (!mixer || !audioCtx) return;
-  if (DEBUG) logAway(safeStorage(), { t: Date.now(), ev, hidden: document.hidden, state: audioCtx.state, mode: awayMode });
+  if (DEBUG || AUDIO_TEST) logAway(safeStorage(), { t: Date.now(), ev, hidden: document.hidden, state: audioCtx.state, mode: awayMode });
   if (awayMode === 'none') return;
   const plan = awayPlan({ hidden, phone: phoneLike, resting });
   if (!plan) return;

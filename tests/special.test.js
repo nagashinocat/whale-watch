@@ -112,3 +112,29 @@ test('出会い1000回に1回くらい、それぞれの子に会える(ふだ�
     assert.ok(per > 700 && per < 1400, `${id}: ${per.toFixed(0)}回に1回`);
   }
 });
+
+test('ホウキボシの彗星は、頭のうしろから尾びれのつけ根まで大きくのびる(左右とも)', () => {
+  for (const th of [Math.PI / 2, 1.5 * Math.PI]) {
+    const lit = [];
+    for (let u = 0.3; u < 1; u += 0.005) for (let d = -0.6; d <= 0.6; d += 0.02) if (specialMotif('comet', u, th + d).glow > 0.35) lit.push(u);
+    assert.ok(Math.min(...lit) < 0.4, `はじまり ${Math.min(...lit)}`);
+    assert.ok(Math.max(...lit) > 0.92, `おわり ${Math.max(...lit)}`);
+  }
+  // うしろのほうは、幅が広い(ちりの尾が広がる)
+  const width = u => { let n = 0; for (let d = -1; d <= 1; d += 0.01) if (specialMotif('comet', u, Math.PI / 2 + d).glow > 0.2) n++; return n; };
+  assert.ok(width(0.8) > width(0.45) * 1.5, `${width(0.45)} → ${width(0.8)}`);
+});
+
+test('銀河: まん中は黄色く、うでは青く、うでのふちにピンクの光', () => {
+  const at = (u, th) => specialMotif('galaxy', u, th);
+  const c = at(0.47, Math.PI / 2);
+  assert.ok(c.glow > 1, 'まん中はまぶしい');
+  let blue = 0, pink = 0;
+  for (let u = 0.3; u < 0.65; u += 0.005) for (let th = 1; th < 2.2; th += 0.02) {
+    const m = at(u, th);
+    if (m.glow < 0.4 || m.glow > 1) continue;
+    if (m.color[2] > m.color[0] + 0.15) blue++;
+    if (m.color[0] > 0.8 && m.color[2] > 0.5 && m.color[1] < 0.6) pink++;
+  }
+  assert.ok(blue > 30 && pink > 5, `青 ${blue} ピンク ${pink}`);
+});

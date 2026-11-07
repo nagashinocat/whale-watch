@@ -78,3 +78,21 @@ test('intervalScaleで間隔を縮められる', () => {
   assert.ok(s.nextAt >= MIN && s.nextAt <= 3 * MIN);
 });
 
+
+test('タイマーのあいだは、自然にはクジラが出てこない。呼んだクジラは来る。終わったら、そこからまた30〜90分待つ', () => {
+  const s = createScheduler({ now: 0, rng: () => 0.5 });
+  s.setQuiet(true, 0);
+  for (let t = 0; t < 5 * 3600e3; t += 1000) assert.equal(s.tick(t), null);
+  // 呼ぶボタンは使える
+  assert.ok(s.summon(5 * 3600e3));
+  let ev = null;
+  for (let t = 5 * 3600e3; !ev && t < 5 * 3600e3 + 60e3; t += 1000) ev = s.tick(t);
+  assert.equal(ev.kind, 'summon');
+  s.endEvent(5 * 3600e3 + 200e3);
+  // タイマーが終わった
+  const end = 6 * 3600e3;
+  s.setQuiet(false, end);
+  assert.equal(s.tick(end + 1000), null, '知らせのすぐあとには来ない');
+  assert.ok(s.nextAt >= end + SCHEDULE.minIntervalMs && s.nextAt <= end + SCHEDULE.maxIntervalMs);
+  assert.equal(s.tick(s.nextAt).kind, 'natural');
+});

@@ -274,12 +274,14 @@ const menu = createMenu(document.getElementById('ui'), {
   onTimerSet(at) {
     timer = { at };
     saveTimer(safeStorage(), timer);
+    scheduler.setQuiet(true, Date.now());   // タイマーのあいだは、ほかのクジラは自然には出てこない
     menu.setTimer(at);
     keepScreenOn(true);
     menu.showToast(`${clockText(at)}に、クジラが鳴きながら知らせに来ます`);
   },
   onTimerCancel() {
     timer = null;
+    scheduler.setQuiet(false, Date.now());
     saveTimer(safeStorage(), null);
     menu.setTimer(null);
     keepScreenOn(false);
@@ -365,6 +367,7 @@ setInterval(updateTime, 10 * 1000);
 let timer = loadTimer(safeStorage());
 let alarmStop = null, alarmTimer = null;
 menu.setTimer(timer?.at ?? null);
+if (timer) scheduler.setQuiet(true, Date.now());
 
 // タイマーのあいだは、画面が消えないようにたのむ(できない端末では何もしない)
 let wakeLock = null;
@@ -393,6 +396,7 @@ function stopAlarm() {
 
 function ringTimer(at) {
   timer = null;
+  scheduler.setQuiet(false, Date.now());
   saveTimer(safeStorage(), null);
   menu.setTimer(null);
   keepScreenOn(false);
@@ -413,6 +417,7 @@ setInterval(() => {
   else if (state === 'missed') {
     menu.showToast(`タイマーの時間(${clockText(timer.at)})を過ぎていました`);
     timer = null;
+    scheduler.setQuiet(false, now);
     saveTimer(safeStorage(), null);
     menu.setTimer(null);
     keepScreenOn(false);

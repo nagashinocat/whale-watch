@@ -26,6 +26,7 @@ export function createScheduler({ now, rng = Math.random, intervalScale = 1 }) {
   let summonAt = null;      // 呼んだクジラの到着予定
   let pausedRemaining = 0;  // 呼んだクジラがいる間に止めた自然出現の残り時間
   let prevPattern = null;
+  let quiet = false;        // タイマーのあいだは、自然には出さない(呼んだクジラは来る)
 
   const s = {
     nextAt: now + nextInterval(),
@@ -38,7 +39,7 @@ export function createScheduler({ now, rng = Math.random, intervalScale = 1 }) {
         pausedRemaining = Math.max(0, s.nextAt - t);
         return { kind: 'summon', pattern: 'summon' };
       }
-      if (summonAt === null && t >= s.nextAt) {
+      if (summonAt === null && !quiet && t >= s.nextAt) {
         busy = 'natural';
         prevPattern = pickPattern(prevPattern, rng, weights);
         return { kind: 'natural', pattern: prevPattern };
@@ -56,6 +57,13 @@ export function createScheduler({ now, rng = Math.random, intervalScale = 1 }) {
       if (busy === 'summon') s.nextAt = t + pausedRemaining;
       else if (busy === 'natural') s.nextAt = t + nextInterval();
       busy = null;
+    },
+
+    // タイマーを決めているあいだは、自然にはクジラを出さない。
+    // タイマーが終わったら、そこからまた30〜90分待つ(知らせのすぐあとに、別のクジラが来ないように)
+    setQuiet(on, t) {
+      if (quiet && !on) s.nextAt = Math.max(s.nextAt, t + nextInterval());
+      quiet = on;
     },
 
     isSummoning() {

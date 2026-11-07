@@ -1,6 +1,6 @@
 // このファイルは tools/build_sw.py で作る(手で書きかえない)
 // 一度開いたら、電波がなくても動くように、アプリのファイルを端末にとっておく
-const VERSION = '819cafd29d2e';
+const VERSION = '386c1508f431';
 const APP = `whale-ocean-${VERSION}`;
 const EXTRA = 'whale-ocean-extra';   // 文字の形など、あとから読みこんだもの
 const FILES = [
@@ -37,6 +37,7 @@ const FILES = [
   "src/logic/behavior.js",
   "src/logic/breach.js",
   "src/logic/breathing.js",
+  "src/logic/comingSoon.js",
   "src/logic/config.js",
   "src/logic/eyeShape.js",
   "src/logic/features3d.js",
@@ -121,6 +122,16 @@ self.addEventListener('install', event => {
     // 外のファイルは、読めなくてもアプリの準備は続ける
     await Promise.all(CDN.map(u => cache.add(new Request(u, { mode: 'cors' })).catch(() => {})));
     // 新しい版は、使っている人が「更新」を押すまで待つ(使っている途中で中身が入れかわらないように)
+  })());
+});
+
+// 「もうすぐクジラが来てくれるかも?」の通知を押したら、開いているアプリにもどる(なければ開く)
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil((async () => {
+    const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of list) if ('focus' in c) return c.focus();
+    return self.clients.openWindow('./');
   })());
 });
 

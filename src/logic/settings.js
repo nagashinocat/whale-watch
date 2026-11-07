@@ -21,6 +21,7 @@ export function loadSettings(storage) {
     shutter: Object.hasOwn(SHUTTER_SPOTS, saved.shutter) ? saved.shutter : DEFAULTS.shutter,
     lang: ['auto', 'ja', 'en'].includes(saved.lang) ? saved.lang : DEFAULTS.lang,
     whisper: typeof saved.whisper === 'boolean' ? saved.whisper : DEFAULTS.whisper,
+    herald: typeof saved.herald === 'boolean' ? saved.herald : DEFAULTS.herald,
     hydrophone: typeof saved.hydrophone === 'boolean' ? saved.hydrophone : DEFAULTS.hydrophone,
   };
 }
@@ -37,6 +38,7 @@ export function saveSettings(storage, settings) {
       shutter: settings.shutter,
       lang: settings.lang,
       whisper: settings.whisper,
+      herald: settings.herald,
       hydrophone: settings.hydrophone,
     }));
   } catch {

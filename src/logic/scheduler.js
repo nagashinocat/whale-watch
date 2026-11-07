@@ -85,6 +85,11 @@ export function createScheduler({ now, rng = Math.random, intervalScale = 1, fre
       if (!busy) s.nextAt = t + nextInterval();
     },
 
+    // 自然にクジラが来る予定の時刻(いまクジラがいる・呼んでいる・タイマーなどで来ないときは null)
+    upcoming() {
+      return busy || quiet || summonAt !== null ? null : s.nextAt;
+    },
+
     isSummoning() {
       return summonAt !== null || busy === 'summon';
     },

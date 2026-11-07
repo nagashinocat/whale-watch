@@ -492,5 +492,6 @@ export function createZukan(root, { onRename, onBackup, onRestore, photos, portr
       if (!panel.hidden) render();
     },
     refresh() { if (!panel.hidden) render(); },
+    close() { panel.hidden = true; viewer.hidden = true; },
   };
 }

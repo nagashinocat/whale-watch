@@ -40,6 +40,16 @@ self.addEventListener('install', event => {{
   }})());
 }});
 
+// 「もうすぐクジラが来てくれるかも?」の通知を押したら、開いているアプリにもどる(なければ開く)
+self.addEventListener('notificationclick', event => {{
+  event.notification.close();
+  event.waitUntil((async () => {{
+    const list = await self.clients.matchAll({{ type: 'window', includeUncontrolled: true }});
+    for (const c of list) if ('focus' in c) return c.focus();
+    return self.clients.openWindow('./');
+  }})());
+}});
+
 self.addEventListener('message', event => {{
   if (event.data === 'skipWaiting') self.skipWaiting();
 }});

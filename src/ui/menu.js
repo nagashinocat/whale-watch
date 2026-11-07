@@ -44,6 +44,7 @@ const SCENES = {
 
 // 線の絵のアイコン
 const ICON = {
+  bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"></path><path d="M10 20a2 2 0 0 0 4 0"></path>',
   mic: '<rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path>',
   panel: '<rect x="4" y="4" width="16" height="16" rx="4"></rect><path d="M8 15h8M8 11h5"></path>',
   moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"></path>',
@@ -125,6 +126,7 @@ export function createMenu(root, handlers) {
           <div class="interval-chips">
             ${Object.entries(INTERVALS).map(([k, v]) => `<button data-interval="${k}" aria-pressed="false"><b>${tr(v.label)}</b><span>${rangeLabel(v)}</span>${k === 'often' ? `<i class="plus-tag" data-plustag>${T('プラス', 'Plus')}</i>` : ''}</button>`).join('')}
           </div>
+          <button class="vol-toggle" data-herald aria-pressed="false">${icon('bell', 18)}<span><b>${T('来る前に知らせる', 'Let me know before')}</b><small>${T('使っていないとき、クジラが来る1分前くらいに知らせます。知らせてから5分さわらないと、はじめのページにもどります', 'When you are away, get a heads-up about a minute before a whale comes. If you do not touch the app for 5 minutes after that, it goes back to the start page')}</small></span></button>
         </div>
       </div>
       <div class="pick-pop" data-pickpop hidden role="dialog" aria-label="${T('えらんで呼ぶ', 'Choose what to see')}">
@@ -441,7 +443,8 @@ export function createMenu(root, handlers) {
   });
   summon.addEventListener('click', () => handlers.onSummon());
   volume.addEventListener('input', () => handlers.onVolume(Number(volume.value)));
-  const hydroBtn = $('[data-hydro]'), whisperBtn = $('[data-whisper]');
+  const hydroBtn = $('[data-hydro]'), whisperBtn = $('[data-whisper]'), heraldBtn = $('[data-herald]');
+  heraldBtn.addEventListener('click', () => handlers.onHerald?.(heraldBtn.getAttribute('aria-pressed') !== 'true'));
   hydroBtn.addEventListener('click', () => handlers.onHydrophone?.(hydroBtn.getAttribute('aria-pressed') !== 'true'));
   whisperBtn.addEventListener('click', () => handlers.onWhisper?.(whisperBtn.getAttribute('aria-pressed') !== 'true'));
   $('[data-full]').addEventListener('click', () => handlers.onFullscreen());
@@ -466,7 +469,9 @@ export function createMenu(root, handlers) {
   }
 
   return {
-    setValues({ mode, camera, volume: v, time, interval = 'normal', shutter = 'center', lang: langChoice = 'auto', whisper = true, hydrophone = false }) {
+    setValues({ mode, camera, volume: v, time, interval = 'normal', shutter = 'center', lang: langChoice = 'auto', whisper = true, hydrophone = false, herald = false }) {
+      heraldBtn.setAttribute('aria-pressed', String(herald));
+      heraldBtn.classList.toggle('on', herald);
       current = { mode, camera, time };
       hydroBtn.setAttribute('aria-pressed', String(hydrophone));
       hydroBtn.classList.toggle('on', hydrophone);
@@ -584,6 +589,16 @@ export function createMenu(root, handlers) {
     },
     isOpen: () => !menu.hidden,
     // 広告の場所を見せる(広告が使えるとき)
+    // はじめのページにもどす(しばらく使っていないとき)。スタートを押すと、また海へ
+    showLanding() {
+      hideMenu();
+      alarm.hidden = true;
+      started = false;
+      landing.hidden = false;
+      landing.scrollTop = 0;
+      floatShutter.hidden = true;
+      sleepMark.hidden = true;
+    },
     showAdSlots(on) { root.querySelectorAll('[data-ad]').forEach(s => { s.hidden = !on; }); },
     setSummonStatus(text) {
       status.hidden = !text;

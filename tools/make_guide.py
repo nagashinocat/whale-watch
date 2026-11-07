@@ -132,6 +132,8 @@ def page(L):
         f'''<ul class="steps">
           <li>{T('「5分後」〜「1時間後」か、「時刻で」決められます。', 'Choose 5 minutes to 1 hour, or pick a time.')}</li>
           <li>{T('タイマーのあいだは、ほかのクジラは来ません。', 'No other whales come while the timer is running.')}</li>
+          <li>{T('「来る前に知らせる」をオンにすると、ほかのタブやアプリを見ているときや、しばらく画面をさわっていないときに、クジラが来る1分前くらいに「もうすぐクジラが来てくれるかも?」と知らせます。知らせてから5分さわらないと、はじめのページにもどります。', 'Turn on “Let me know before” to get a heads-up about a minute before a whale comes, while you are in another tab or app or have not touched the screen for a while. If you do not touch the app for 5 minutes after that, it goes back to the start page.')}</li>
+          <li class="tip">{T('スマホでは、ほかのアプリに切りかえたり画面を消したりすると、アプリが止まるので知らせられません。おやすみモード・タイマー・真っ暗画面のときも知らせません。', 'On phones, the app pauses when you switch apps or turn off the screen, so it cannot notify you then. No heads-up in sleep mode, during timers, or with the dark screen.')}</li>
           <li class="tip">{T('画面が消えると鳴らないので、画面はつけたままにしてね。', 'Keep the screen on. It cannot ring once the screen sleeps.')}</li>
         </ul>''',
         [phone(f'{L}-timer.jpg', T('タイマーを決める', 'Setting a timer'), -2), phone(f'{L}-alarm.jpg', T('時間になったとき', 'When time is up'), 3)]))

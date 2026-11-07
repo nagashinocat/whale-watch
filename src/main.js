@@ -10,6 +10,7 @@ import { spawnPosition } from './logic/spawn.js';
 import { createMixer, loadBuffers, camerasWithoutWaves } from './audio/mixer.js';
 import { rangeLabel, createMenu } from './ui/menu.js';
 import { createScheduler } from './logic/scheduler.js';
+import { COMING, heraldWay, shouldGoBack } from './logic/comingSoon.js';
 import { loadSettings, saveSettings } from './logic/settings.js';
 import { tr, listJoin } from './logic/i18n.js';
 import { hoursFor, blendHours } from './logic/time.js';
@@ -90,6 +91,8 @@ function playWhaleSound(name, opts = {}) {
 }
 // 広告: 本番では広告の会社が決まるまで出さない。動作確認のページでは、出して確かめられる
 let adPlayed = false, adPlaying = false;
+let dark = false;      // 真っ暗画面(音を流しっぱなしにして休んでいるので、知らせない)
+let onLanding = true;   // はじめのページを出しているあいだ(スタートを押すまで・しばらく使わなくてもどったとき)
 const effects = createEffects(ocean.scene);
 ocean.addUpdater(effects.update);
 // 潜ったクジラの足あと(海面のなめらかな跡)
@@ -307,6 +310,15 @@ const menu = createMenu(document.getElementById('ui'), {
     setTimeout(() => showHint(false), 1200);
   },
   async onStart() {
+    onLanding = false;
+    lastTouch = Date.now();
+    updateQuiet();
+    // はじめのページにもどったあと、もう一度スタートを押したとき: 音をもう一度大きくする
+    if (audioCtx) {
+      audioCtx.resume().catch(() => {});
+      mixer?.setFade(1, 1500);
+      return;
+    }
     const Ctx = window.AudioContext || window.webkitAudioContext;
     const ctx = new Ctx();
     audioCtx = ctx;
@@ -345,6 +357,22 @@ const menu = createMenu(document.getElementById('ui'), {
   onWhisper(on) {
     settings.whisper = on;
     save();
+  },
+  // 来る前に知らせる: オンにしたとき、通知を出してよいかをブラウザに聞く(だめでも、画面に出ているときは知らせる)
+  async onHerald(on) {
+    settings.herald = on;
+    save();
+    if (!on) { menu.showToast(tr({ ja: 'クジラが来る前の知らせをやめました', en: 'Heads-up turned off' })); return; }
+    let allowed = false;
+    try {
+      if ('Notification' in window) {
+        if (Notification.permission === 'default') await Notification.requestPermission();
+        allowed = Notification.permission === 'granted';
+      }
+    } catch { /* 聞けなくても続ける */ }
+    menu.showToast(allowed
+      ? tr({ ja: 'クジラが来る1分前くらいに知らせます', en: 'You will get a heads-up about a minute before a whale comes' })
+      : tr({ ja: '通知が使えないので、アプリを画面に出しているときだけ知らせます', en: 'Notifications are off, so the heads-up only shows while the app is on screen' }));
   },
   onMode(mode) {
     settings.mode = mode;
@@ -406,6 +434,7 @@ const menu = createMenu(document.getElementById('ui'), {
   onWake() { wakeFromRest(); },
   // 画面を真っ暗にする(音はそのまま)
   onDark(on) {
+    dark = on;
     menu.setDark(on);
     ocean.setEco(on || resting);
   },
@@ -612,6 +641,48 @@ setInterval(() => {
   const event = scheduler.tick(Date.now());
   if (event) handleEvent(event);
 }, 1000);
+
+// ---- 「もうすぐクジラが来てくれるかも?」----
+// 使っていないときに、自然に来るクジラの1分前くらいに1回だけ知らせる。知らせてから5分さわらなければ、はじめのページへ
+let lastTouch = Date.now();
+let heraldFor = null, heraldAt = null;
+const touched = () => { lastTouch = Date.now(); heraldAt = null; };
+document.addEventListener('pointerdown', touched, true);
+document.addEventListener('keydown', touched, true);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) touched(); });
+async function notifyComing() {
+  const title = tr(COMING.title), body = tr(COMING.text);
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return false;
+    const reg = await navigator.serviceWorker?.getRegistration?.();
+    const options = { body, icon: 'assets/icons/icon-192.png', badge: 'assets/icons/favicon-32.png', tag: 'whale-coming', silent: false };
+    if (reg?.showNotification) await reg.showNotification(title, options);
+    else new Notification(title, options);
+    return true;
+  } catch { return false; }
+}
+function goBackToStart() {
+  heraldAt = null;
+  onLanding = true;
+  updateQuiet();
+  mixer?.setFade(0, 2000);
+  zukan.close();
+  menu.showLanding();
+}
+setInterval(() => {
+  const now = Date.now();
+  const blocked = onLanding || adPlaying || !mixer || dark || settings.mode === 'sleep' || !!timer || !!sleepT || resting;
+  const nextAt = scheduler.upcoming();
+  const way = heraldWay({ enabled: settings.herald, blocked, now, nextAt, lastFor: heraldFor, hidden: document.hidden, lastTouch });
+  if (way) {
+    heraldFor = nextAt;
+    heraldAt = now;
+    if (way === 'notify') notifyComing();
+    else menu.showHint(tr(COMING.text), 'center', 9000);
+  }
+  if (!onLanding && shouldGoBack({ now, heraldAt, lastTouch })) goBackToStart();
+}, 1000);
+
 // 空はなめらかに変わるよう10秒ごとに合わせる
 setInterval(updateTime, 10 * 1000);
 
@@ -628,7 +699,7 @@ let resting = false;   // 止まって「おやすみなさい」を出してい
 // 自然にクジラを出さないとき: タイマーのあいだと、おやすみタイマーで小さくなりはじめてから
 function updateQuiet(now = Date.now()) {
   const p = sleepPhase(now, sleepT);
-  scheduler.setQuiet(!!timer || resting || p === 'fading' || p === 'done', now);
+  scheduler.setQuiet(onLanding || !!timer || resting || p === 'fading' || p === 'done', now);
 }
 // 画面をつけたままにしてほしいとき(消えると音が止まるので)
 const screenWanted = () => !!timer || (!!sleepT && !resting);

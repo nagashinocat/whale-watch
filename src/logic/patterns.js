@@ -8,6 +8,7 @@ export const PATTERNS = Object.freeze({
   // 眠っているあいだは音を出さない(目をさますとカチカチ鳴く。音は動きの中で鳴らす)
   sleeping: { durationMs: 110000, needs: 'sperm', sound: null },
   breach: { durationMs: 25000, needs: 'humpback', sound: null },
+  bigBreach: { durationMs: 25000, needs: 'humpback', sound: null },
   // 群れでスパイホップ: 3〜4頭がまとまって、少しずつずれて頭を出し、それぞれまわりを見回す
   groupSpyhop: { durationMs: 36000, needs: 'humpback', sound: null },
   // 群れでジャンプ: 2〜3頭がならんで、少しずつずれて跳ぶ
@@ -56,6 +57,7 @@ export const PATTERN_LABELS = Object.freeze({
   motherCalf: '親子で泳ぐ',
   sleeping: '寝ているクジラ',
   breach: 'ジャンプ',
+  bigBreach: '大ジャンプ(体全体が出る)',
   groupBreach: '群れでジャンプ',
   calfBreach: '親子でジャンプ',
   pod: '群れで泳ぐ',

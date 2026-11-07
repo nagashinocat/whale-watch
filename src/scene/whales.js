@@ -119,7 +119,7 @@ function crossingYaw() {
 // 横切る出方の泳ぐ速さ(m/秒)。出発点の計算に使う
 // クジラは決まった場所に出て、画面から出ないように、その場でゆっくり泳ぐ(片側10mくらいまで)
 // 尾びれの出方は何回か潮を吹くので長い。ゆっくり進んで、画面の外へ出ないようにする
-const SWIM_SPEED = { spout: 0.5, fluke: 0.3, motherCalf: 0.33, breach: 0.38, groupBreach: 0.38, pod: POD.speed };
+const SWIM_SPEED = { spout: 0.5, fluke: 0.3, motherCalf: 0.33, breach: 0.38, bigBreach: 0.38, groupBreach: 0.38, pod: POD.speed };
 
 // スパイホップの姿勢: 体を縦にしてゆっくり上がり、頭(体長の約3分の1)を出して、こちらを見ながらまわりを見回す。
 // D は出ている長さ、headOut は頭の出る高さ(m)、lookPhase は見回しのずれ、face はおなかを向ける向きのずれ(度)
@@ -134,8 +134,8 @@ function spyhopAt(w, t, D, at, headOut, lookPhase, face) {
 }
 
 // 1頭のジャンプ(launch 秒に飛び出す)。start から yaw の向きへ跳ぶ。rollSign は倒れる向き(1 か -1)
-function breachAt(w, t, launch, start, yaw, rollSign = 1) {
-  const p = breachPose(t - launch, w.length / 14);
+function breachAt(w, t, launch, start, yaw, rollSign = 1, full = false) {
+  const p = breachPose(t - launch, w.length / 14, full);
   // 水の中では強く尾をあおいで勢いをつけ、空中では尾を止める
   const k = t - launch;
   w.mixer.setSwim(1 - 0.8 * (ease(k / 0.6) - ease((k - BREACH.air - 0.5) / 2)));
@@ -376,6 +376,16 @@ const MOTIONS = {
     };
   },
 
+  // 大ジャンプ: 体全体が水から出て、尾びれまで空中に浮かぶ
+  bigBreach({ start, yaw }) {
+    const launch = BREACH.approach;
+    return {
+      whales: [{ kind: 'humpback' }],
+      each([w], t) { breachAt(w, t, launch, start, yaw, Math.random() < 0.5 ? 1 : -1, true); },
+      cues: breachCues(0, launch),
+    };
+  },
+
   // 群れでジャンプ: 2〜3頭が横にならび、少しずつずれて跳ぶ。外側の2頭は鏡に映したように反対へ倒れる
   groupBreach({ start, yaw }) {
     const plan = groupBreachPlan();
@@ -389,7 +399,7 @@ const MOTIONS = {
     const crowd = Math.min(1, 2.5 / plan.length);
     return {
       whales: plan.map(() => ({ kind: 'humpback' })),
-      each(ws, t) { ws.forEach((w, i) => breachAt(w, t, plan[i].launch, starts[i], yaws[i], plan[i].rollSign)); },
+      each(ws, t) { ws.forEach((w, i) => breachAt(w, t, plan[i].launch, starts[i], yaws[i], plan[i].rollSign, plan[i].full)); },
       cues: plan.flatMap((p, i) => breachCues(i, p.launch, crowd)),
     };
   },

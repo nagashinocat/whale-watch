@@ -46,6 +46,8 @@ export const SCHEDULE = Object.freeze({
     sleeping: 10,
     // ジャンプは見ごたえがあるが、多すぎると落ち着かないので少なめ
     breach: 12,
+    // 体全体が水から出る大ジャンプ(ふつうのジャンプより少ない)
+    bigBreach: 4,
     // 子育ての海でよく見られる群れ(母親・子ども・付きそい)と、子どものジャンプの練習
     pod: 10,
     calfBreach: 6,

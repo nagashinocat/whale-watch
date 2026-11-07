@@ -18,18 +18,32 @@ export const BREACH = Object.freeze({
   splashAt: 0.82, // 着水の大しぶき(飛んでいる時間のうちの割合)
 });
 
-// 飛び出してから L 秒目の姿勢。k は体の大きさ(おとなを1)。
+// 大ジャンプ(体全体が水から出る): 調べてわかったこと(記録計の研究)
+//   ・ジャンプで水から出る体の割合は26〜100%。いちばん速い飛び出しは秒速約9m
+//   ・体がまるごと出るジャンプでは、いちばん高いところで体がほぼ横になり、尾びれまで空中に出る
+// peak: 体の中心のいちばん高いところ(m)。ふつうのジャンプは約0.6m(体の半分以上が出る)
+export const FULL_BREACH = Object.freeze({ peak: 4.2, pitchFrom: 80, pitchTo: -30, roll: 95 });
+
+// 飛び出してから L 秒目の姿勢。k は体の大きさ(おとなを1)。full は大ジャンプ(体全体が水から出る)。
 // y は体の中心の高さ(m)、pitch は頭の上がり(度)、roll は横への倒れ(度)、along は前へ進んだ距離(m)
-export function breachPose(L, k = 1) {
+export function breachPose(L, k = 1, full = false) {
   let y, pitch, roll;
   if (L < 0) { y = -12; pitch = 20; roll = 0; }
   else if (L < BREACH.air) {
-    // 体を立てて飛び出し、いちばん高いところで体の半分以上が水から出る
     const u = L / BREACH.air;
-    y = -8 + 34.4 * u - 34.4 * u * u;
-    pitch = lerp(75, -10, u ** 1.6);
-    roll = lerp(0, 80, u);
-  } else { y = -8 - ease((L - BREACH.air) / 6) * 6; pitch = -10; roll = 80; }
+    if (full) {
+      // 勢いよく飛び出し、いちばん高いところで体がほぼ横になって、尾びれまで空中に出る。背中から倒れこむ
+      const a = 4 * (FULL_BREACH.peak + 8);
+      y = -8 + a * u - a * u * u;
+      pitch = lerp(FULL_BREACH.pitchFrom, FULL_BREACH.pitchTo, u ** 0.8);
+      roll = lerp(0, FULL_BREACH.roll, u ** 1.2);
+    } else {
+      // 体を立てて飛び出し、いちばん高いところで体の半分以上が水から出る
+      y = -8 + 34.4 * u - 34.4 * u * u;
+      pitch = lerp(75, -10, u ** 1.6);
+      roll = lerp(0, 80, u);
+    }
+  } else { y = -8 - ease((L - BREACH.air) / 6) * 6; pitch = full ? FULL_BREACH.pitchTo : -10; roll = full ? FULL_BREACH.roll : 80; }
   const along = L < 0 ? Math.max(0, L + BREACH.approach) * 0.3 : 2.4 + Math.min(L, 6) * 1.2;
   // 子クジラは体のわりに高く跳ぶ(高さは体の大きさの平方根に合わせる。そのぶん、落ちてくる速さもあまり落ちない)
   const h = Math.sqrt(k);
@@ -41,7 +55,7 @@ export function breachPose(L, k = 1) {
 //   alternate(互い違い): となりどうしが反対の向きに跳ぶ。2列にならび、すれちがうように跳ぶ(ぶつからない)
 // along は進む向きのずれ、side は横のずれ(m)、facing は向き(1 で前、-1 で反対)、
 // launch は飛び出す時刻(秒)、rollSign は倒れる向き
-export const GROUP_BREACH = Object.freeze({ whales: [2, 5], gap: [0.3, 0.8], spacing: 7, rowGap: 9 });
+export const GROUP_BREACH = Object.freeze({ whales: [2, 5], gap: [0.3, 0.8], spacing: 7, rowGap: 9, fullChance: 0.4 });
 
 export function groupBreachPlan(rng = Math.random) {
   const [lo, hi] = GROUP_BREACH.whales;
@@ -55,12 +69,20 @@ export function groupBreachPlan(rng = Math.random) {
     const c = i - (n - 1) / 2;
     if (style === 'same') {
       // 横にならび(奥行きの方向)、少しずつ前後にずれる
-      plan.push({ side: c * spacing + (rng() - 0.5) * 1.5, along: (rng() - 0.5) * 4, facing: 1, rollSign: roll, launch: 0 });
+      plan.push({ side: c * spacing + (rng() - 0.5) * 1.5, along: (rng() - 0.5) * 4, facing: 1, rollSign: roll, launch: 0, full: false });
     } else {
       // となりどうしが反対向き。向きごとに列を分けて、すれちがう
       const facing = i % 2 === 0 ? 1 : -1;
-      plan.push({ side: facing * GROUP_BREACH.rowGap / 2 + (rng() - 0.5) * 1.2, along: c * spacing * 0.9, facing, rollSign: facing * roll, launch: 0 });
+      plan.push({ side: facing * GROUP_BREACH.rowGap / 2 + (rng() - 0.5) * 1.2, along: c * spacing * 0.9, facing, rollSign: facing * roll, launch: 0, full: false });
     }
+  }
+  // 何頭かは、体全体が出る大ジャンプ
+  for (const w of plan) w.full = rng() < GROUP_BREACH.fullChance;
+  // 大ジャンプは空中で体がほぼ横になり、前後に長くのびる。同じ列で前後にならぶ2頭がどちらも大ジャンプだと
+  // ぶつかるので、そのときは片方をふつうのジャンプにする
+  for (let i = 0; i < plan.length; i++) for (let j = i + 1; j < plan.length; j++) {
+    const a = plan[i], b = plan[j];
+    if (a.full && b.full && Math.abs(a.side - b.side) < 3 && Math.abs(a.along - b.along) < 15) b.full = false;
   }
   const order = plan.map((_, i) => i).sort(() => rng() - 0.5);
   let t = BREACH.approach;

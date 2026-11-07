@@ -27,6 +27,7 @@ test('群れでジャンプ: 2〜5頭が、少しずつずれて跳ぶ(ぶつか
       const a = g[i], b = g[j];
       if (a.facing === b.facing) assert.ok(Math.hypot(a.side - b.side, a.along - b.along) >= 5.5, `k ${k}`);
       else assert.ok(Math.abs(a.side - b.side) >= 7.5, `すれちがう列 k ${k}`);
+      if (a.full && b.full && Math.abs(a.side - b.side) < 3) assert.ok(Math.abs(a.along - b.along) >= 15, `大ジャンプどうし k ${k}`);
     }
     // 互い違いでは、となりどうしが反対向きで、倒れる向きも反対
     if (g.style === 'alternate') assert.ok(g.some(w => w.facing === -1) && g.some(w => w.facing === 1));
@@ -89,4 +90,32 @@ test('群れでスパイホップ: 3〜4頭がまとまって、少しずつず�
 test('調べた数値: おとなが水から飛び出す速さは秒速6〜9m(記録計の研究では平均6.1m、高く跳ぶときは約8m)', () => {
   const vy = (breachPose(0.05, 1).y - breachPose(0, 1).y) / 0.05;
   assert.ok(vy > 6 && vy < 9, `${vy}`);
+});
+
+test('大ジャンプ: いちばん高いところで、頭から尾の先まで体全体が水から出る(ふつうのジャンプでは尾は水の中)', async () => {
+  const { FULL_BREACH } = await import('../src/logic/breach.js');
+  const L = 14, half = 0.11 * L;   // 体の長さの半分と、体の太さの半分
+  const lowest = p => p.y - (L / 2) * Math.abs(Math.sin(p.pitch * Math.PI / 180)) - half;
+  let bestFull = -Infinity, bestNormal = -Infinity, outFor = 0;
+  for (let t = 0; t < BREACH.air; t += 0.02) {
+    const f = breachPose(t, 1, true), n = breachPose(t, 1);
+    bestFull = Math.max(bestFull, lowest(f)); bestNormal = Math.max(bestNormal, lowest(n));
+    if (lowest(f) > 0) outFor += 0.02;
+    // 画面に入る高さ(頭の先 7.5m まで)
+    assert.ok(f.y + (L / 2) * Math.sin(Math.max(0, f.pitch) * Math.PI / 180) < 7.5, `t ${t}`);
+  }
+  assert.ok(bestFull > 0.5, `大ジャンプの体のいちばん下 ${bestFull.toFixed(2)}m`);
+  assert.ok(bestNormal < 0, 'ふつうのジャンプでは、体の一部は水の中');
+  assert.ok(outFor > 0.4, `体全体が出ている時間 ${outFor.toFixed(2)}秒`);
+  assert.ok(FULL_BREACH.peak > 3);
+  // 飛び出す速さは、記録された最大(秒速約9m)をこえない
+  const up = (breachPose(0.05, 1, true).y - breachPose(0, 1, true).y) / 0.05;
+  assert.ok(up < 12.5, `${up}`);
+});
+
+test('群れでジャンプにも、大ジャンプがまざる', () => {
+  const rng = seeded(5);
+  let full = 0, all = 0;
+  for (let k = 0; k < 200; k++) for (const w of groupBreachPlan(rng)) { all++; if (w.full) full++; }
+  assert.ok(full / all > 0.25 && full / all < 0.55, `${full / all}`);
 });

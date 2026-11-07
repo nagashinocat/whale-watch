@@ -39,12 +39,12 @@ test('いちばん近い距離の計算: 横長の画面のほうが横に広く
   assert.ok(landscape < portrait, `landscape ${landscape} portrait ${portrait}`);
 });
 
-test('「間近」の視点: 水面の高さから、クジラの場所を少し見上げる。20mくらいまで近い', () => {
+test('「間近」の視点: 水面の高さから、クジラの場所を少し見上げる。25mくらいの近さ', () => {
   const near = CAMERA_PRESETS.near;
   assert.ok(near, 'near camera');
   assert.ok(near.position[1] < 2, 'eye at water level');
   const dist = Math.hypot(near.position[0] - SPOT[0], near.position[2] - SPOT[2]);
-  assert.ok(dist >= 15 && dist <= 25, `distance ${dist}`);
+  assert.ok(dist >= 22 && dist <= 32, `distance ${dist}`);
   assert.ok(near.target[1] > near.position[1], 'looks slightly up');
   // ジャンプのいちばん高いところ(6m)も画面に入る
   assert.ok(isVisibleFrom(near, [SPOT[0], 6, SPOT[2]]));

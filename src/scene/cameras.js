@@ -14,6 +14,9 @@ export const CLIFF_HEIGHT = 15;
 const TEST_SPOT = typeof globalThis.WHALE_TEST_SPOT === 'number' ? globalThis.WHALE_TEST_SPOT : null;
 export const SPOT = Object.freeze([0, 0, -(TEST_SPOT ?? nearestCenteredView({ height: CLIFF_HEIGHT, fov: FOV }))]);
 
+// 間近: クジラの出る場所から、カメラまでの距離(m)
+export const NEAR_DISTANCE = 27;
+
 // 上空: 高さ80mから、クジラの場所を45度で見下ろす
 const SKY_HEIGHT = 80;
 
@@ -27,8 +30,8 @@ export const CAMERA_PRESETS = Object.freeze({
     target: [...SPOT],
     fov: FOV, sway: 0, bob: 0, whitecaps: 0.55,
   }),
-  // 間近: 水面の高さから、クジラの20m手前で少し見上げる。大きなものは見上げると大きく感じる
+  // 間近: 水面の高さから、クジラの27m手前で少し見上げる。大きなものは見上げると大きく感じる
   near: Object.freeze({
-    position: [SPOT[0], 0.9, SPOT[2] + 20], target: [SPOT[0], 2.2, SPOT[2] - 60], fov: FOV, sway: 0, bob: 0, whitecaps: 0.3,
+    position: [SPOT[0], 0.9, SPOT[2] + NEAR_DISTANCE], target: [SPOT[0], 2.2, SPOT[2] - 60], fov: FOV, sway: 0, bob: 0, whitecaps: 0.3,
   }),
 });

@@ -5,6 +5,9 @@ import { bookTotal, NAME_MAX } from '../logic/flukeId.js';
 import { traitsText } from '../logic/traits.js';
 import { zukanInfo, ZUKAN_LEVELS } from '../logic/zukan.js';
 import { photosOf, photoCaption } from '../logic/photos.js';
+import { whereNow, tripSummary, ROUTES, TIME_SCALE, pathUntil } from '../logic/migration.js';
+const pathUntilNow = w => pathUntil(w.route, w.k);
+import { drawMigrationMap, MAP_ASPECT } from './migrationMap.js';
 
 // 日付を「11/6」の形に
 const T = (ja, en) => tr({ ja, en });
@@ -264,6 +267,9 @@ export function createZukan(root, { onRename, onBackup, onRestore, photos, portr
     }
     if (info.next) out.append(el('p', { cls: 'zk-next', text: info.next.text }));
 
+    // 回遊の記録(はじめて会ったときに付けたタグ)
+    out.append(...migrationSection(e));
+
     // 尾びれの裏と写真
     const mine = photosOf(await photos.list(), e.id);
     out.append(el('div', { cls: 'zk-bottom' }, [
@@ -274,6 +280,45 @@ export function createZukan(root, { onRename, onBackup, onRestore, photos, portr
       ? T(`写真 ${mine.length}枚 ・ 押すと大きく見られます`, `${mine.length} photo${mine.length > 1 ? 's' : ''} · tap to enlarge`)
       : T('この子が写っている写真は、まだありません。パネルのシャッターで撮れます', 'No photos of this whale yet. Use the shutter on the panel.') }));
     out.append(shareBtn);
+  }
+
+  // 回遊の記録: 地図と、いまいるところ、前回の旅
+  function migrationSection(e) {
+    const parts = [el('span', { cls: 'zk-label', text: T('回遊の記録(タグ)', 'Migration tag') })];
+    if (!e.tag) {
+      parts.push(el('p', { cls: 'zk-text zk-dim', text: T('つぎに会ったときにタグを付けて、どこを旅しているかがわかるようになります', 'It will be tagged the next time you meet, so you can follow its journey.') }));
+      return parts;
+    }
+    const now = Date.now();
+    const w = whereNow(e.tag, now);
+    const trip = e.trips?.length ? tripSummary(e.trips[e.trips.length - 1]) : null;
+    const canvas = el('canvas', { cls: 'zk-map', attrs: { width: '600', height: String(Math.round(600 * MAP_ASPECT)), role: 'img',
+      'aria-label': T(`回遊の地図。いまは${tr(w.region)}のあたり`, `Migration map. Now near ${tr(w.region)}`) } });
+    drawMigrationMap(canvas, { current: { path: w.laps > 0 ? w.route.line : pathUntilNow(w), point: w.point }, last: trip });
+    const stage = {
+      leaving: T('いま、旅に出たところです', 'It has just set out'),
+      north: T('北の海へ向かっています', 'Heading north to its feeding grounds'),
+      feeding: T('北の海で、たくさん食べています', 'Feeding in the northern sea'),
+      south: T('南へもどってきています', 'Heading back south'),
+      home: T('もうすぐ、あなたの海にもどってきます', 'Almost back to your sea'),
+    }[w.stage];
+    const km = n => n.toLocaleString();
+    parts.push(canvas, el('p', { cls: 'zk-text', text: T(
+      `いまは「${tr(w.region)}」のあたり。あなたの海から約${km(w.fromHomeKm)}km。${stage}。`,
+      `Now near ${tr(w.region)}, about ${km(w.fromHomeKm)} km from your sea. ${stage}.`) }));
+    const months = d => Math.max(1, Math.round(d / 30));
+    if (trip) {
+      const t = e.trips[e.trips.length - 1];
+      parts.push(el('p', { cls: 'zk-text zk-trip', text: T(
+        `前回の旅(${day(t.from)}〜${day(t.to)}): ${tr(ROUTES[trip.kind])}。いちばん遠くは「${tr(trip.farthest)}」、およそ${km(trip.km)}km。クジラの時間で約${months(trip.whaleDays)}か月の旅でした`,
+        `Last journey (${day(t.from)} – ${day(t.to)}): ${tr(ROUTES[trip.kind])}. Farthest point: ${tr(trip.farthest)}. About ${km(trip.km)} km — around ${months(trip.whaleDays)} month${months(trip.whaleDays) > 1 ? 's' : ''} in whale time.`) }));
+    } else {
+      parts.push(el('p', { cls: 'zk-next', text: T('もう一度会うと、そのあいだに回ってきた旅の道すじが、地図にのります', 'Meet it again to add the route of its journey to the map.') }));
+    }
+    parts.push(el('span', { cls: 'zk-note', text: T(
+      `青い線: いまの旅 ・ オレンジの点線: 前回の旅。図鑑の海では、時間が約${Math.round(TIME_SCALE)}倍の速さで流れます(3日で1年ぶんの旅)`,
+      `Blue: current journey · Orange dots: last journey. Time runs about ${Math.round(TIME_SCALE)}× faster here (a year's journey in 3 days).`) }));
+    return parts;
   }
 
   // 名前を入力する欄を出す

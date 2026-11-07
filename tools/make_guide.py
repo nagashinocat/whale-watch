@@ -112,6 +112,7 @@ def page(L):
           <li class="cam"><b>{ICON['camera']}</b>{T('その子の写真を撮ると、全身の姿がのる', 'Photograph it to add its full-body portrait')}</li>
         </ul>
         <p>{T('「名前を付ける」で、好きな名前に変えられます。真っ白な子やフジツボだらけの子など、24頭の個性をさがしてね。', 'Tap “Rename” to give it any name you like. Look for all 24, from a pure white whale to one covered in barnacles.')}</p>
+        <p class="tip-box">{T('はじめて会ったクジラにはタグが付き、図鑑の地図で「いまどのあたりを旅しているか」が見られます。もう一度会うと、そのあいだに回ってきた回遊の道すじが地図にのります。', 'Each whale is tagged the first time you meet. Its page shows a map of where it is traveling now, and when you meet again, the route of its migration is added.')}</p>
         <p class="tip-box">{T('機種変更の前は、図鑑のいちばん下の「バックアップ」で、図鑑と写真をファイルに書き出しておくと安心。新しいスマホで「ファイルから読み込む」と、もとにもどります。', 'Changing phones? Use “Backup” at the bottom of the Book to save your whales and photos to a file, then “Load from a file” on the new phone.')}</p>''',
         [phone(f'{L}-book.jpg', T('図鑑の一覧', 'Whale Book list'), -2), phone(f'{L}-whale.jpg', T('1頭のページ', 'A whale’s page'), 3)]))
     S.append(section(L, 'share', 'sea', ICON['share'], T('お気に入りを、シェア', 'Share your favorites'),

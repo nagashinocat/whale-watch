@@ -11,6 +11,7 @@
 import { tr, lang } from './i18n.js';
 import { rollTraits, traitWord, traitFlukeWhite, TRAITS, traitsText } from './traits.js';
 import { SPECIAL, specialChance } from './specialCoats.js';
+import { tagOnSighting, cleanMigration } from './migration.js';
 
 const clamp01 = x => Math.min(1, Math.max(0, x));
 const smoothstep = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
@@ -184,9 +185,10 @@ export function recordSighting(book, id, now = Date.now()) {
   const prev = book?.[id];
   // 写真だけ先に撮れていた(会えた回数0)クジラは、ここではじめて会ったことになる
   const met = prev && prev.count > 0;
-  const entry = met
+  // はじめて会ったときにタグを付け、また会ったら、そのあいだの回遊の旅を記録する
+  const entry = tagOnSighting(met
     ? { ...prev, count: prev.count + 1, last: now }
-    : { ...prev, count: 1, first: now, last: now };
+    : { ...prev, count: 1, first: now, last: now }, id, now);
   return { book: { ...book, [id]: entry }, first: !met, count: entry.count };
 }
 
@@ -223,6 +225,7 @@ export function loadBook(storage) {
         if (photographed) { book[id].photographed = true; book[id].photoAt = Number(v.photoAt) || 0; }
         const nick = cleanName(v.nickname);
         if (nick) book[id].nickname = nick;
+        Object.assign(book[id], cleanMigration(v));
       }
     }
     return book;

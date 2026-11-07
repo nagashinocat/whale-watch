@@ -55,6 +55,11 @@ export function mergeBooks(now, incoming) {
     if (a.photographed || b.photographed) { merged.photographed = true; merged.photoAt = Math.max(a.photoAt ?? 0, b.photoAt ?? 0); }
     const nick = a.nickname ?? b.nickname;
     if (nick) merged.nickname = nick;
+    // 回遊のタグは、あとで会ったほうのもの。旅の記録は両方(同じ旅は1つに)
+    const tag = (a.last ?? 0) >= (b.last ?? 0) ? a.tag ?? b.tag : b.tag ?? a.tag;
+    if (tag) merged.tag = tag;
+    const trips = [...(a.trips ?? []), ...(b.trips ?? [])].filter((t, i, all) => all.findIndex(u => u.from === t.from && u.to === t.to) === i).sort((x, y) => x.from - y.from).slice(-5);
+    if (trips.length) merged.trips = trips;
     out[id] = merged;
   }
   return out;

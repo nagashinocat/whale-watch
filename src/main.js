@@ -309,9 +309,11 @@ function audioTestControls(status) {
   for (const [k, v] of Object.entries(AWAY_MODES)) awaySel.append(new Option(`止め方: ${v}`, k));
   awaySel.value = awayMode;
   awaySel.addEventListener('pointerdown', e => e.stopPropagation());
+  // えらんだら、その場でページを読みなおして、その止め方にする(開きなおしても同じページが残ることがあるため)
   awaySel.addEventListener('change', () => {
     saveAwayMode(safeStorage(), awaySel.value);
-    status.textContent = 'アプリを完全に閉じて開きなおすと、この止め方になります';
+    status.textContent = 'この止め方で読みなおします…';
+    setTimeout(() => location.reload(), 300);
   });
   const fmt = e => `${new Date(e.t).toLocaleTimeString()}.${String(e.t % 1000).padStart(3, '0')} ${e.ev} 見えない:${e.hidden ? 'はい' : 'いいえ'} 音:${e.state} (${e.mode})`;
   const logBtn = document.createElement('button');
@@ -335,7 +337,7 @@ if (AUDIO_TEST && !DEBUG) {
   box.className = 'audio-test';
   const toggle = document.createElement('button');
   toggle.className = 'audio-test-toggle';
-  toggle.textContent = '音のテスト';
+  toggle.textContent = `音のテスト(いま: ${AWAY_MODES[awayMode]})`;
   const body = document.createElement('div');
   body.className = 'audio-test-body';
   body.hidden = true;

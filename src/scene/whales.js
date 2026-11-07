@@ -845,10 +845,12 @@ export async function createWhales(scene, fx) {
       whales: (() => {
         // おとなのザトウクジラには、この海に来るクジラのだれかを割りあてる(同じ出方の中では重ならない)
         const taken = [];
+        // 1頭だけで来る出かたか(とくべつな子は、群れや親子では来ない)
+        const solo = motion.whales.length === 1;
         return motion.whales.map(w => {
           let ind = null;
           if (w.kind === 'humpback' && (w.scale ?? 1) >= 0.8 && fx.visitor) {
-            const id = fx.visitor(taken);
+            const id = fx.visitor(taken, { solo });
             taken.push(id);
             ind = individualById(id);
           }

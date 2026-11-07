@@ -181,7 +181,7 @@ export function createOcean(canvas) {
     sky.setState({ palette, sun: s, sunDir, moonDir, moonUp, illumination });
     scene.fog.color.set(palette.horizon);
     whitecaps.setLight(palette.light);
-    for (const fn of paletteListeners) fn(palette);
+    for (const fn of paletteListeners) fn(palette, s);
     water.material.uniforms.sunColor.value.set(palette.light);
     water.material.uniforms.waterColor.value.set(palette.water);
     if (tuned) {

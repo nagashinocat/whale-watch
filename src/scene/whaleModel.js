@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { buildWhaleGeometry, SWIM, strokesPerSecond, WHALE_SPECS, jawHinge, POUCH_SWELL, POUCH_SIDEWAYS, ENGULF, BODY_GRID, ringU, aroundTheta, bodyPoint, flukeOutline } from '../logic/whaleShape.js';
 import { traitBodyColor, traitFinColor, flukeBite } from '../logic/traits.js';
+import { specialMotif } from '../logic/specialCoats.js';
 import { buildFeatures } from '../logic/features3d.js';
 import { eyePatch, applyLid, eyeballPlacement, blinkOpen, EYE } from '../logic/eyeShape.js';
 import { flukeWhiteness } from '../logic/flukeId.js';
@@ -12,6 +13,14 @@ const eyeUniforms = {
   uSea: { value: new THREE.Color(0x0a4f8a) },
   uDay: { value: 1 },
 };
+// とくべつな子の模様が光る強さ(夜 1、昼 0)と、またたきの時計。すべてのクジラで同じ値を使う
+const GLOW = { uGlow: { value: 0 }, uGlowTime: { value: 0 } };
+// 夜の画面はとても暗く写す(明るさの倍率が小さい)ので、そのぶん強く光らせる
+const GLOW_POWER = 7;
+export function setWhaleGlow(level) {
+  GLOW.uGlow.value = Math.max(0, Math.min(1, level)) * GLOW_POWER;
+}
+
 export function setEyeLight(palette) {
   eyeUniforms.uZenith.value.set(palette.zenith);
   eyeUniforms.uHorizon.value.set(palette.horizon);
@@ -216,6 +225,16 @@ function geometryForIndividual(kind, ind) {
     } else if (t.coat === 'white') put(fluke.start + k, ALBINO);
   }
   geo.setAttribute('color', new THREE.BufferAttribute(c.map(toLinear), 3));
+  // とくべつな子: 模様の光(計算用の色 × 強さ)と、またたきのずれ
+  if (ind.special) {
+    const glow = new Float32Array((c.length / 3) * 4);
+    for (let k = 0; k < bodyCount; k++) {
+      const m = specialMotif(t.coat, ringU(Math.floor(k / A)), aroundTheta(k % A));
+      if (m.glow <= 0) continue;
+      glow.set([...m.color.map(v => toLinear(v) * m.glow), m.twinkle], k * 4);
+    }
+    geo.setAttribute('aGlow', new THREE.BufferAttribute(glow, 4));
+  }
   // 形: 背びれの形と、尾びれのうしろのふちの欠け
   if (reshape) {
     const p = Float32Array.from(base.attributes.position.array);
@@ -278,6 +297,8 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     uLowerJaw: { value: 0 }, uUpperJaw: { value: 0 }, uPouch: { value: 0 },
   };
   const [hingeY, hingeZ] = kind === 'humpback' ? jawHinge(kind) : [0, 0];
+  // とくべつな子は、夜に模様が光る
+  const glows = kind === 'humpback' && !!individual?.special;
   const f = v => v.toFixed(5);
   // ぬれた肌は少しつやがある。重い描き方(二重のつや)はやめて、つるつる具合だけで出す
   const material = new THREE.MeshStandardMaterial({
@@ -300,7 +321,9 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
         uniform float uUpperJaw;
         uniform float uPouch;
         attribute vec4 aJaw;
-        varying vec4 vJaw;
+        varying vec4 vJaw;${glows ? `
+        attribute vec4 aGlow;
+        varying vec4 vGlow;` : ''}
         // あごの軸(口の端)のまわりに回す。前(-z)が下がる向き
         vec3 jawTurn(vec3 p, float a) {
           float c = cos(a), s = sin(a);
@@ -316,7 +339,8 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
         objectNormal = normalize(vec3(objectNormal.x, objectNormal.y, objectNormal.z - bendSlope * objectNormal.y));
         float jawA = uLowerJaw * aJaw.x - uUpperJaw * aJaw.y;
         objectNormal = vec3(objectNormal.x, objectNormal.y * cos(jawA) + objectNormal.z * sin(jawA), -objectNormal.y * sin(jawA) + objectNormal.z * cos(jawA));
-        vJaw = aJaw;`)
+        vJaw = aJaw;${glows ? `
+        vGlow = aGlow;` : ''}`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         // のみこんだ水で、のどがふくらむ(下へ大きく、横へも少し。pouchDirection と同じ式)
         if (uPouch > 0.0 && aJaw.z > 0.0) {
@@ -340,7 +364,10 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
       .replace('#include <common>', `#include <common>
         uniform float uLowerJaw;
         uniform float uPouch;
-        varying vec4 vJaw;`)
+        varying vec4 vJaw;${glows ? `
+        uniform float uGlow;
+        uniform float uGlowTime;
+        varying vec4 vGlow;` : ''}`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         {
           float opened = smoothstep(0.02, 0.25, uLowerJaw);
@@ -356,8 +383,14 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
           // のびた畝のあいだの肌は、うすいピンクがかった白に見える
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.5, 0.48), 0.45 * uPouch * vJaw.z * vJaw.w);
         }`);
+    if (glows) {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        // 夜は模様だけが光る。星や花火は、ゆっくりまたたく
+        totalEmissiveRadiance += vGlow.rgb * uGlow * (0.72 + 0.28 * sin(uGlowTime * 2.1 + vGlow.a * 6.2832));`);
+    }
+    if (glows) { shader.uniforms.uGlow = GLOW.uGlow; shader.uniforms.uGlowTime = GLOW.uGlowTime; }
   };
-  material.customProgramCacheKey = () => `whale-${kind}`;
+  material.customProgramCacheKey = () => `whale-${kind}${glows ? '-glow' : ''}`;
   const mesh = new THREE.Mesh(geometryForIndividual(kind, individual), material);
   mesh.scale.setScalar(lengthMeters);
   // ザトウクジラは、目のまわりを細かく作った部品をはめこむ(体の網目のその部分は抜いてある)
@@ -386,6 +419,7 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     eyes,
     update(dt) {
       uniforms.uPhase.value += dt * Math.PI * 2 * strokes;
+      if (glows) GLOW.uGlowTime.value = performance.now() / 1000;
       eyes?.update(dt);
     },
   };

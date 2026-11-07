@@ -3,7 +3,7 @@ import { createWhales } from './scene/whales.js';
 import { createEffects } from './scene/effects.js';
 import { createFootprints } from './scene/footprints.js';
 import { SPOT } from './scene/cameras.js';
-import { setEyeLight } from './scene/whaleModel.js';
+import { setEyeLight, setWhaleGlow } from './scene/whaleModel.js';
 import { cameraShake } from './logic/behavior.js';
 import { PATTERNS, PATTERN_LABELS, resolvePattern, voiceSound } from './logic/patterns.js';
 import { spawnPosition } from './logic/spawn.js';
@@ -15,7 +15,7 @@ import { tr, listJoin } from './logic/i18n.js';
 import { hoursFor, blendHours } from './logic/time.js';
 import { realSky } from './logic/places.js';
 import { AUDIO, INTERVALS } from './logic/config.js';
-import { loadBook, saveBook, nextVisitor, recordSighting, recordPhoto, bookEntries, setNickname, displayName, population, FLUKE_ID } from './logic/flukeId.js';
+import { loadBook, saveBook, nextVisitor, recordSighting, recordPhoto, bookEntries, setNickname, displayName, population, bookTotal } from './logic/flukeId.js';
 import { traitsText } from './logic/traits.js';
 import { sightingMessage, countsForZukan } from './logic/zukan.js';
 import { TIMER, timerState, loadTimer, saveTimer, clockText, remainingText } from './logic/timer.js';
@@ -68,6 +68,8 @@ ocean.addUpdater(footprints.update);
 ocean.onPalette(footprints.setPalette);
 ocean.onPalette(setEyeLight);
 ocean.onPalette(palette => effects.setLight(palette.light));
+// とくべつな子の模様は、夜だけ光る(太陽が沈んでから、月が見えはじめるころに合わせて明るくなる)
+ocean.onPalette((palette, sun) => setWhaleGlow(sun?.moonlight ?? 0));
 const whalesReady = createWhales(ocean.scene, {
   effects,
   footprint: (position, yaw) => footprints.add(position, yaw),
@@ -79,14 +81,14 @@ const whalesReady = createWhales(ocean.scene, {
   },
   playSound: (name, opts) => mixer?.playWhale(name, opts),
   // この出方に来るクジラ(図鑑にのっているクジラが、ときどきもう一度来る)。taken は同じ出方ですでに来ているクジラ
-  visitor(taken = []) {
+  visitor(taken = [], { solo = false } = {}) {
     // 動作確認のページで「出すクジラ」を選んでいたら、その子を出す
     if (forcedVisitor && !taken.includes(forcedVisitor)) return forcedVisitor;
     // プラスで「来てほしいクジラ」を選んで呼んだときは、その子が来る
     if (eventWhale && !taken.includes(eventWhale)) return eventWhale;
     // タイマーで知らせに来るクジラは、先に決めてある(お知らせに名前を出すため)
     if (timerVisitor && !taken.includes(timerVisitor)) { const id = timerVisitor; timerVisitor = null; return id; }
-    let id = nextVisitor(book);
+    let id = nextVisitor(book, Math.random, { solo });
     for (let k = 0; k < 20 && taken.includes(id); k++) id = nextVisitor(book);
     return id;
   },
@@ -428,7 +430,7 @@ photos.list().then(list => {
 function showBook() {
   const list = bookEntries(book);
   zukan.setEntries(list);
-  menu.setZukanCount(list.length, FLUKE_ID.size);
+  menu.setZukanCount(list.length, bookTotal());
 }
 
 // 図鑑(メニューのあとに作る。メニューが画面の部品を作りなおすので)

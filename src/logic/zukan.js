@@ -38,6 +38,11 @@ export function commentFor(ind) {
   const white = ind.traits?.coat === 'white';
   const t = traitsText(ind);
   if (white) out.push(tr({ ja: '全身が真っ白で、とてもめずらしい。この海でほかに見つかっていない。', en: 'Pure white all over and extremely rare. No other like it has been seen in these waters.' }));
+  if (ind.special) {
+    out.push(tr({ ja: '星空を体にまとった、まぼろしのクジラ。夜に会うと、模様だけが光る。ひとりで旅をしていて、群れには入らない。', en: 'A phantom whale wearing the night sky. Meet it after dark and only its markings glow. It always travels alone.' }));
+    out.push(tr({ ja: `${traitsText(ind)[0]}。`, en: `${traitsText(ind)[0]}.` }));
+    return out.join(tr({ ja: '', en: ' ' }));
+  }
   const rest = white ? t.slice(1) : t;   // 真っ白は、いつもいちばん先に書いてある
   if (rest.length) out.push(tr({ ja: `${rest.join('。')}。`, en: `${rest.join('. ')}.` }));
   if (!t.length && !scar && (ind.spots?.length ?? 0) < 3) out.push(tr({ ja: 'とくに目立つところがなく、尾びれの模様がいちばんの目印。', en: 'Nothing stands out; the fluke pattern is the best way to tell this one apart.' }));

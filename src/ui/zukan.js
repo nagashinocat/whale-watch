@@ -1,7 +1,7 @@
 import { drawFluke } from './flukeCanvas.js';
 import { whaleCard, bookCard, shareCanvas, shareText } from './shareCard.js';
 import { tr } from '../logic/i18n.js';
-import { FLUKE_ID, NAME_MAX } from '../logic/flukeId.js';
+import { bookTotal, NAME_MAX } from '../logic/flukeId.js';
 import { traitsText } from '../logic/traits.js';
 import { zukanInfo, ZUKAN_LEVELS } from '../logic/zukan.js';
 import { photosOf, photoCaption } from '../logic/photos.js';
@@ -311,8 +311,8 @@ export function createZukan(root, { onRename, onBackup, onRestore, photos, portr
       share(b, () => bookCard({
         photos: shots.map(p => photos.url(p)),
         captions: shots.map(p => (p.whales ?? []).map(nameOf).filter(n => entries.some(x => x.displayName === n)).join(T('、', ', '))),
-        entries, total: FLUKE_ID.size, url: pageUrl(),
-      }), shareText({ kind: 'book', met: entries.length, total: FLUKE_ID.size }), 'whale-book.jpg');
+        entries, total: bookTotal(), url: pageUrl(),
+      }), shareText({ kind: 'book', met: entries.length, total: bookTotal() }), 'whale-book.jpg');
     });
     return b;
   }
@@ -320,7 +320,7 @@ export function createZukan(root, { onRename, onBackup, onRestore, photos, portr
   let renderId = 0;
   async function render() {
     const id = ++renderId;
-    count.textContent = T(`${entries.length} / ${FLUKE_ID.size} 頭`, `${entries.length} / ${FLUKE_ID.size}`);
+    count.textContent = T(`${entries.length} / ${bookTotal()} 頭`, `${entries.length} / ${bookTotal()}`);
     const e = state.detail && entries.find(x => x.id === state.detail);
     back.hidden = !e && state.tab === 'whales';
     renderTabs();

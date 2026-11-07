@@ -12,6 +12,9 @@
 // 色は sRGB の [r, g, b](0〜1)。u は体の前(頭 0)から後ろ(尾 1)、θ は背中 0 から右回り
 
 import { tr } from './i18n.js';
+import { SPECIAL, specialBodyColor, SPECIAL_BLACK } from './specialCoats.js';
+
+const isSpecial = ind => SPECIAL.coats.includes(ind.traits?.coat);
 
 const clamp01 = x => Math.min(1, Math.max(0, x));
 const smoothstep = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
@@ -62,6 +65,9 @@ export function traitsText(ind) {
   const t = ind.traits ?? {};
   const out = [];
   if (t.coat === 'white') out.push(tr({ ja: '全身が真っ白(とてもめずらしい)', en: 'Pure white all over (extremely rare)' }));
+  if (t.coat === 'galaxy') out.push(tr({ ja: '全身が真っ黒で、わき腹に銀河のうずと星(夜に光る)', en: 'Jet black, with spiral galaxies and stars on its sides (they glow at night)' }));
+  if (t.coat === 'comet') out.push(tr({ ja: '全身が真っ黒で、両わきに尾を引く彗星(夜に光る)', en: 'Jet black, with a comet streaking down each side (it glows at night)' }));
+  if (t.coat === 'fireworks') out.push(tr({ ja: '全身が真っ黒で、体じゅうに打ち上げ花火(夜に光る)', en: 'Jet black, covered in bursting fireworks (they glow at night)' }));
   if (t.coat === 'dark') out.push(tr({ ja: 'おなかまで黒い', en: 'Dark even on the belly' }));
   if (t.coat === 'pale') out.push(tr({ ja: 'おなかの白がわき腹まで広い', en: 'White belly reaching far up the sides' }));
   if (t.pec === 'darkTop') out.push(tr({ ja: '胸びれの表が黒い', en: 'Dark upper side of the flippers' }));
@@ -81,6 +87,9 @@ export function traitWord(ind) {
   const t = ind.traits ?? {};
   const w = (ja, en) => tr({ ja, en });
   if (t.coat === 'white') return w('ユキ', 'Snow');
+  if (t.coat === 'galaxy') return w('ギンガ', 'Galaxy');
+  if (t.coat === 'comet') return w('ホウキボシ', 'Comet');
+  if (t.coat === 'fireworks') return w('ハナビ', 'Firework');
   if (t.scars === 'propeller') return w('キズ', 'Scar');
   if (t.fluke === 'bite') return w('カケオ', 'Notch');
   return { hook: w('カギ', 'Hook'), knob: w('コブ', 'Knob'), nick: w('ハカケ', 'Chip') }[t.dorsal]
@@ -109,6 +118,8 @@ export function dorsalRiseFor(variant, u) {
 export function traitBodyColor(ind, u, theta, c) {
   const t = ind.traits ?? {};
   const down = -Math.cos(theta);   // 1 がおなかのまん中
+  // とくべつな子: 全身真っ黒に、星空のような模様
+  if (isSpecial(ind)) return specialBodyColor(t.coat, u, theta);
   if (t.coat === 'white') {
     // 鼻の穴のまわりは、うすいピンク
     const nose = bump(u, 0.27, 0.03) * smoothstep(0.6, 0.95, Math.cos(theta));
@@ -158,6 +169,7 @@ export function propellerLines(ind) {
 export function traitFinColor(ind, s, top, c) {
   const t = ind.traits ?? {};
   if (t.coat === 'white') return ALBINO;
+  if (isSpecial(ind)) return SPECIAL_BLACK;
   if (t.pec === 'darkTop' && top) c = mix(c, BLACK, 0.9 * (1 - smoothstep(0.9, 1, s)));
   if (t.barnacles === 'many' && s > 0.8 && Math.sin(s * 140 + (top ? 1 : 3)) > 0.4) c = mix(c, BARNACLE, 0.7);
   return c;
@@ -173,6 +185,7 @@ export function flukeBite(ind, s) {
 export function traitFlukeWhite(ind, s, c, w) {
   const t = ind.traits ?? {};
   if (t.coat === 'white') return 1;
+  if (isSpecial(ind)) return 0;
   // 尾びれの先のフジツボのかたまり
   if (t.barnacles === 'many' && Math.abs(s) > 0.82 && Math.sin(s * 90 + c * 30) > 0.3) return Math.max(w, 0.8);
   return w;

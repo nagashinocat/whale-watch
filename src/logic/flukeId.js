@@ -10,6 +10,7 @@
 
 import { tr, lang } from './i18n.js';
 import { rollTraits, traitWord, traitFlukeWhite, TRAITS, traitsText } from './traits.js';
+import { SPECIAL, specialChance } from './specialCoats.js';
 
 const clamp01 = x => Math.min(1, Math.max(0, x));
 const smoothstep = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
@@ -110,7 +111,7 @@ function makeIndividual(id) {
 // 名前: いちばん目立つ個性(なければ尾びれの傷の形)と、尾びれの白さから付ける。真っ白な子は「ユキ」
 function autoName(ind) {
   const word = traitWord(ind);
-  if (ind.traits.coat === 'white') return word;
+  if (ind.traits.coat === 'white' || SPECIAL.coats.includes(ind.traits.coat)) return word;
   const color = COLOR_WORDS()[ind.category];
   const head = word || ind.mark;
   return tr({ ja: head + color, en: head ? `${head} ${color}` : color });
@@ -135,6 +136,15 @@ export function population() {
       if (target) target.traits[key] = v;
     }
   }
+  // とくべつな3頭(全身真っ黒に、銀河・彗星・花火の模様)。ほかの個性はつけない
+  SPECIAL.coats.forEach((coat, k) => {
+    const ind = makeIndividual(SPECIAL.firstId + k);
+    ind.traits = { ...ind.traits, coat, pec: 'normal', dorsal: 'normal', fluke: 'normal', scars: 'normal', barnacles: 'normal', size: 'normal' };
+    ind.category = 5;   // 尾びれの裏も真っ黒
+    ind.scars = []; ind.spots = [];
+    ind.special = true;
+    list.push(ind);
+  });
   const used = {};
   for (const ind of list) {
     ind.baseName = autoName(ind);
@@ -145,13 +155,22 @@ export function population() {
   return list;
 }
 
+// 図鑑にのる数(ふつうの24頭と、とくべつな3頭)
+export const bookTotal = () => population().length;
+
 export function individual(id) {
   return population().find(i => i.id === id) ?? null;
 }
 
-// つぎに来るクジラの番号。図鑑にのっているクジラが、ときどきもう一度来る
-export function nextVisitor(book, rng = Math.random) {
-  const all = population().map(i => i.id);
+// つぎに来るクジラの番号。図鑑にのっているクジラが、ときどきもう一度来る。
+// solo: 1頭だけで来る出かたのとき。とくべつな子は、そのときにだけ、ごくまれに来る(群れや親子では来ない)
+export function nextVisitor(book, rng = Math.random, { solo = false } = {}) {
+  if (solo) {
+    const p = specialChance();
+    for (const ind of population()) if (ind.special && rng() < p) return ind.id;
+  }
+  // とくべつな子は、図鑑にのったあとも、ふつうの「また来る」では来ない
+  const all = population().filter(i => !i.special).map(i => i.id);
   const seen = Object.keys(book ?? {}).map(Number).filter(id => all.includes(id) && book[id]?.count > 0);   // 写真だけのクジラは、まだ会っていない
   if (seen.length && rng() < FLUKE_ID.returnChance) return seen[Math.floor(rng() * seen.length)];
   const fresh = all.filter(id => !seen.includes(id));

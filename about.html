@@ -69,11 +69,6 @@
     <li>3Dの絵を描く道具(three.js)を jsDelivr から、文字の形を Google Fonts から読みこんでいます。読みこむときに、端末の通信のための情報(IPアドレスなど)がそれぞれのサービスに伝わります。</li>
   </ul>
 
-  <section data-contact hidden>
-    <h2>ご意見・不具合のご連絡</h2>
-    <p>感想や、うまく動かないところがあれば、<a data-contact-link href="#">こちらのフォーム</a>から教えてください。</p>
-  </section>
-
   <h2>使っている素材</h2>
   <div class="table">
   <table>
@@ -129,11 +124,6 @@
     <li>The 3D drawing library (three.js) is loaded from jsDelivr, and fonts from Google Fonts. When loading them, basic connection information (such as your IP address) reaches those services.</li>
   </ul>
 
-  <section data-contact hidden>
-    <h2>Feedback</h2>
-    <p>Comments or something not working? Let us know through <a data-contact-link href="#">this form</a>.</p>
-  </section>
-
   <h2>Credits</h2>
   <div class="table">
   <table>
@@ -158,12 +148,6 @@
   <p class="lang-links"><a href="#" data-to="ja">日本語</a> ・ <a href="#" data-to="en">English</a></p>
 </main>
 <script>
-  // ご意見のフォームのアドレス(決まったらここに入れる。空のあいだは、ご連絡の欄を出さない)
-  var CONTACT_URL = '';
-  if (CONTACT_URL) document.querySelectorAll('[data-contact]').forEach(function (s) {
-    s.hidden = false;
-    s.querySelector('[data-contact-link]').href = CONTACT_URL;
-  });
   // アプリで選んだ言語(なければ端末の言語)で見せる
   (function () {
     var pick = 'ja';

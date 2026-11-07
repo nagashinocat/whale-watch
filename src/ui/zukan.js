@@ -311,8 +311,8 @@ export function createZukan(root, { onRename, onBackup, onRestore, photos, portr
       share(b, () => bookCard({
         photos: shots.map(p => photos.url(p)),
         captions: shots.map(p => (p.whales ?? []).map(nameOf).filter(n => entries.some(x => x.displayName === n)).join(T('、', ', '))),
-        entries, total: bookTotal(), url: pageUrl(),
-      }), shareText({ kind: 'book', met: entries.length, total: bookTotal() }), 'whale-book.jpg');
+        entries, total: bookTotal(entries), url: pageUrl(),
+      }), shareText({ kind: 'book', met: entries.length, total: bookTotal(entries) }), 'whale-book.jpg');
     });
     return b;
   }
@@ -320,7 +320,7 @@ export function createZukan(root, { onRename, onBackup, onRestore, photos, portr
   let renderId = 0;
   async function render() {
     const id = ++renderId;
-    count.textContent = T(`${entries.length} / ${bookTotal()} 頭`, `${entries.length} / ${bookTotal()}`);
+    count.textContent = T(`${entries.length} / ${bookTotal(entries)} 頭`, `${entries.length} / ${bookTotal(entries)}`);
     const e = state.detail && entries.find(x => x.id === state.detail);
     back.hidden = !e && state.tab === 'whales';
     renderTabs();

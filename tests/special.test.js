@@ -15,7 +15,10 @@ test('とくべつな3頭: 銀河・彗星・花火。図鑑は24頭と合わせ
   const s = specials();
   assert.deepEqual(s.map(i => i.traits.coat), ['galaxy', 'comet', 'fireworks']);
   assert.deepEqual(s.map(i => i.id), [25, 26, 27]);
-  assert.equal(bookTotal(), 27);
+  // 図鑑の分母は、ふつうの24頭に、会えたとくべつな子だけを足していく
+  assert.equal(bookTotal(), 24);
+  assert.equal(bookTotal([{ id: 3 }, { id: 25, special: true }]), 25);
+  assert.equal(bookTotal(s.map(i => ({ ...i }))), 27);
   assert.deepEqual(s.map(i => i.name), ['ギンガ', 'ホウキボシ', 'ハナビ']);
   for (const i of s) {
     assert.equal(i.category, 5, '尾びれの裏も真っ黒');

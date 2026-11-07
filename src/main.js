@@ -430,7 +430,7 @@ photos.list().then(list => {
 function showBook() {
   const list = bookEntries(book);
   zukan.setEntries(list);
-  menu.setZukanCount(list.length, bookTotal());
+  menu.setZukanCount(list.length, bookTotal(list));
 }
 
 // 図鑑(メニューのあとに作る。メニューが画面の部品を作りなおすので)

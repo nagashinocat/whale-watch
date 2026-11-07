@@ -155,8 +155,9 @@ export function population() {
   return list;
 }
 
-// 図鑑にのる数(ふつうの24頭と、とくべつな3頭)
-export const bookTotal = () => population().length;
+// 図鑑の分母: ふつうの24頭に、会えたとくべつな子の数を足す(会うまでは、いることもひみつ)。
+// met は図鑑にのっているクジラの一覧(bookEntries)
+export const bookTotal = (met = []) => population().filter(i => !i.special).length + met.filter(e => e.special).length;
 
 export function individual(id) {
   return population().find(i => i.id === id) ?? null;

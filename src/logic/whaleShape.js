@@ -511,9 +511,10 @@ export function eyeHole(kind, u, theta) {
 // 口の端の近く(ほお)だけは皮がのびてつながる
 // overlap は 0: 上と下のくちびるのふちを同じ点にする(重ねると、重なったところがチカチカする)
 export const MOUTH_CUT = Object.freeze({ to: 0.235, overlap: 0 });
+// 口の切れ目は、口先(u=0)から口の端の少しうしろまで。口先までつながっていないと、
+// 口を開けたときに口先の皮が上下に引きのばされて、紐のように見える
 function mouthCutAt(kind, u) {
-  const m = FACES[kind]?.mouth;
-  return kind === 'humpback' && u > m[0].u && u < MOUTH_CUT.to;
+  return kind === 'humpback' && u < MOUTH_CUT.to;
 }
 
 function bodyMesh(kind, out, rings = BODY_GRID.rings, around = BODY_GRID.around) {
@@ -561,13 +562,17 @@ function bodyMesh(kind, out, rings = BODY_GRID.rings, around = BODY_GRID.around)
       }
     }
   }
-  // 頭の先と尾の先をふさぐ
-  const front = out.add([0, bodySection(kind, 0).centerY, bodyZ(0)], skinColor(kind, 0, 0), jawWeights(kind, 0, Math.PI / 2));
+  // 頭の先と尾の先をふさぐ。口先は、上あごと下あごで別の点にする(1つの点だと、口を開けたときに
+  // その点から下あごへ細長い面がのびてしまう)。上あごと下あごにまたがるところは、口のすきまなので、ふさがない
+  const tip = [0, bodySection(kind, 0).centerY, bodyZ(0)];
+  const frontUp = out.add(tip, skinColor(kind, 0, 0), jawWeights(kind, 0, 0, 0));
+  const frontLow = mouthCutAt(kind, 0) ? out.add(tip, skinColor(kind, 0, Math.PI), jawWeights(kind, 0, Math.PI, 1)) : frontUp;
   const back = out.add([0, 0, bodyZ(1)], skinColor(kind, 1, 0));
   const last = first + (rings - 1) * around;
   for (let j = 0; j < around; j++) {
     const j2 = (j + 1) % around;
-    out.indices.push(front, first + j, first + j2);
+    const la = label[j], lb = label[j2];
+    if (la === lb) out.indices.push(la === 2 ? frontLow : frontUp, first + j, first + j2);
     out.indices.push(back, last + j2, last + j);
   }
 }

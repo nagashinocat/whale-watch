@@ -306,3 +306,25 @@ test('泳ぐときの尾のふれと速さは、記録計の研究の数値に�
   assert.ok(f(14) < f(11) && f(5) > f(14));
   assert.ok(S.amplitude > 0);
 });
+
+test('口を大きく開けても、上あごと下あごをつなぐ紐のような面はできない(口先も切れ目でわかれている)', async () => {
+  const { buildWhaleGeometry, jawHinge, ENGULF } = await import('../src/logic/whaleShape.js');
+  const { FEEDING } = await import('../src/logic/feeding.js');
+  const g = buildWhaleGeometry('humpback');
+  const [hy, hz] = jawHinge('humpback');
+  // シェーダーと同じあごの動かし方(のどのふくらみとひげ板ののびは、ここでは見ない)
+  const moved = i => {
+    let x = g.positions[3 * i], y = g.positions[3 * i + 1], z = g.positions[3 * i + 2];
+    const wl = g.jaw[4 * i], wu = g.jaw[4 * i + 1];
+    x *= 1 + ENGULF.splay * FEEDING.lowerJaw * wl;
+    const a = FEEDING.lowerJaw * wl - FEEDING.upperJaw * wu, c = Math.cos(a), s = Math.sin(a);
+    return [x, hy + (y - hy) * c + (z - hz) * s, hz - (y - hy) * s + (z - hz) * c];
+  };
+  let longest = 0;
+  for (let t = 0; t < g.indices.length; t += 3) {
+    const v = [g.indices[t], g.indices[t + 1], g.indices[t + 2]].map(moved);
+    for (let k = 0; k < 3; k++) longest = Math.max(longest, Math.hypot(...v[k].map((q, d) => q - v[(k + 1) % 3][d])));
+  }
+  // 直す前は、口先から下あごの先まで体長の3割ほどの面がのびていた。口の端の皮ののびは、体長の2%ほどまで
+  assert.ok(longest < 0.03, `いちばん長くのびた辺 ${longest.toFixed(3)}`);
+});

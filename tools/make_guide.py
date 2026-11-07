@@ -19,11 +19,12 @@ PATTERNS = [
     ('スパイホップ', 'Spyhop', '水面から顔を出して、まわりを見る', 'Pokes its head up to look around', 2),
     ('胸びれでたたく', 'Flipper slap', '長い胸びれで水面をバシャン', 'Slaps the water with its long flipper', 2),
     ('尾びれでたたく', 'Tail slap', '尾びれで水面をバシーン', 'Smacks the water with its tail', 2),
-    ('群れでジャンプ', 'Group breach', '2〜5頭がつぎつぎに。互い違いのことも', '2 to 5 whales leap one after another', 3),
+    # めったにない3つは、会えたときのお楽しみ(名前も、どんな姿かも書かない)
+    ('？？？', '???', '会えたときのお楽しみ', 'A surprise for when you see it', 3),
     ('群れでスパイホップ', 'Group spyhop', 'みんなで顔を出して、きょろきょろ', 'Several heads pop up together', 3),
-    ('目が合う', 'Eye to eye', '間近のカメラのすぐ前に来て、目が合う', 'Comes right up to the close-up camera', 3),
+    ('？？？', '???', '会えたときのお楽しみ', 'A surprise for when you see it', 3),
     ('捕食', 'Lunge feeding', '口を大きく開けて、水ごとのみこむ', 'Opens wide and gulps a huge mouthful', 3),
-    ('バブルネット', 'Bubble-net', '泡の輪で魚を囲んで、群れでいっせいに', 'A team traps fish in a ring of bubbles', 3),
+    ('？？？', '???', '会えたときのお楽しみ', 'A surprise for when you see it', 3),
 ]
 
 def t(ja, en):

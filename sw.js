@@ -1,6 +1,6 @@
 // このファイルは tools/build_sw.py で作る(手で書きかえない)
 // 一度開いたら、電波がなくても動くように、アプリのファイルを端末にとっておく
-const VERSION = '1217e640b0ca';
+const VERSION = '8a89aea51c5f';
 const APP = `whale-ocean-${VERSION}`;
 const EXTRA = 'whale-ocean-extra';   // 文字の形など、あとから読みこんだもの
 const FILES = [
@@ -54,6 +54,7 @@ const FILES = [
   "src/ui/flukeCanvas.js",
   "src/ui/menu.js",
   "src/ui/photoStore.js",
+  "src/ui/shareCard.js",
   "src/ui/zukan.js",
   "assets/audio/blow.m4a",
   "assets/audio/breach-rise.m4a",

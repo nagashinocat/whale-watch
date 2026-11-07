@@ -1,4 +1,5 @@
 import { drawFluke } from './flukeCanvas.js';
+import { whaleCard, bookCard, shareCanvas, shareText } from './shareCard.js';
 import { tr } from '../logic/i18n.js';
 import { FLUKE_ID, NAME_MAX } from '../logic/flukeId.js';
 import { traitsText } from '../logic/traits.js';
@@ -65,6 +66,36 @@ export function createZukan(root, { onRename, photos, portrait, nameOf }) {
     render();
   });
 
+  // ---- 共有用の1枚 ----
+  // スマホでは共有の画面(X・Instagram などを選べる)を出す。出せないときは画像を大きく出して、保存してもらう
+  const pageUrl = () => (typeof location !== 'undefined' ? `${location.origin}${location.pathname}` : '');
+  async function share(button, make, text, filename) {
+    const label = button.textContent;
+    button.disabled = true;
+    button.textContent = T('画像を作っています…', 'Making the image…');
+    try {
+      const canvas = await make();
+      const result = await shareCanvas(canvas, { text, url: pageUrl(), filename });
+      if (result === 'fallback') {
+        shown = null;
+        big.src = canvas.toDataURL('image/jpeg', 0.92);
+        caption.textContent = T(`${text} ${pageUrl()} ・ 画像を長押し(パソコンは「保存する」)して保存し、X や Instagram に投稿できます`,
+          `${text} ${pageUrl()} · Long-press the image (or use Save) to keep it, then post it to X or Instagram`);
+        save.href = big.src;
+        save.download = filename;
+        del.hidden = true;
+        viewer.hidden = false;
+      }
+    } catch {
+      button.textContent = T('画像を作れませんでした', 'Could not make the image');
+      setTimeout(() => { button.textContent = label; }, 2500);
+      button.disabled = false;
+      return;
+    }
+    button.textContent = label;
+    button.disabled = false;
+  }
+
   function go(next) {
     state = next;
     render();
@@ -77,6 +108,7 @@ export function createZukan(root, { onRename, photos, portrait, nameOf }) {
     caption.textContent = photoCaption(p, nameOf);
     save.href = big.src;
     save.download = `whale-${new Date(p.time).toISOString().slice(0, 19).replace(/[:T]/g, '-')}.jpg`;
+    del.hidden = false;
     viewer.hidden = false;
   }
 
@@ -130,6 +162,7 @@ export function createZukan(root, { onRename, photos, portrait, nameOf }) {
     );
     const list = el('ol', { cls: 'zk-files' });
     if (!entries.length) list.append(el('li', { cls: 'zk-note', text: T('まだだれものっていません。クジラが姿を見せるのを待ちましょう', 'No whales yet. Wait for one to show itself.') }));
+    else out.append(bookShareButton());
     for (const e of entries) {
       const item = el('button', { cls: 'zk-file' }, [
         el('span', { cls: 'zk-file-no', text: no(e.id) }),
@@ -157,6 +190,19 @@ export function createZukan(root, { onRename, photos, portrait, nameOf }) {
       rename,
     ]);
     rename.addEventListener('click', () => startRename(nameBox, e));
+    const shareBtn = el('button', { cls: 'zk-share', text: T('この子をシェアする(X・Instagram)', 'Share this whale (X, Instagram)') });
+    shareBtn.addEventListener('click', async () => {
+      const mine = photosOf(await photos.list(), e.id);
+      const name = e.displayName;
+      share(shareBtn, () => whaleCard({
+        entry: e,
+        photos: mine.map(p => photos.url(p)),
+        portrait: zukanInfo(e, e).open.portrait ? portrait(e) : null,
+        drawFlukeOn: c => drawFluke(c, e),
+        features: zukanInfo(e, e).open.comment ? traitsText(e).slice(0, 2) : [],
+        url: pageUrl(),
+      }), shareText({ kind: 'whale', name, count: e.count }), `whale-${String(e.id).padStart(2, '0')}.jpg`);
+    });
     const stamp = el('div', { cls: 'zk-stamp', attrs: { 'aria-label': T(`確認 ${info.count}回`, `Seen ${info.count} times`) } }, [el('span', { text: T('確認', 'Seen') }), el('b', { text: T(`${info.count}回`, `×${info.count}`) })]);
     out.append(el('div', { cls: 'zk-top' }, [nameBox, stamp]));
 
@@ -201,6 +247,7 @@ export function createZukan(root, { onRename, photos, portrait, nameOf }) {
     out.append(el('span', { cls: 'zk-note', text: mine.length
       ? T(`写真 ${mine.length}枚 ・ 押すと大きく見られます`, `${mine.length} photo${mine.length > 1 ? 's' : ''} · tap to enlarge`)
       : T('この子が写っている写真は、まだありません。パネルのシャッターで撮れます', 'No photos of this whale yet. Use the shutter on the panel.') }));
+    out.append(shareBtn);
   }
 
   // 名前を入力する欄を出す
@@ -226,7 +273,22 @@ export function createZukan(root, { onRename, photos, portrait, nameOf }) {
       el('h1', { cls: 'zk-title', text: T('写真', 'Photos') }),
       el('p', { cls: 'zk-note', text: T(`撮った写真 ${list.length}枚(${photos.max}枚まで。こえると古いものから消えます)。パネルのシャッターで撮れます`, `${list.length} photos (up to ${photos.max}; the oldest are removed beyond that). Use the shutter on the panel.`) }),
     );
+    out.append(bookShareButton());
     if (list.length) out.append(polaroids(list, 'large'));
+  }
+
+  // 図鑑まとめをシェアするボタン(撮った写真と、付けた名前を1枚に)
+  function bookShareButton() {
+    const b = el('button', { cls: 'zk-share', text: T('写真と名前を1枚にまとめてシェア(X・Instagram)', 'Share my photos and whales in one image (X, Instagram)') });
+    b.addEventListener('click', async () => {
+      const shots = (await photos.list()).sort((x, y) => y.time - x.time).slice(0, 6);
+      share(b, () => bookCard({
+        photos: shots.map(p => photos.url(p)),
+        captions: shots.map(p => (p.whales ?? []).map(nameOf).filter(n => entries.some(x => x.displayName === n)).join(T('、', ', '))),
+        entries, total: FLUKE_ID.size, url: pageUrl(),
+      }), shareText({ kind: 'book', met: entries.length, total: FLUKE_ID.size }), 'whale-book.jpg');
+    });
+    return b;
   }
 
   let renderId = 0;

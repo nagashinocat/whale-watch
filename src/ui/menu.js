@@ -53,6 +53,7 @@ const SCENES = {
 
 // 線の絵のアイコン
 const ICON = {
+  down: '<path d="M6 9l6 6 6-6"></path>',
   help: '<circle cx="12" cy="12" r="9"></circle><path d="M9.6 9.4a2.5 2.5 0 1 1 3.6 2.3c-.7.4-1.2.9-1.2 1.8"></path><path d="M12 16.8h.01"></path>',
   bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"></path><path d="M10 20a2 2 0 0 0 4 0"></path>',
   mic: '<rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path>',
@@ -106,7 +107,7 @@ export function createMenu(root, handlers) {
       <div class="hud-top">
         <div class="hud-left">
           <span class="pill" data-now></span>
-          <button class="help-chip" data-help>${icon('help', 18)}${T('使い方', 'How to use')}</button>
+          <button class="help-chip" data-help aria-label="${T('使い方', 'How to use')}">${icon('help', 18)}<span>${T('使い方', 'How to use')}</span></button>
         </div>
         <div class="hud-round">
           <button class="round" data-full aria-label="${T('全画面', 'Full screen')}">${icon('full', 20)}</button>
@@ -174,6 +175,7 @@ export function createMenu(root, handlers) {
         <button class="vol-toggle" data-whisper aria-pressed="true">${icon('moon', 18)}<span><b>${T('親子のささやき', 'Mother–calf whispers')}</b><small>${T('おやすみモードのとき、とても小さく聞こえる', 'Very soft, only in sleep mode')}</small></span></button>
       </div>
       <div class="hud-bottom">
+        <button class="panel-close" data-panelclose>${icon('down', 18)}${T('海にもどる', 'Back to the sea')}</button>
         <p class="sleep-note" data-sleepnote hidden>${icon('moon', 16)}${T('おやすみモード中 ・ クジラの声は鳴らず、波の音だけ', 'Sleep mode · waves only, no whale calls')}</p>
         <div class="sky">
           <div class="sky-labels" aria-hidden="true">
@@ -432,6 +434,8 @@ export function createMenu(root, handlers) {
   tourSkip.addEventListener('click', () => endTour(false));
   tour.addEventListener('keydown', e => { if (e.key === 'Escape') endTour(false); });
   $('[data-help]').addEventListener('click', () => handlers.onHelp?.());
+  // パネルを閉じて海にもどる(画面が低くて、海をタップする場所がないときも閉じられる)
+  $('[data-panelclose]').addEventListener('click', () => hideMenu());
   const update = $('[data-update]');
   let hintTimer = null;
   function hideHint() { hint.hidden = true; clearTimeout(hintTimer); }

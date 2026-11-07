@@ -83,6 +83,8 @@ export function createZukan(root, { onRename, photos, portrait, nameOf }) {
     list.forEach((p, i) => {
       const b = el('button', { cls: 'zk-polaroid', attrs: { 'aria-label': photoCaption(p, nameOf), style: `transform: rotate(${[-4, 3, -2, 4, -3][i % 5]}deg)` } },
         [el('img', { attrs: { src: photos.url(p), alt: '' } })]);
+      // 画像を出せなかったときは、そのことを書いておく(まっ白なままにしない)
+      b.querySelector('img').addEventListener('error', e => e.currentTarget.replaceWith(el('span', { cls: 'zk-photo-broken', text: '写真を表示できませんでした' })), { once: true });
       b.addEventListener('click', () => openPhoto(p));
       row.append(b);
     });

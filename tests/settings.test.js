@@ -14,8 +14,8 @@ test('何も保存されていなければ初期設定', () => {
 
 test('保存した設定を読み戻せる', () => {
   const s = mem();
-  saveSettings(s, { mode: 'sleep', camera: 'sky', volume: 0.3, time: 'night', interval: 'often', shutter: 'right', lang: 'en' });
-  assert.deepEqual(loadSettings(s), { mode: 'sleep', camera: 'sky', volume: 0.3, time: 'night', interval: 'often', shutter: 'right', lang: 'en' });
+  saveSettings(s, { mode: 'sleep', camera: 'sky', volume: 0.3, time: 'night', interval: 'often', shutter: 'right', lang: 'en', whisper: false, hydrophone: true });
+  assert.deepEqual(loadSettings(s), { mode: 'sleep', camera: 'sky', volume: 0.3, time: 'night', interval: 'often', shutter: 'right', lang: 'en', whisper: false, hydrophone: true });
 });
 
 test('時間の設定は最初は自動、不正な値なら自動に戻す', () => {
@@ -30,7 +30,7 @@ test('壊れたJSONなら初期設定', () => {
 
 test('不正な項目だけ初期値に戻す', () => {
   const s = mem({ 'whale-ocean-settings': JSON.stringify({ mode: 'party', camera: 'near', volume: 7 }) });
-  assert.deepEqual(loadSettings(s), { mode: 'normal', camera: 'near', volume: 0.5, time: 'auto', interval: 'normal', shutter: 'center', lang: 'auto' });
+  assert.deepEqual(loadSettings(s), { mode: 'normal', camera: 'near', volume: 0.5, time: 'auto', interval: 'normal', shutter: 'center', lang: 'auto', whisper: true, hydrophone: false });
 });
 
 test('来る間隔は最初は「ふつう」、知らない値なら「ふつう」に戻す', () => {
@@ -62,4 +62,12 @@ test('写真のボタンの場所は最初は真ん中、知らない値なら�
   assert.equal(loadSettings(mem()).shutter, 'center');
   assert.equal(loadSettings(mem({ 'whale-ocean-settings': JSON.stringify({ shutter: 'top' }) })).shutter, 'center');
   for (const k of ['left', 'center', 'right', 'off']) assert.equal(loadSettings(mem({ 'whale-ocean-settings': JSON.stringify({ shutter: k }) })).shutter, k);
+});
+
+test('親子のささやきは最初はオン、水中マイクは最初はオフ。おかしな値なら初期値', () => {
+  assert.equal(loadSettings(mem()).whisper, true);
+  assert.equal(loadSettings(mem()).hydrophone, false);
+  const s = mem({ 'whale-ocean-settings': JSON.stringify({ whisper: 'yes', hydrophone: 1 }) });
+  assert.equal(loadSettings(s).whisper, true);
+  assert.equal(loadSettings(s).hydrophone, false);
 });

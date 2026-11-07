@@ -20,6 +20,8 @@ export function loadSettings(storage) {
     interval: Object.hasOwn(INTERVALS, saved.interval) ? saved.interval : DEFAULTS.interval,
     shutter: Object.hasOwn(SHUTTER_SPOTS, saved.shutter) ? saved.shutter : DEFAULTS.shutter,
     lang: ['auto', 'ja', 'en'].includes(saved.lang) ? saved.lang : DEFAULTS.lang,
+    whisper: typeof saved.whisper === 'boolean' ? saved.whisper : DEFAULTS.whisper,
+    hydrophone: typeof saved.hydrophone === 'boolean' ? saved.hydrophone : DEFAULTS.hydrophone,
   };
 }
 
@@ -34,6 +36,8 @@ export function saveSettings(storage, settings) {
       interval: settings.interval,
       shutter: settings.shutter,
       lang: settings.lang,
+      whisper: settings.whisper,
+      hydrophone: settings.hydrophone,
     }));
   } catch {
     // プライベートブラウズなどで保存できなくても続ける

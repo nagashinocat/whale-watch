@@ -44,6 +44,7 @@ const SCENES = {
 
 // 線の絵のアイコン
 const ICON = {
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path>',
   panel: '<rect x="4" y="4" width="16" height="16" rx="4"></rect><path d="M8 15h8M8 11h5"></path>',
   moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"></path>',
   sound: '<path d="M4 10h4l5-4v12l-5-4H4z"></path><path d="M16 9a4 4 0 0 1 0 6"></path>',
@@ -151,7 +152,11 @@ export function createMenu(root, handlers) {
         <button class="plus-buy" data-plusbuy>${T('プラスにする', 'Get Plus')}</button>
         <button class="plus-later" data-pluslater>${T('あとで', 'Not now')}</button>
       </div>
-      <label class="vol-pop" data-volpop hidden>${T('音量', 'Volume')}<input type="range" min="0" max="1" step="0.01" data-volume></label>
+      <div class="vol-pop" data-volpop hidden>
+        <label class="vol-row">${T('音量', 'Volume')}<input type="range" min="0" max="1" step="0.01" data-volume></label>
+        <button class="vol-toggle" data-hydro aria-pressed="false">${icon('mic', 18)}<span><b>${T('水中マイク', 'Hydrophone')}</b><small>${T('水の中の音を聞く。遠くの歌が聞こえることも', 'Listen underwater. Distant songs may drift in')}</small></span></button>
+        <button class="vol-toggle" data-whisper aria-pressed="true">${icon('moon', 18)}<span><b>${T('親子のささやき', 'Mother–calf whispers')}</b><small>${T('おやすみモードのとき、とても小さく聞こえる', 'Very soft, only in sleep mode')}</small></span></button>
+      </div>
       <div class="hud-bottom">
         <p class="sleep-note" data-sleepnote hidden>${icon('moon', 16)}${T('おやすみモード中 ・ クジラの声は鳴らず、波の音だけ', 'Sleep mode · waves only, no whale calls')}</p>
         <div class="sky">
@@ -436,6 +441,9 @@ export function createMenu(root, handlers) {
   });
   summon.addEventListener('click', () => handlers.onSummon());
   volume.addEventListener('input', () => handlers.onVolume(Number(volume.value)));
+  const hydroBtn = $('[data-hydro]'), whisperBtn = $('[data-whisper]');
+  hydroBtn.addEventListener('click', () => handlers.onHydrophone?.(hydroBtn.getAttribute('aria-pressed') !== 'true'));
+  whisperBtn.addEventListener('click', () => handlers.onWhisper?.(whisperBtn.getAttribute('aria-pressed') !== 'true'));
   $('[data-full]').addEventListener('click', () => handlers.onFullscreen());
   $('[data-zukan-open]').addEventListener('click', () => {
     menu.hidden = true;
@@ -458,8 +466,12 @@ export function createMenu(root, handlers) {
   }
 
   return {
-    setValues({ mode, camera, volume: v, time, interval = 'normal', shutter = 'center', lang: langChoice = 'auto' }) {
+    setValues({ mode, camera, volume: v, time, interval = 'normal', shutter = 'center', lang: langChoice = 'auto', whisper = true, hydrophone = false }) {
       current = { mode, camera, time };
+      hydroBtn.setAttribute('aria-pressed', String(hydrophone));
+      hydroBtn.classList.toggle('on', hydrophone);
+      whisperBtn.setAttribute('aria-pressed', String(whisper));
+      whisperBtn.classList.toggle('on', whisper);
       root.querySelectorAll('[data-lang]').forEach(b => {
         b.classList.toggle('on', b.dataset.lang === langChoice);
         b.setAttribute('aria-pressed', String(b.dataset.lang === langChoice));

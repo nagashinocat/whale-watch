@@ -778,6 +778,34 @@ const MOTIONS = {
     };
   },
 
+  // 泡の輪のあいさつ: 水の中でこちらを向き、ドーナツのような泡の輪を吹く。輪は水面に浮かんで広がる。
+  // 最後に顔を出してこちらを見てから、潜って帰る(人の近くで輪を吹く様子が、研究でまとめられている)
+  bubbleRing() {
+    const c = [SPOT[0], SPOT[2]];
+    const rings = [7, 12.5, 18];
+    return {
+      whales: [{ kind: 'humpback', swim: 0.3 }],
+      each([w], t) {
+        if (!w.mixer.eyes.alive) w.mixer.eyes.alive = true;
+        const up = ease(t / 6), head = ease((t - 21) / 3) - ease((t - 29) / 3), down = ease((t - 31) / 6);
+        const y = lerp(-9, -3.4, up) + head * 1.6 - down * 7;
+        const pitch = 6 + head * 48 - down * 22;
+        // 頭(-z)がカメラのほう(+z)を向く
+        w.group.rotation.set(D2R(pitch), Math.PI + 0.12 * Math.sin(t * 0.25), 0);
+        w.group.position.set(c[0], y, c[1] - w.length * 0.15);
+      },
+      cues: [
+        ...rings.flatMap(at => [
+          { at, run: (fx, [w]) => fx.playSound('bubbles', { gain: 0.45, maxMs: 3500, position: onWater(bodyPoint(w, 0)) }) },
+          // 吹いた輪は、少しして水面に浮かんでくる(頭の少し前)
+          { at: at + 1.6, run: (fx, [w]) => { const h = bodyPoint(w, 0); fx.effects.bubbleRing([h[0], 0, h[2] + 2.5]); } },
+        ]),
+        { at: 23, run: (fx, [w]) => fx.effects.foam(onWater(bodyPoint(w, 0)), 6000, { radius: 3, count: 200 }) },
+        { at: 24, run: (fx, [w]) => fx.playSound('humpback-call', { gain: 0.45, maxMs: 7000, position: bodyPoint(w, 0.2) }) },
+      ],
+    };
+  },
+
   // 呼んだクジラ: 沖から近くまで来て、止まって歌い、向きを変えて潜って帰る
   summon() {
     const from = [60, SPOT[2] - 220];

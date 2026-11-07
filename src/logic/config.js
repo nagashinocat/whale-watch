@@ -20,7 +20,7 @@ export const TIME_PRESETS = Object.freeze({
 });
 
 
-export const DEFAULTS = Object.freeze({ mode: 'normal', camera: 'cliff', volume: 0.5, time: 'auto', interval: 'normal', shutter: 'center', lang: 'auto' });
+export const DEFAULTS = Object.freeze({ mode: 'normal', camera: 'cliff', volume: 0.5, time: 'auto', interval: 'normal', shutter: 'center', lang: 'auto', whisper: true, hydrophone: false });
 
 // 操作パネルを閉じても画面に残る、写真のボタンの場所(off は出さない)
 export const SHUTTER_SPOTS = Object.freeze({
@@ -60,6 +60,8 @@ export const SCHEDULE = Object.freeze({
     lobtail: 5,
     // 間近のカメラのすぐ前まで来て、目が合う(めったにない)
     eyeContact: 3,
+    // 泡の輪のあいさつ(人の近くで泡の輪を吹く。とてもめずらしい)
+    bubbleRing: 1,
     // 捕食。沖縄の海は子育ての場所で、ザトウクジラはほとんど食べない(えさは夏に北の海で食べる)ので、ごくまれ
     feeding: 2,
     bubbleNet: 1,

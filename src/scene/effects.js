@@ -163,6 +163,17 @@ export function createEffects(scene) {
       }
     },
 
+    // 泡の輪: 水の中で吹いたドーナツ形の泡が水面に浮かび、白い輪になって、ゆっくり広がる
+    bubbleRing(center, { radius = 0.7, count = 150, speed = 0.5, life = 4.5 } = {}) {
+      for (let k = 0; k < count; k++) {
+        const a = (k / count) * Math.PI * 2 + rand(-0.02, 0.02);
+        const r = radius * rand(0.92, 1.08);
+        emit([center[0] + Math.cos(a) * r, 0.06, center[2] + Math.sin(a) * r], [Math.cos(a) * speed * rand(0.85, 1.15), rand(0, 0.12), Math.sin(a) * speed * rand(0.85, 1.15)],
+          { life: life * rand(0.8, 1), size: rand(0.16, 0.32), alpha: 0.85, gravity: 0, floor: 0, grow: 1.35, drag: 0.22, delay: rand(0, 0.15) });
+      }
+      this.bubbles(center, 8);
+    },
+
     // 泡が水面ではじける小さなしぶき(泡の網)
     bubbles(point, n = 6) {
       for (let k = 0; k < n; k++) {

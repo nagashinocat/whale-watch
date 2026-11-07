@@ -29,6 +29,8 @@ import { SLEEP_TIMER, sleepTimerFor, sleepPhase, fadeLevel } from './logic/sleep
 import { loadHints, markHint, nextHint, HINT_TEXT } from './logic/hints.js';
 import { makeBackup, parseBackup, mergeBooks, newPhotos, backupFileName } from './logic/backup.js';
 import { ADS, shouldPlayAd } from './logic/ads.js';
+import { songVersion, seasonKey, loadSongs, recordSong } from './logic/songs.js';
+import { whisperBout, nextWhisperSec, nextDistantSongSec, HYDROPHONE } from './logic/whisper.js';
 
 // メニューに表示する素材のクレジット(assets/CREDITS.md と合わせる)
 const CREDITS = [
@@ -62,6 +64,30 @@ const scheduler = createScheduler({ now: Date.now(), intervalScale: FAST ? 1 / 3
 
 let mixer = null;
 let audioCtx = null;
+
+// ---- はやり歌: 歌は、その月の歌でうたう。聞いた歌は図鑑の「歌」に記録する ----
+let songs = loadSongs(safeStorage());
+function hearSong() {
+  // おやすみモードのあいだは、クジラの声は鳴らさないので、聞いたことにしない
+  if (settings.mode === 'sleep' || resting) return;
+  const key = seasonKey();
+  const r = recordSong(safeStorage(), songs, key);
+  songs = r.songs;
+  if (r.first) {
+    const [y, m] = key.split('-').map(Number);
+    menu.showToast(tr({ ja: `${y}年${m}月の歌を、図鑑の「歌」に記録しました`, en: `Logged this month's song (${m}/${y}) in your Book` }));
+    zukan.refresh();
+  }
+}
+function playWhaleSound(name, opts = {}) {
+  if (!mixer) return;
+  if (name === 'humpback') {
+    mixer.playSong(songVersion(seasonKey()), opts);
+    hearSong();
+    return;
+  }
+  mixer.playWhale(name, opts);
+}
 // 広告: 本番では広告の会社が決まるまで出さない。動作確認のページでは、出して確かめられる
 let adPlayed = false, adPlaying = false;
 const effects = createEffects(ocean.scene);
@@ -84,7 +110,7 @@ const whalesReady = createWhales(ocean.scene, {
     const d = Math.hypot(position[0] - c.x, position[1] - c.y, position[2] - c.z);
     ocean.shake(cameraShake(d) * power);
   },
-  playSound: (name, opts) => mixer?.playWhale(name, opts),
+  playSound: (name, opts) => playWhaleSound(name, opts),
   // この出方に来るクジラ(図鑑にのっているクジラが、ときどきもう一度来る)。taken は同じ出方ですでに来ているクジラ
   visitor(taken = [], { solo = false } = {}) {
     // 動作確認のページで「出すクジラ」を選んでいたら、その子を出す
@@ -194,7 +220,7 @@ async function handleEvent(event) {
       : sound;
     // 声はクジラの出る場所から聞こえる
     // まだ読みこみ中なら、読めたときに残りの時間だけ鳴らす
-    if (voice) mixer?.playWhale(voice, { maxMs: durationMs, position: [...SPOT], wait: true });
+    if (voice) playWhaleSound(voice, { maxMs: durationMs, position: [...SPOT], wait: true });
     // 画面が隠れて描画が止まっていても、必ず決まった時間で終わらせる
     await Promise.race([
       whales.play(name, spawnPosition(Math.random)),
@@ -294,6 +320,7 @@ const menu = createMenu(document.getElementById('ui'), {
     // 音は読めたものから順に使う(大きな波の音を待たずに、鳴き声や水の音を鳴らせる)
     mixer = createMixer(ctx, {});
     if (adPlaying) mixer.setFade(0, 10);   // 広告のあいだは、波の音を出さない
+    mixer.setUnderwater(settings.hydrophone);
     mixer.setMode(settings.mode);
     mixer.setVolume(settings.volume);
     mixer.start(settings.camera);
@@ -303,6 +330,21 @@ const menu = createMenu(document.getElementById('ui'), {
     const silent = camerasWithoutWaves(buffers);
     if (silent.length === 3) menu.showNotice(tr({ ja: '波の音を読み込めませんでした', en: 'Could not load the wave sounds' }));
     else if (silent.length) menu.showNotice(tr({ ja: '一部のカメラの波の音を読み込めませんでした', en: 'Could not load the wave sounds for some views' }));
+  },
+  // 水中マイク: 水の中の音(波はこもり、クジラの声は近く、遠くの歌が聞こえることがある)
+  onHydrophone(on) {
+    settings.hydrophone = on;
+    mixer?.setUnderwater(on);
+    save();
+    menu.showToast(on
+      ? tr({ ja: '水中マイクにしました。遠くのクジラの歌が聞こえてくることがあります', en: 'Hydrophone on. You may hear distant whale songs.' })
+      : tr({ ja: '水中マイクをやめました', en: 'Hydrophone off' }));
+    if (on) scheduleDistantSong();
+  },
+  // 親子のささやき(おやすみモードのとき)
+  onWhisper(on) {
+    settings.whisper = on;
+    save();
   },
   onMode(mode) {
     settings.mode = mode;
@@ -457,6 +499,14 @@ function showBook() {
 const nameOf = id => (book[id]?.count > 0 ? displayName(id, book) : tr({ ja: 'まだ図鑑にいないクジラ', en: 'a whale not yet in your Book' }));
 const zukan = createZukan(document.getElementById('ui'), {
   photos,
+  storage: safeStorage(),
+  songs: () => songs,
+  // 図鑑の歌を試し聞き(おやすみモードでも鳴らす。海に出る前は鳴らせない)
+  onPlaySong(key) {
+    if (!mixer) return false;
+    mixer.playSong(songVersion(key), { maxMs: 20000, bus: 'preview', gain: 0.9 });
+    return true;
+  },
   // 図鑑と写真を1つのファイルに書き出す。共有のシートが使えれば「ファイルに保存」などを選べる
   async onBackup() {
     const data = makeBackup({ book, photos: (await photos.list()).map(p => ({ ...p, src: photos.url(p) })) });
@@ -616,6 +666,29 @@ setInterval(() => {
   updateQuiet(now);
 }, 1000);
 updateQuiet();
+
+// ---- 親子のささやき(おやすみモードのとき、ときどき、とても小さく) ----
+function scheduleWhisper() {
+  setTimeout(() => {
+    if (mixer && settings.whisper && settings.mode === 'sleep' && !resting && !adPlaying) mixer.playWhisper(whisperBout());
+    scheduleWhisper();
+  }, nextWhisperSec() * 1000);
+}
+scheduleWhisper();
+
+// ---- 水中マイク: ときどき、遠くのクジラの歌が聞こえる ----
+let distantTimer = null;
+function scheduleDistantSong() {
+  clearTimeout(distantTimer);
+  distantTimer = setTimeout(() => {
+    if (!settings.hydrophone) return;
+    if (mixer && settings.mode !== 'sleep' && !resting && !adPlaying) {
+      playWhaleSound('humpback', { maxMs: HYDROPHONE.distantSongSec * 1000, gain: HYDROPHONE.distantSongGain });
+    }
+    scheduleDistantSong();
+  }, nextDistantSongSec() * 1000);
+}
+if (settings.hydrophone) scheduleDistantSong();
 
 // ---- はじめての案内 ----
 const hints = loadHints(safeStorage());

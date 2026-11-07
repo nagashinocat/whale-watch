@@ -19,11 +19,12 @@ PATTERNS = [
     ('スパイホップ', 'Spyhop', '水面から顔を出して、まわりを見る', 'Pokes its head up to look around', 2),
     ('胸びれでたたく', 'Flipper slap', '長い胸びれで水面をバシャン', 'Slaps the water with its long flipper', 2),
     ('尾びれでたたく', 'Tail slap', '尾びれで水面をバシーン', 'Smacks the water with its tail', 2),
-    # めったにない3つは、会えたときのお楽しみ(名前も、どんな姿かも書かない)
+    # めったにない4つは、会えたときのお楽しみ(名前も、どんな姿かも書かない)
     ('？？？', '???', '会えたときのお楽しみ', 'A surprise for when you see it', 3),
     ('群れでスパイホップ', 'Group spyhop', 'みんなで顔を出して、きょろきょろ', 'Several heads pop up together', 3),
     ('？？？', '???', '会えたときのお楽しみ', 'A surprise for when you see it', 3),
     ('捕食', 'Lunge feeding', '口を大きく開けて、水ごとのみこむ', 'Opens wide and gulps a huge mouthful', 3),
+    ('？？？', '???', '会えたときのお楽しみ', 'A surprise for when you see it', 3),
     ('？？？', '???', '会えたときのお楽しみ', 'A surprise for when you see it', 3),
 ]
 
@@ -113,6 +114,8 @@ def page(L):
         </ul>
         <p>{T('「名前を付ける」で、好きな名前に変えられます。真っ白な子やフジツボだらけの子など、24頭の個性をさがしてね。', 'Tap “Rename” to give it any name you like. Look for all 24, from a pure white whale to one covered in barnacles.')}</p>
         <p class="tip-box">{T('はじめて会ったクジラにはタグが付き、図鑑の地図で「いまどのあたりを旅しているか」が見られます。もう一度会うと、そのあいだに回ってきた回遊の道すじが地図にのります。', 'Each whale is tagged the first time you meet. Its page shows a map of where it is traveling now, and when you meet again, the route of its migration is added.')}</p>
+        <p class="tip-box">{T('図鑑の「歌」には、聞いたクジラの歌が月ごとに集まります。本物のザトウクジラのように、歌は月ごとに少しずつ形を変え、毎年7月にはがらりと新しい歌に入れかわります。', 'The “Songs” tab collects the whale songs you hear, month by month. Like real humpbacks, the song changes a little every month, and every July a brand-new song takes over.')}</p>
+        <p class="tip-box">{T('図鑑の「研究」は、研究者ごっこ。海で撮った尾びれの写真を見て、図鑑のどの子かを当てます。3頭以上に会うと遊べます。', '“Research” is a scientist game: look at a fluke photo taken at sea and find which whale in your Book it is. Meet 3 whales to unlock it.')}</p>
         <p class="tip-box">{T('機種変更の前は、図鑑のいちばん下の「バックアップ」で、図鑑と写真をファイルに書き出しておくと安心。新しいスマホで「ファイルから読み込む」と、もとにもどります。', 'Changing phones? Use “Backup” at the bottom of the Book to save your whales and photos to a file, then “Load from a file” on the new phone.')}</p>''',
         [phone(f'{L}-book.jpg', T('図鑑の一覧', 'Whale Book list'), -2), phone(f'{L}-whale.jpg', T('1頭のページ', 'A whale’s page'), 3)]))
     S.append(section(L, 'share', 'sea', ICON['share'], T('お気に入りを、シェア', 'Share your favorites'),
@@ -133,10 +136,11 @@ def page(L):
         </ul>''',
         [phone(f'{L}-timer.jpg', T('タイマーを決める', 'Setting a timer'), -2), phone(f'{L}-alarm.jpg', T('時間になったとき', 'When time is up'), 3)]))
     S.append(section(L, 'sleep', 'night', ICON['moon'], T('おやすみモード', 'Sleep mode'),
-        T('右上の月のボタンで、波の音だけのおやすみモードに。クジラの声は鳴らないので、赤ちゃんの寝かしつけにぴったり。',
-          'The moon button switches to sleep mode: waves only, no whale calls. Perfect for bedtime.'),
+        T('右上の月のボタンで、波の音だけのおやすみモードに。クジラの大きな声は鳴らないので、赤ちゃんの寝かしつけにぴったり。',
+          'The moon button switches to sleep mode: waves only, no loud whale calls. Perfect for bedtime.'),
         f'''<ul class="steps">
           <li>{T('オンのあいだは月のボタンが光り、パネルを閉じても右上に小さな月が出ます。', 'The moon button glows while it is on, and a tiny moon stays in the corner when the panel is closed.')}</li>
+          <li>{T('ときどき、クジラの親子のささやき(波にまぎれるくらい小さな声)が聞こえます。本物の親子も、敵に聞かれないように小さな声で話します。いらないときは、音量のボタンで切れます。', 'Now and then you may hear a mother and calf whispering, softer than the waves. Real humpback mothers and calves whisper so predators cannot hear. Turn it off under the volume button.')}</li>
           <li>{T('パネルの下の「閉じても残るボタン」で、写真のボタンを左下・真ん中・右下に残せます。', 'Under “Photo button” you can keep a shutter on screen at the left, center or right.')}</li>
         </ul>''',
         [phone(f'{L}-sleep.jpg', T('おやすみモード', 'Sleep mode'), 2), phone(f'{L}-closed.jpg', T('パネルを閉じたところ', 'Panel closed'), -3)]))
@@ -146,11 +150,12 @@ def page(L):
         f'''<ul class="steps">
           <li>{T('15分・30分・1時間・1時間半から選べます。後ろの半分で、ゆっくり小さくなります。', 'Choose 15 min, 30 min, 1 h or 1.5 h. The second half fades out gently.')}</li>
           <li>{T('小さくなりはじめたら、クジラは来ません。止まったあとは、画面をタップすると、また流れます。', 'No whales come once the fade begins. When it stops, tap the screen to start the waves again.')}</li>
+          <li>{T('音量のボタンの「水中マイク」をオンにすると、水の中で聞いているような音に。波はこもって、クジラの声が近くなり、ときどき遠くの歌が聞こえてきます。', 'Turn on “Hydrophone” under the volume button to listen as if underwater: the waves are muffled, whale calls come closer, and distant songs sometimes drift in.')}</li>
           <li>{T('右上の「真っ暗画面」のボタンで、音はそのままに画面だけ真っ暗にできます。タップでもどります。夜の部屋がまぶしくならず、電池ももちます。', 'The dark-screen button at the top right turns the screen black while the sound keeps playing. Tap to come back. No glow in the bedroom, and it saves battery.')}</li>
         </ul>''',
         [phone(f'{L}-sleeptimer.jpg', T('おやすみタイマー', 'Sleep timer'), -2)]))
     faq = [
-        (T('音が出ない', 'No sound'), T('マナーモードを切って、音量を上げてみてね。おやすみモードのときは、クジラの声は鳴りません。', 'Turn off silent mode and turn up the volume. In sleep mode, whale calls do not play.')),
+        (T('音が出ない', 'No sound'), T('マナーモードを切って、音量を上げてみてね。おやすみモードのときは、クジラの大きな声は鳴りません。', 'Turn off silent mode and turn up the volume. In sleep mode, loud whale calls do not play.')),
         (T('しばらくすると止まる', 'It stops after a while'), T('画面が消えると止まります。おやすみタイマーを決めているあいだは、画面がつけたままになります(できる端末のみ)。画面の光が気になるときは「真っ暗画面」を使ってね。', 'It pauses when the screen sleeps. While a sleep timer is set, the screen stays on (on supported devices). If the light bothers you, use the dark screen.')),
         (T('クジラが来ない', 'No whales come'), T('30〜90分に1回くらいです。待てないときは「呼ぶ」か、時計のボタンで「多め」に。', 'They come about once every 30–90 minutes. Tap “Call”, or choose “More” under the clock button.')),
         (T('図鑑や写真は、どこにあるの?', 'Where are my Book and photos?'), T('このスマホのブラウザの中だけに保存されています。どこにも送っていません。', 'Only in this browser on this device. Nothing is sent anywhere.')),

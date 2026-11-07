@@ -31,6 +31,8 @@ export const PATTERNS = Object.freeze({
   bubbleNet: { durationMs: 90000, needs: 'humpback', sound: null },
   // 目が合う: 間近のカメラのすぐ前で頭を出し、目が画面いっぱいになる近さで、こちらをじっと見る
   eyeContact: { durationMs: 46000, needs: 'humpback', sound: null },
+  // 泡の輪のあいさつ: 水の中でこちらを向いて、泡の輪を3回吹き、顔を出してから帰る
+  bubbleRing: { durationMs: 40000, needs: 'humpback', sound: null },
   summon: { durationMs: 120000, needs: 'humpback', sound: null, songAtMs: 40000 },
 });
 
@@ -69,6 +71,7 @@ export const PATTERN_LABELS = Object.freeze({
   feeding: '捕食(水ごとのみこむ)',
   bubbleNet: 'バブルネット(群れで捕食)',
   eyeContact: '目が合う(すぐ目の前)',
+  bubbleRing: '泡の輪のあいさつ',
   summon: '呼んだクジラ',
 });
 
@@ -77,13 +80,13 @@ const PATTERN_EN = Object.freeze({
   voice: 'Song only', spout: 'Blow & back', fluke: 'Fluke-up dive', motherCalf: 'Mother & calf', sleeping: 'Sleeping whales',
   breach: 'Breach', bigBreach: 'Full breach', groupBreach: 'Group breach', calfBreach: 'Calf breach', pod: 'Pod',
   spyhop: 'Spyhop', groupSpyhop: 'Group spyhop', pecSlap: 'Flipper slap', lobtail: 'Tail slap', feeding: 'Lunge feeding',
-  bubbleNet: 'Bubble-net', eyeContact: 'Eye to eye', summon: 'Called whale',
+  bubbleNet: 'Bubble-net', eyeContact: 'Eye to eye', bubbleRing: 'Bubble-ring hello', summon: 'Called whale',
 });
 // 日本語は、ボタンに収まる短い名前(使い方ガイドと同じ)
 const PATTERN_JA = Object.freeze({
   voice: '鳴き声だけ', spout: '潮吹きと背中', fluke: '尾びれを上げて潜る', motherCalf: '親子で泳ぐ', sleeping: '寝ているクジラ',
   breach: 'ジャンプ', bigBreach: '大ジャンプ', groupBreach: '群れでジャンプ', calfBreach: '親子でジャンプ', pod: '群れで泳ぐ',
   spyhop: 'スパイホップ', groupSpyhop: '群れでスパイホップ', pecSlap: '胸びれでたたく', lobtail: '尾びれでたたく', feeding: '捕食',
-  bubbleNet: 'バブルネット', eyeContact: '目が合う', summon: '呼んだクジラ',
+  bubbleNet: 'バブルネット', eyeContact: '目が合う', bubbleRing: '泡の輪のあいさつ', summon: '呼んだクジラ',
 });
 export const patternLabel = (name, l = lang()) => (l === 'en' ? PATTERN_EN : PATTERN_JA)[name];

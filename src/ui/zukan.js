@@ -8,6 +8,8 @@ import { photosOf, photoCaption } from '../logic/photos.js';
 import { whereNow, tripSummary, ROUTES, TIME_SCALE, pathUntil } from '../logic/migration.js';
 const pathUntilNow = w => pathUntil(w.route, w.k);
 import { drawMigrationMap, MAP_ASPECT } from './migrationMap.js';
+import { songVersion, seasonKey } from '../logic/songs.js';
+import { researchRound, loadResearch, saveResearch, answerResearch, rankOf, RESEARCH } from '../logic/research.js';
 
 // 日付を「11/6」の形に
 const T = (ja, en) => tr({ ja, en });
@@ -28,7 +30,7 @@ function el(tag, { cls, text, attrs } = {}, children = []) {
 // クジラ図鑑(調査ファイルの見た目)。茶色い紙のフォルダーに、1頭ずつの調査書類が入っている。
 // 上の見出しタブで「ファイル一覧」「写真」や、となりの子に切りかえる。
 // handlers: { onRename(id, name) }、photos: 写真の保存場所、portrait(ind): 全身の姿の絵のアドレス、nameOf(id)
-export function createZukan(root, { onRename, onBackup, onRestore, photos, portrait, nameOf }) {
+export function createZukan(root, { onRename, onBackup, onRestore, photos, portrait, nameOf, songs = () => ({}), onPlaySong, storage = null }) {
   const panel = el('section', { cls: 'zk', attrs: { 'aria-label': T('クジラ図鑑', 'Whale Book') } });
   panel.hidden = true;
   const back = el('button', { cls: 'zk-btn', text: T('← ファイル一覧', '← All files') });
@@ -153,6 +155,8 @@ export function createZukan(root, { onRename, onBackup, onRestore, photos, portr
     } else {
       tab(T('ファイル一覧', 'Whales'), state.tab === 'whales', () => go({ tab: 'whales', detail: null }));
       tab(T('写真', 'Photos'), state.tab === 'photos', () => go({ tab: 'photos', detail: null }));
+      tab(T('歌', 'Songs'), state.tab === 'songs', () => go({ tab: 'songs', detail: null }));
+      tab(T('研究', 'Research'), state.tab === 'research', () => go({ tab: 'research', detail: null }));
     }
   }
 
@@ -321,6 +325,106 @@ export function createZukan(root, { onRename, onBackup, onRestore, photos, portr
     return parts;
   }
 
+  // ---- 歌のコレクション ----
+  const monthLabel = key => { const [y, m] = key.split('-').map(Number); return T(`${y}年${m}月の歌`, `${MONTHS[m - 1]} ${y} song`); };
+  function songCard(key, heardAt) {
+    const v = songVersion(key);
+    const pitch = v.rate < 0.985 ? T('低め', 'lower') : v.rate > 1.015 ? T('高め', 'higher') : T('ふつう', 'middle');
+    const change = { revolution: T('新しい歌に入れかわった月', 'A brand-new song arrived'), swap: T('テーマの順番が入れかわった', 'Two themes swapped'),
+      repeat: T('テーマを1つくり返すようになった', 'One theme is now repeated'), drop: T('テーマが1つへった', 'One theme was dropped'),
+      same: T('先月とほぼ同じ', 'Almost the same as last month'), first: T('記録のはじまりの歌', 'The first recorded song') }[v.changed];
+    const play = el('button', { cls: 'zk-btn dark', text: T('▶ 試し聞き(20秒)', '▶ Listen (20s)') });
+    play.addEventListener('click', () => {
+      if (onPlaySong?.(key) === false) play.textContent = T('海に出てから聞けます', 'Start the sea first');
+    });
+    return el('li', { cls: 'zk-song' }, [
+      el('div', { cls: 'zk-song-head' }, [el('b', { text: monthLabel(key) }), heardAt ? el('small', { text: T(`はじめて聞いた日 ${day(heardAt)}`, `First heard ${day(heardAt)}`) }) : el('span')]),
+      el('div', { cls: 'zk-themes' }, v.letters.map(l => el('span', { cls: 'zk-theme', text: l }))),
+      el('p', { cls: 'zk-text', text: T(`高さ: ${pitch} ・ ${change}`, `Pitch: ${pitch} · ${change}`) }),
+      play,
+    ]);
+  }
+  function renderSongs(out) {
+    const heard = songs();
+    const now = seasonKey();
+    out.append(
+      el('span', { cls: 'zk-label', text: T('ザトウクジラ 歌の記録', 'Humpback song log') }),
+      el('h1', { cls: 'zk-title', text: T('歌のコレクション', 'Song collection') }),
+      el('p', { cls: 'zk-note', text: T('同じ海のオスは、みんな同じ歌をうたいます。歌は月ごとに少しずつ形を変え、毎年7月には、新しい歌にがらりと入れかわります(歌の革命)。クジラの歌を聞くと、その月の歌がここに記録されます。', 'Males in the same sea all sing the same song. It changes a little every month, and each July a brand-new song takes over (a “song revolution”). Hear a whale sing to log that month’s song here.') }),
+    );
+    const keys = Object.keys(heard).sort().reverse();
+    if (!heard[now]) out.append(el('p', { cls: 'zk-next', text: T(`${monthLabel(now)}は、まだ聞いていません`, `You haven't heard the ${monthLabel(now)} yet`) }));
+    if (!keys.length) { out.append(el('p', { cls: 'zk-note', text: T('まだ記録された歌はありません', 'No songs logged yet') })); return; }
+    out.append(el('ol', { cls: 'zk-songs' }, keys.map(k => songCard(k, heard[k]))));
+  }
+
+  // ---- 研究者ごっこ ----
+  let quiz = null;
+  const seededRng = seed => { let a = seed >>> 0; return () => { a = (a * 1664525 + 1013904223) >>> 0; return a / 4294967296; }; };
+  // 海で撮ったような尾びれの写真(かたむき・大きさ・暗さ・しぶき)
+  function quizPhoto(e, photo) {
+    const c = el('canvas', { cls: 'zk-quiz-photo', attrs: { width: '640', height: '360', role: 'img', 'aria-label': T('海で撮った尾びれの写真', 'A fluke photo taken at sea') } });
+    const ctx = c.getContext('2d');
+    const sky = ctx.createLinearGradient(0, 0, 0, 360);
+    sky.addColorStop(0, '#9cc3dc'); sky.addColorStop(0.62, '#d7e8f2'); sky.addColorStop(0.63, '#2f6f9a'); sky.addColorStop(1, '#173f5c');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, 640, 360);
+    const f = document.createElement('canvas'); f.width = 480; f.height = 134;
+    drawFluke(f, e);
+    ctx.save();
+    ctx.translate(320 + photo.shift * 640, 170);
+    ctx.rotate(photo.rot);
+    ctx.scale(photo.zoom, photo.zoom);
+    ctx.drawImage(f, -240, -67);
+    ctx.restore();
+    ctx.fillStyle = `rgba(10, 20, 30, ${photo.dark})`; ctx.fillRect(0, 0, 640, 360);
+    const rng = seededRng(photo.seed);
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    for (let k = 0; k < photo.spray; k++) { ctx.beginPath(); ctx.arc(160 + rng() * 320, 150 + rng() * 120, 1 + rng() * 3.5, 0, 7); ctx.fill(); }
+    return c;
+  }
+  function renderResearch(out) {
+    const st = loadResearch(storage ?? { getItem: () => null, setItem() {} });
+    const { rank, next } = rankOf(st.correct);
+    out.append(
+      el('span', { cls: 'zk-label', text: T('研究者ごっこ', 'Be a researcher') }),
+      el('h1', { cls: 'zk-title', text: T('この尾びれは、だれ？', 'Whose fluke is this?') }),
+      el('p', { cls: 'zk-note', text: T('研究者は、尾びれの裏の模様と傷あとで、クジラを1頭ずつ見分けます。海で撮った写真と、図鑑の尾びれを見くらべて、同じ子をえらんでください。', 'Researchers tell humpbacks apart by the pattern and scars under the fluke. Compare the photo from the sea with the flukes in your Book and pick the same whale.') }),
+      el('p', { cls: 'zk-rank', text: T(`肩書き: ${rank.ja} ・ 正解 ${st.correct}回 ・ 連続の最高 ${st.best}回${next ? ` ・ あと${next.more}回で「${next.rank.ja}」` : ''}`, `Title: ${rank.en} · ${st.correct} correct · best streak ${st.best}${next ? ` · ${next.more} more to “${next.rank.en}”` : ''}`) }),
+    );
+    if (entries.length < RESEARCH.minWhales) {
+      out.append(el('p', { cls: 'zk-next', text: T(`図鑑に${RESEARCH.minWhales}頭以上のると、遊べます(いま${entries.length}頭)`, `Add at least ${RESEARCH.minWhales} whales to your Book to play (now ${entries.length})`) }));
+      return;
+    }
+    if (!quiz || quiz.done === 'next') quiz = { round: researchRound(entries), picked: null };
+    const { round } = quiz;
+    const target = entries.find(e => e.id === round.answer);
+    out.append(quizPhoto(target, round.photo));
+    const row = el('div', { cls: 'zk-quiz-choices' });
+    for (const id of round.choices) {
+      const e = entries.find(x => x.id === id);
+      const b = el('button', { cls: `zk-quiz-choice${quiz.picked != null ? (id === round.answer ? ' right' : id === quiz.picked ? ' wrong' : '') : ''}` },
+        [flukeCanvas(e, 300, 84), el('span', { text: `${no(e.id)} ${e.displayName}` })]);
+      b.disabled = quiz.picked != null;
+      b.addEventListener('click', () => {
+        quiz.picked = id;
+        const ok = id === round.answer;
+        saveResearch(storage ?? { setItem() {} }, answerResearch(st, ok));
+        render();
+      });
+      row.append(b);
+    }
+    out.append(row);
+    if (quiz.picked != null) {
+      const ok = quiz.picked === round.answer;
+      out.append(el('p', { cls: ok ? 'zk-quiz-ok' : 'zk-quiz-ng', text: ok
+        ? T(`正解！ ${no(target.id)} ${target.displayName}でした`, `Correct! It was ${no(target.id)} ${target.displayName}`)
+        : T(`ざんねん。正解は ${no(target.id)} ${target.displayName}でした。白いところの形と、傷あとを見くらべてみてね`, `Not quite. It was ${no(target.id)} ${target.displayName}. Compare the white shapes and the scars.`) }));
+      const nextBtn = el('button', { cls: 'zk-share', text: T('つぎの写真', 'Next photo') });
+      nextBtn.addEventListener('click', () => { quiz.done = 'next'; render(); });
+      out.append(nextBtn);
+    }
+  }
+
   // 名前を入力する欄を出す
   function startRename(box, e) {
     const form = el('form', { cls: 'zk-form' });
@@ -371,6 +475,8 @@ export function createZukan(root, { onRename, onBackup, onRestore, photos, portr
     renderTabs();
     const out = el('div', { cls: 'zk-sheet' });
     if (state.tab === 'photos') await renderPhotos(out);
+    else if (state.tab === 'songs') renderSongs(out);
+    else if (state.tab === 'research') renderResearch(out);
     else if (e) await renderDetail(e, out);
     else renderList(out);
     if (id !== renderId) return;   // とちゅうで別の画面にかわった

@@ -1,5 +1,7 @@
 import { AUDIO } from '../logic/config.js';
 import { AUDIO_DISTANCE, waveTargetGain, whaleTargetGain } from '../logic/gains.js';
+import { WHISPER, HYDROPHONE } from '../logic/whisper.js';
+import { songPlan } from '../logic/songs.js';
 
 export const SOUND_FILES = Object.freeze({
   // 公開用に軽くした形(m4a)。読めないブラウザでは、同じ名前の wav を読む(tools/audio/compress.sh)。
@@ -95,7 +97,12 @@ export function createMixer(ctx, buffers, { waveAhead = WAVE_LOOP.ahead } = {}) 
   out.connect(ctx.destination);
   const waveBus = ctx.createGain();
   waveBus.gain.value = 0;
-  waveBus.connect(out);
+  // 水中マイクのとき、波の音の高い音を弱める(ふだんはそのまま通す)
+  const waveFilter = ctx.createBiquadFilter();
+  waveFilter.type = 'lowpass';
+  waveFilter.frequency.value = 20000;
+  waveBus.connect(waveFilter).connect(out);
+  let underwater = false;
 
   // クジラの音は必ずコンプレッサー(リミッター)を通す
   const limiter = ctx.createDynamicsCompressor();
@@ -107,6 +114,13 @@ export function createMixer(ctx, buffers, { waveAhead = WAVE_LOOP.ahead } = {}) 
   const whaleBus = ctx.createGain();
   whaleBus.gain.value = 0;
   whaleBus.connect(limiter);
+  // 親子のささやき(おやすみモードでも鳴る、とても小さな声)。高い音を弱めて、やわらかく
+  const whisperBus = ctx.createGain();
+  whisperBus.gain.value = 0;
+  const whisperSoft = ctx.createBiquadFilter();
+  whisperSoft.type = 'lowpass';
+  whisperSoft.frequency.value = WHISPER.lowpassHz;
+  whisperBus.connect(whisperSoft).connect(out);
   // タイマーの知らせは、おやすみタイマーで小さくした出口を通さない(別のリミッターから直接鳴らす)
   const alarmLimiter = ctx.createDynamicsCompressor();
   alarmLimiter.threshold.value = -24;
@@ -163,8 +177,9 @@ export function createMixer(ctx, buffers, { waveAhead = WAVE_LOOP.ahead } = {}) 
   const pending = [];
 
   function applyLevels() {
-    rampTo(waveBus.gain, ctx, waveTargetGain(volume), AUDIO.fadeMs);
-    rampTo(whaleBus.gain, ctx, whaleTargetGain({ mode, volume }), AUDIO.fadeMs);
+    rampTo(waveBus.gain, ctx, waveTargetGain(volume) * (underwater ? HYDROPHONE.waveLevel : 1), AUDIO.fadeMs);
+    rampTo(whaleBus.gain, ctx, whaleTargetGain({ mode, volume }) * (underwater ? HYDROPHONE.whaleBoost : 1), AUDIO.fadeMs);
+    rampTo(whisperBus.gain, ctx, waveTargetGain(volume) * WHISPER.level, AUDIO.fadeMs);
   }
 
   // タイマーの知らせ。おやすみモードでも鳴らす(自分で決めた時間なので)。
@@ -215,6 +230,27 @@ export function createMixer(ctx, buffers, { waveAhead = WAVE_LOOP.ahead } = {}) 
     setMode(m) {
       mode = m;
       if (started) applyLevels();
+    },
+
+    // 水中マイク: 波の音がこもり、クジラの声が近くなる
+    setUnderwater(on) {
+      underwater = on;
+      rampTo(waveFilter.frequency, ctx, on ? HYDROPHONE.waveLowpassHz : 20000, AUDIO.fadeMs);
+      if (started) applyLevels();
+    },
+
+    // 歌を、その月の歌のならべ方と高さで鳴らす(テーマごとに、録音の決まった場所をつないでいく)
+    // 録音がまだ読めていなければ、読めたときに、ふつうの歌として鳴らす
+    playSong(version, { maxMs = 60000, position = null, gain = 1, bus = 'whale' } = {}) {
+      if (!buffers.humpback) { this.playWhale('humpback', { maxMs, position, gain, wait: true }); return; }
+      for (const seg of songPlan(version, maxMs / 1000)) {
+        this.playWhale('humpback', { offset: seg.offset, duration: seg.duration, delay: seg.at, rate: version.rate, position, gain, bus, fadeSec: 0.6 });
+      }
+    },
+
+    // 親子のささやき: 一声の録音の短いところを、小さく、低く、やわらかく
+    playWhisper(calls) {
+      for (const c of calls) this.playWhale('humpback-call', { offset: c.offset, duration: c.duration, delay: c.at, rate: c.rate, gain: c.gain, bus: 'whisper', fadeSec: 0.08 });
     },
 
     // 全体の大きさの倍率(0〜1)。ms かけて変える
@@ -273,21 +309,24 @@ export function createMixer(ctx, buffers, { waveAhead = WAVE_LOOP.ahead } = {}) 
     // position を渡すと、その場所から聞こえる(遠いほど小さく、左右の向きもわかる)
     // rate: 再生の速さ(1 より大きいと少し高い音)。くり返す音を、毎回少しずつちがう音にする
     // wait: まだ読みこめていなければ、読めたときに残りの時間だけ鳴らす(長い歌や鳴き声)
-    playWhale(name, { gain = 1, maxMs = Infinity, position = null, rate = 1, wait = false } = {}) {
+    // offset・duration: 録音の何秒目から何秒ぶんか / delay: 何秒後に鳴らすか / fadeSec: 出だしと終わりのフェード
+    // bus: whale(ふつう)・preview(図鑑の試し聞き。おやすみモードでも鳴る)・whisper(ささやき)
+    playWhale(name, { gain = 1, maxMs = Infinity, position = null, rate = 1, wait = false, offset = 0, duration = null, delay = 0, fadeSec = null, bus = 'whale' } = {}) {
       const buffer = buffers[name];
       if (started && !buffer && wait && Number.isFinite(maxMs)) {
         pending.push({ name, at: ctx.currentTime, opts: { gain, maxMs, position, rate } });
         return;
       }
       if (!started || !buffer) return;
-      const now = ctx.currentTime;
-      const length = Math.min(buffer.duration / rate, maxMs / 1000);
+      const now = ctx.currentTime + Math.max(0, delay);
+      const part = Math.max(0.05, Math.min(duration ?? buffer.duration, buffer.duration - offset));
+      const length = Math.min(part / rate, maxMs / 1000);
       // 歌や鳴き声は、急に大きくならないようにゆっくり始める。
       // 水をたたく音・ジャンプの音・潮吹きは、始まりの勢いが大事なので、そのまま鳴らす
       const sudden = SUDDEN_SOUNDS.has(name);
-      const fade = Math.min(2, length / 3);
+      const fade = fadeSec ?? Math.min(2, length / 3);
       const fadeIn = sudden ? 0.004 : fade;
-      const fadeOut = sudden && length >= buffer.duration / rate - 0.01 ? 0.05 : fade;
+      const fadeOut = sudden && length >= part / rate - 0.01 ? 0.05 : fade;
 
       const src = ctx.createBufferSource();
       src.buffer = buffer;
@@ -323,8 +362,8 @@ export function createMixer(ctx, buffers, { waveAhead = WAVE_LOOP.ahead } = {}) 
         }
         node = node.connect(panner);
       }
-      node.connect(whaleBus);
-      src.start(now);
+      node.connect(bus === 'preview' ? limiter : bus === 'whisper' ? whisperBus : whaleBus);
+      src.start(now, offset);
       src.stop(now + length + 0.05);
     },
   };

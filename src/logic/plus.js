@@ -17,7 +17,9 @@ export const PLUS = Object.freeze({
 // えらんで呼べる出かた(「呼んだクジラ」そのものは除く)
 export const PICKABLE = Object.freeze(Object.keys(PATTERNS).filter(n => n !== 'summon'));
 
-export function loadPlus(storage) {
+// まだ売っていないあいだは、前の確認で残った「使える」の記録があっても使えない状態にする
+export function loadPlus(storage, offered = PLUS.offered) {
+  if (!offered) return { unlocked: false };
   try {
     const v = JSON.parse(storage.getItem(PLUS.storageKey) || 'null');
     return { unlocked: v?.unlocked === true };

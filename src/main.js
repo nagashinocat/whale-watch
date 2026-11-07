@@ -377,7 +377,8 @@ const menu = createMenu(document.getElementById('ui'), {
 menu.setValues(settings);
 function setPlusUnlocked(on) {
   plus.unlocked = on;
-  savePlus(safeStorage(), plus);
+  // 売り出すまでは保存しない(動作確認で切りかえても、そのページを開いているあいだだけ)
+  if (PLUS.offered) savePlus(safeStorage(), plus);
   menu.setPlus(on, { canBuy: DEBUG, offered: PLUS.offered });
   const usable = usableInterval(settings.interval, on);
   if (usable !== settings.interval) { settings.interval = usable; scheduler.setFrequency(usable, Date.now()); save(); }

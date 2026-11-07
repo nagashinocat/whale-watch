@@ -10,12 +10,12 @@ const memory = () => { const m = new Map(); return { getItem: k => m.get(k) ?? n
 
 test('プラス: はじめは使えない。使えるようにしたら、保存して読みなおしても使える', () => {
   const st = memory();
-  assert.equal(loadPlus(st).unlocked, false);
+  assert.equal(loadPlus(st, true).unlocked, false);
   savePlus(st, { unlocked: true });
-  assert.equal(loadPlus(st).unlocked, true);
+  assert.equal(loadPlus(st, true).unlocked, true);
   st.setItem(PLUS.storageKey, '{こわれた');
-  assert.equal(loadPlus(st).unlocked, false);
-  assert.equal(loadPlus({ getItem() { throw new Error('x'); } }).unlocked, false);
+  assert.equal(loadPlus(st, true).unlocked, false);
+  assert.equal(loadPlus({ getItem() { throw new Error('x'); } }, true).unlocked, false);
 });
 
 test('「よく来る」だけがプラス。プラスでないときに保存されていたら「たくさん来る」にする', () => {
@@ -58,4 +58,8 @@ test('来てほしいクジラに選べるのは、図鑑にのっている子�
 
 test('支払いの方法が決まるまでは、プラスの項目を画面に出さない', () => {
   assert.equal(PLUS.offered, false);
+  // 前の動作確認で「使える」が保存されていても、売り出すまでは使えない(項目も出ない)
+  const st = memory();
+  savePlus(st, { unlocked: true });
+  assert.equal(loadPlus(st).unlocked, false);
 });

@@ -65,6 +65,8 @@ self.addEventListener('fetch', event => {{
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+  // 紹介広告(A8.net)の画像は、とっておかない(表示した回数が正しく数えられるように、毎回読みこむ)
+  if (/(^|[.])a8[.]net$/.test(url.hostname)) return;
   // ページそのものは、電波があれば新しいものを、なければとっておいたものを
   if (req.mode === 'navigate') {{
     event.respondWith((async () => {{

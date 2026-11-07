@@ -63,6 +63,12 @@
     .ad-slot { width: min(var(--w), 100%); height: var(--h); box-sizing: border-box; border: 1px dashed rgba(238, 243, 247, 0.4);
       border-radius: 8px; display: grid; place-items: center; background: rgba(255, 255, 255, 0.05); position: relative; flex-shrink: 0; }
     .ad-slot span { position: absolute; top: 4px; left: 6px; font-size: 10px; letter-spacing: 0.1em; color: rgba(238, 243, 247, 0.6); }
+    /* 紹介広告(アフィリエイト)のバナー: 枠の線はなし。左上に「PR」 */
+    .ad-slot.aff { border: 0; background: none; height: auto; aspect-ratio: var(--w) / var(--h); padding-top: 18px; box-sizing: content-box; }
+    .ad-slot.aff span { top: 0; left: 0; padding: 1px 8px; border-radius: 999px; background: rgba(238, 243, 247, 0.16); color: rgba(238, 243, 247, 0.85); font-weight: 700; }
+    .ad-slot.aff a { display: block; width: 100%; height: 100%; }
+    .ad-slot.aff a img { display: block; width: 100%; height: 100%; object-fit: contain; border-radius: 6px; }
+    .ad-pixel { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
     /* 広告動画 */
     .adplayer { position: fixed; inset: 0; z-index: 45; background: #000; display: grid; place-items: center; }
     .adplayer video { width: 100%; height: 100%; object-fit: contain; }

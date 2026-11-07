@@ -21,3 +21,11 @@ test('バナー広告の場所は、はじめのページの上と下', () => {
   assert.deepEqual(ADS.banners.map(b => b.id), ['top', 'bottom']);
   for (const b of ADS.banners) assert.ok(b.width <= 320, 'スマホの画面に収まる幅');
 });
+
+test('紹介広告のバナーは、はじめのページの下の場所に、A8.net の画像と回数を数える画像つきで置く', async () => {
+  const { affiliateFor } = await import('../src/logic/ads.js');
+  const a = affiliateFor('bottom');
+  assert.ok(a && a.href.startsWith('https://px.a8.net/') && a.img.startsWith('https://') && a.pixel.startsWith('https://'));
+  assert.equal(a.width, 300); assert.equal(a.height, 250);
+  assert.equal(affiliateFor('top'), null);
+});

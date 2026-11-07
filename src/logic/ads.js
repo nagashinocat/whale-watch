@@ -13,6 +13,19 @@ export const ADS = Object.freeze({
   ]),
 });
 
+// 紹介広告(アフィリエイト)のバナー。広告の会社(AdSense など)とは別に、本番でも出す。
+// slot: はじめのページのどの場所に置くか(banners の id)。href: 押したときに開くページ / img: バナーの画像 / pixel: 表示した回数を数える小さな画像
+// (ステマ規制のため、枠に「PR」と出す。電波がなくても動くしくみ(sw.js)では、これらはとっておかない)
+export const AFFILIATE_BANNERS = Object.freeze([
+  Object.freeze({
+    slot: 'bottom', width: 300, height: 250, alt: '',
+    href: 'https://px.a8.net/svt/ejp?a8mat=4BGFJI+5QLFOY+5TGA+5YZ75',
+    img: 'https://www26.a8.net/svt/bgt?aid=261107118347&wid=001&eno=01&mid=s00000027145001003000&mc=1',
+    pixel: 'https://www14.a8.net/0.gif?a8mat=4BGFJI+5QLFOY+5TGA+5YZ75',
+  }),
+]);
+export const affiliateFor = slot => AFFILIATE_BANNERS.find(a => a.slot === slot) ?? null;
+
 // 広告動画を流すか: 広告が使えるときに、スタートを押したとき1回だけ(アプリを開いたときと、しばらく使わずにはじめのページにもどったあと)
 export function shouldPlayAd({ enabled = ADS.enabled, alreadyPlayed = false } = {}) {
   return enabled && !alreadyPlayed && !!ADS.video.src;

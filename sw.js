@@ -1,6 +1,6 @@
 // このファイルは tools/build_sw.py で作る(手で書きかえない)
 // 一度開いたら、電波がなくても動くように、アプリのファイルを端末にとっておく
-const VERSION = '5a6e33e4d3ca';
+const VERSION = '4baca40f97d7';
 const APP = `whale-ocean-${VERSION}`;
 const EXTRA = 'whale-ocean-extra';   // 文字の形など、あとから読みこんだもの
 const FILES = [
@@ -151,6 +151,8 @@ self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+  // 紹介広告(A8.net)の画像は、とっておかない(表示した回数が正しく数えられるように、毎回読みこむ)
+  if (/(^|[.])a8[.]net$/.test(url.hostname)) return;
   // ページそのものは、電波があれば新しいものを、なければとっておいたものを
   if (req.mode === 'navigate') {
     event.respondWith((async () => {

@@ -3,7 +3,7 @@ import { TIMER, remainingText, clockText, atClock } from '../logic/timer.js';
 import { tr } from '../logic/i18n.js';
 import { PICKABLE } from '../logic/plus.js';
 import { SLEEP_TIMER } from '../logic/sleepTimer.js';
-import { ADS, skipLabel } from '../logic/ads.js';
+import { ADS, skipLabel, affiliateFor } from '../logic/ads.js';
 import { patternLabel } from '../logic/patterns.js';
 
 // 操作パネル(カメラアプリのような形)。
@@ -16,7 +16,15 @@ const CAMERA_LABELS = { cliff: T('崖の上', 'Cliff'), sky: T('上空', 'Sky'),
 const TIME_LABELS = { auto: T('自動', 'Auto'), morning: T('朝', 'Morning'), day: T('昼', 'Day'), evening: T('夕方', 'Evening'), night: T('夜', 'Night'), golden: T('ゴールデンアワー', 'Golden hour'), blue: T('ブルーアワー', 'Blue hour') };
 const TIMER_IDLE = () => T('決めた時間になると、クジラが鳴きながら知らせに来ます', 'When the time comes, a whale swims up calling to let you know.');
 // バナー広告の場所(広告が使えるときだけ見える。中身は広告の会社のタグを入れる)
-const adSlot = b => `<div class="ad-slot" data-ad="${b.id}" style="--w:${b.width}px;--h:${b.height}px" hidden><span>${T('広告', 'Ad')}</span></div>`;
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+// 広告の場所。紹介広告(アフィリエイト)が決まっている場所には、そのバナーを「PR」の札つきで出す
+const adSlot = b => {
+  const a = affiliateFor(b.id);
+  if (a) return `<div class="ad-slot aff" style="--w:${a.width}px;--h:${a.height}px"><span>PR</span>`
+    + `<a href="${esc(a.href)}" target="_blank" rel="sponsored nofollow noopener"><img src="${esc(a.img)}" width="${a.width}" height="${a.height}" alt="${esc(a.alt || T('広告', 'Ad'))}" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></a>`
+    + (a.pixel ? `<img class="ad-pixel" src="${esc(a.pixel)}" width="1" height="1" alt="" loading="lazy">` : '') + '</div>';
+  return `<div class="ad-slot" data-ad="${b.id}" style="--w:${b.width}px;--h:${b.height}px" hidden><span>${T('広告', 'Ad')}</span></div>`;
+};
 const SLEEP_IDLE = () => T('波の音をだんだん小さくして、静かに止めます。小さくなりはじめたら、クジラは来ません', 'Fades the waves out slowly, then stops. No whales come once it starts fading.');
 const LANG_LABELS = { auto: T('自動', 'Auto'), ja: '日本語', en: 'English' };
 

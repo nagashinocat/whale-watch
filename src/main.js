@@ -11,7 +11,7 @@ import { createMixer, loadBuffers, camerasWithoutWaves } from './audio/mixer.js'
 import { rangeLabel, createMenu } from './ui/menu.js';
 import { createScheduler } from './logic/scheduler.js';
 import { COMING, heraldWay, shouldGoBack } from './logic/comingSoon.js';
-import { AWAY, AWAY_MODES, awayPlan, isPhoneLike, setAudioSession, loadAwayMode, saveAwayMode, logAway, readAwayLog, clearAwayLog } from './logic/away.js';
+import { AWAY, AWAY_MODES, awayPlan, isPhoneLike, setAudioSession, defaultAwayMode, loadAwayMode, saveAwayMode, logAway, readAwayLog, clearAwayLog } from './logic/away.js';
 import { loadSettings, saveSettings } from './logic/settings.js';
 import { tr, listJoin } from './logic/i18n.js';
 import { hoursFor, blendHours } from './logic/time.js';
@@ -95,7 +95,7 @@ function playWhaleSound(name, opts = {}) {
 let adPlayed = false, adPlaying = false;
 // 音の止め方(動作確認のページだけ、えらべる。src/logic/away.js)と、<audio> を通すときの部品
 const AUDIO_TEST = window.WHALE_AUDIO_TEST === true;
-const awayMode = DEBUG || AUDIO_TEST ? loadAwayMode(safeStorage()) : 'fade';
+const awayMode = DEBUG || AUDIO_TEST ? loadAwayMode(safeStorage(), defaultAwayMode(navigator)) : defaultAwayMode(navigator);
 let outEl = null;
 let dark = false;      // 真っ暗画面(音を流しっぱなしにして休んでいるので、知らせない)
 let onLanding = true;   // はじめのページを出しているあいだ(スタートを押すまで・しばらく使わなくてもどったとき)
@@ -394,7 +394,10 @@ const menu = createMenu(document.getElementById('ui'), {
     await ctx.resume();
     // iPhone などでは、電話や通知、ほかのアプリに切りかえたあと、音が止まったままになることがある。
     // 画面をさわったときと、画面にもどってきたときに、音をもう一度動かす
-    const wake = () => { if (ctx.state !== 'running') ctx.resume().catch(() => {}); };
+    const wake = () => {
+      if (ctx.state !== 'running') ctx.resume().catch(() => {});
+      if (outEl?.paused && !document.hidden) outEl.play().catch(() => {});   // <audio> を通して鳴らすとき(iPhone)
+    };
     document.addEventListener('pointerdown', wake);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
     // 音は読めたものから順に使う(大きな波の音を待たずに、鳴き声や水の音を鳴らせる)
@@ -949,9 +952,17 @@ function onAway(hidden, ev) {
   }
   const show = () => mixer.setAway(false, AWAY.fadeInMs);
   if (plan.resume && awayMode !== 'soft') setAudioSession(navigator, 'playback');
-  if (plan.resume) outEl?.play().catch(() => {});
-  if (plan.resume && audioCtx.state !== 'running') audioCtx.resume().then(show, show);
-  else show();
+  const wakeUp = () => {
+    if (document.hidden) return;
+    if (outEl?.paused) outEl.play().catch(() => {});
+    if (audioCtx.state !== 'running') audioCtx.resume().then(show, show);
+  };
+  if (plan.resume) {
+    wakeUp();
+    // iPhone では、もどってすぐは音のしくみが動かないことがあるので、少しあとにもう一度ためす
+    for (const ms of [400, 1500]) setTimeout(() => { if (!document.hidden && !resting) wakeUp(); }, ms);
+  }
+  show();
 }
 document.addEventListener('visibilitychange', () => onAway(document.hidden, document.hidden ? 'hidden' : 'visible'));
 window.addEventListener('pagehide', () => onAway(true, 'pagehide'));

@@ -33,10 +33,16 @@ export const AWAY_MODES = Object.freeze({
   none: '何もしない(前のまま)',
   element: '<audio> を通して鳴らす',
 });
+// iPhone・iPad で試したところ、ふつうに鳴らすと(fade・soft・none)画面が暗くなったときやアプリを切りかえたときに「ピン」と鳴り、
+// <audio> の部品を通して鳴らす(element)と鳴らなかった(2026-11-08、iPhone 16 Pro)。そこで iPhone・iPad は element にする
+export function isAppleTouch(nav) {
+  try { return /iPad|iPhone|iPod/.test(nav.userAgent) || (nav.platform === 'MacIntel' && nav.maxTouchPoints > 1); } catch { return false; }
+}
+export const defaultAwayMode = nav => (isAppleTouch(nav) ? 'element' : 'fade');
 const MODE_KEY = 'whale-ocean-away-mode';
 const LOG_KEY = 'whale-ocean-away-log';
-export function loadAwayMode(storage) {
-  try { const v = storage.getItem(MODE_KEY); return Object.hasOwn(AWAY_MODES, v) ? v : 'fade'; } catch { return 'fade'; }
+export function loadAwayMode(storage, fallback = 'fade') {
+  try { const v = storage.getItem(MODE_KEY); return Object.hasOwn(AWAY_MODES, v) ? v : fallback; } catch { return fallback; }
 }
 export function saveAwayMode(storage, mode) {
   try { storage.setItem(MODE_KEY, mode); } catch { /* 保存できなくても続ける */ }

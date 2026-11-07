@@ -44,3 +44,12 @@ test('動作確認の止め方と、離れたときの記録(新しい60件ま�
   const list = readAwayLog(st); assert.equal(list.length, 60); assert.equal(list[0].t, 10);
   clearAwayLog(st); assert.deepEqual(readAwayLog(st), []);
 });
+
+test('iPhone・iPad は <audio> を通して鳴らす(「ピン」が鳴らなかった止め方)。ほかは今まで', async () => {
+  const { defaultAwayMode, isAppleTouch, loadAwayMode } = await import('../src/logic/away.js');
+  assert.equal(defaultAwayMode({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)' }), 'element');
+  assert.equal(isAppleTouch({ userAgent: 'Mozilla/5.0 (Macintosh)', platform: 'MacIntel', maxTouchPoints: 5 }), true);   // iPad
+  assert.equal(defaultAwayMode({ userAgent: 'Mozilla/5.0 (Macintosh)', platform: 'MacIntel', maxTouchPoints: 0 }), 'fade');
+  assert.equal(defaultAwayMode({ userAgent: 'Mozilla/5.0 (Linux; Android 14)' }), 'fade');
+  assert.equal(loadAwayMode({ getItem: () => null }, 'element'), 'element');
+});

@@ -881,6 +881,10 @@ function onAway(hidden) {
 document.addEventListener('visibilitychange', () => onAway(document.hidden));
 window.addEventListener('pagehide', () => onAway(true));
 window.addEventListener('pageshow', () => { if (!document.hidden) onAway(false); });
+// アプリを切りかえはじめたとき(iPhone では見えなくなるより先に届く)。フォーカスがもどったら大きくもどす
+window.addEventListener('blur', () => onAway(true));
+window.addEventListener('focus', () => { if (!document.hidden) onAway(false); });
+document.addEventListener('freeze', () => onAway(true));
 
 // 見えていないときは描画を止めて電池を節約する
 document.addEventListener('visibilitychange', () => {

@@ -4,8 +4,8 @@
 // パソコンでは、ほかのタブを見ていても鳴りつづけてほしい(作業のおとも)ので、何もしない。three.js も音のしくみも使わない(テストからも使う)
 
 export const AWAY = Object.freeze({
-  fadeOutMs: 60,        // 見えなくなったとき、これだけかけて音を小さくする(すぐ止められても切れ目が出にくい短さ)
-  suspendAfterMs: 90,   // 小さくしおわってから、音のしくみを止める
+  fadeOutMs: 25,        // 見えなくなったとき、これだけかけて音を小さくする(すぐ止められても切れ目が出にくい短さ)
+  suspendAfterMs: 60,   // 小さくしおわってから、音のしくみを止める
   fadeInMs: 700,        // もどってきたとき、これだけかけて大きくする
 });
 
@@ -14,6 +14,9 @@ export function isPhoneLike(matchMedia) {
   try { return matchMedia('(pointer: coarse)').matches && !matchMedia('(hover: hover)').matches; } catch { return false; }
 }
 
+// iPhone では、アプリを切りかえはじめたとき(画面のフォーカスがはずれたとき: blur)のほうが、
+// 「見えなくなった」(visibilitychange)より先に届く。見えなくなるのを待つと、端末が先に音を止めて「ピー」が出るので、
+// フォーカスがはずれた時点で音を小さくする(止めるのは、本当に見えなくなってから)。
 // 見えなくなった・もどってきたときにすること。
 // 'pause': 小さくして止める / 'show': 音を大きくもどす(resume: 音のしくみも動かすか)/ null: 何もしない
 export function awayPlan({ hidden, phone, resting = false }) {

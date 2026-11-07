@@ -309,7 +309,8 @@
       opacity: 0.35; pointer-events: none; display: inline-flex; }
     .vol-pop { position: fixed; top: calc(max(16px, env(safe-area-inset-top)) + 58px); right: 14px; width: min(260px, calc(100vw - 28px));
       box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; font-size: 13px;
-      background: rgba(10, 18, 28, 0.9); border: 1px solid var(--line); border-radius: 14px; }
+      background: rgba(10, 18, 28, 0.96); border: 1px solid var(--line); border-radius: 14px; z-index: 6;
+      max-height: calc(100vh - 100px - env(safe-area-inset-top)); overflow-y: auto; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35); }
     .vol-pop[hidden] { display: none; }
     .vol-row { display: flex; align-items: center; gap: 10px; }
     .vol-pop input { flex: 1; accent-color: var(--accent); }

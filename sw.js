@@ -1,6 +1,6 @@
 // このファイルは tools/build_sw.py で作る(手で書きかえない)
 // 一度開いたら、電波がなくても動くように、アプリのファイルを端末にとっておく
-const VERSION = 'a2f0d9a75122';
+const VERSION = 'da61c2007cf6';
 const APP = `whale-ocean-${VERSION}`;
 const EXTRA = 'whale-ocean-extra';   // 文字の形など、あとから読みこんだもの
 const FILES = [
@@ -33,6 +33,7 @@ const FILES = [
   "src/audio/mixer.js",
   "src/logic/ads.js",
   "src/logic/astro.js",
+  "src/logic/away.js",
   "src/logic/backup.js",
   "src/logic/behavior.js",
   "src/logic/breach.js",

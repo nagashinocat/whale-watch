@@ -92,9 +92,13 @@ export function createMixer(ctx, buffers, { waveAhead = WAVE_LOOP.ahead } = {}) 
   let started = false;
 
   // おやすみタイマーで全体をだんだん小さくするための出口(タイマーの知らせの音は通さない)
+  // いちばん最後の出口(スマホでアプリを切りかえたときに、ここで音をすばやく小さくする。src/logic/away.js)
+  const master = ctx.createGain();
+  master.gain.value = 1;
+  master.connect(ctx.destination);
   const out = ctx.createGain();
   out.gain.value = 1;
-  out.connect(ctx.destination);
+  out.connect(master);
   const waveBus = ctx.createGain();
   waveBus.gain.value = 0;
   // 水中マイクのとき、波の音の高い音を弱める(ふだんはそのまま通す)
@@ -125,7 +129,7 @@ export function createMixer(ctx, buffers, { waveAhead = WAVE_LOOP.ahead } = {}) 
   const alarmLimiter = ctx.createDynamicsCompressor();
   alarmLimiter.threshold.value = -24;
   alarmLimiter.ratio.value = 12;
-  alarmLimiter.connect(ctx.destination);
+  alarmLimiter.connect(master);
 
   const waveGains = {};
   let listenerAt = [0, 0, 0];
@@ -254,6 +258,11 @@ export function createMixer(ctx, buffers, { waveAhead = WAVE_LOOP.ahead } = {}) 
     },
 
     // 全体の大きさの倍率(0〜1)。ms かけて変える
+    // アプリが見えなくなる・もどってくるときの、全体の大きさ(away: true で小さく)
+    setAway(away, ms) {
+      rampTo(master.gain, ctx, away ? 0 : 1, ms);
+    },
+
     setFade(level, ms = 1000) {
       rampTo(out.gain, ctx, Math.max(0, Math.min(1, level)), ms);
     },

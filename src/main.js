@@ -11,6 +11,7 @@ import { createMixer, loadBuffers, camerasWithoutWaves } from './audio/mixer.js'
 import { rangeLabel, createMenu } from './ui/menu.js';
 import { createScheduler } from './logic/scheduler.js';
 import { COMING, heraldWay, shouldGoBack } from './logic/comingSoon.js';
+import { AWAY, awayPlan, isPhoneLike } from './logic/away.js';
 import { loadSettings, saveSettings } from './logic/settings.js';
 import { tr, listJoin } from './logic/i18n.js';
 import { hoursFor, blendHours } from './logic/time.js';
@@ -858,6 +859,28 @@ setInterval(() => {
     refreshScreen();
   } else menu.setTimer(timer.at);   // 残り時間の表示を新しくする
 }, 1000);
+
+// スマホでアプリを切りかえたり、ホーム画面にもどったりしたとき: 音をすばやく小さくしてから止める(切れ目の「ピー」を出さない)。
+// もどってきたら、音のしくみを動かしてから、少しずつ大きくする。パソコンでは鳴りつづける
+const phoneLike = isPhoneLike(q => window.matchMedia(q));
+let awayTimer = 0;
+function onAway(hidden) {
+  if (!mixer || !audioCtx) return;
+  const plan = awayPlan({ hidden, phone: phoneLike, resting });
+  if (!plan) return;
+  clearTimeout(awayTimer);
+  if (plan.action === 'pause') {
+    mixer.setAway(true, AWAY.fadeOutMs);
+    awayTimer = setTimeout(() => { if (document.hidden) audioCtx.suspend().catch(() => {}); }, AWAY.fadeOutMs + AWAY.suspendAfterMs);
+    return;
+  }
+  const show = () => mixer.setAway(false, AWAY.fadeInMs);
+  if (plan.resume && audioCtx.state !== 'running') audioCtx.resume().then(show, show);
+  else show();
+}
+document.addEventListener('visibilitychange', () => onAway(document.hidden));
+window.addEventListener('pagehide', () => onAway(true));
+window.addEventListener('pageshow', () => { if (!document.hidden) onAway(false); });
 
 // 見えていないときは描画を止めて電池を節約する
 document.addEventListener('visibilitychange', () => {

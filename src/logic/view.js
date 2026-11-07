@@ -56,3 +56,18 @@ export function shallowestTarget({ height, spot, fov, box = WHALE_BOX }) {
   }
   return [...spot];
 }
+
+// 高さ height のカメラを、クジラが出る場所にまっすぐ向けたとき(クジラが画面のまん中に来る)、
+// クジラの動く範囲がまるごと画面に入る、いちばん近い距離(m)
+export function nearestCenteredView({ height, fov, aspect = 9 / 16, box = WHALE_BOX }) {
+  for (let d = 5; d < 2000; d += 0.25) {
+    const preset = { position: [0, height, 0], target: [0, 0, -d], fov };
+    if (boxCorners([0, 0, -d], box).every(p => isVisibleFrom(preset, p, aspect))) return d;
+  }
+  return Infinity;
+}
+
+// 画面の上から何割のところに水平線が見えるか(0 が上の端、0.5 がまん中)。見下ろす角度 depression(度)
+export function horizonFromTop(depression, fov) {
+  return 0.5 - 0.5 * Math.tan(deg(depression)) / Math.tan(deg(fov) / 2);
+}

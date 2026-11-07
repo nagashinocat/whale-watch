@@ -64,3 +64,15 @@ test('崖の上の向き: クジラの動く範囲が上下にまるごと入る
   const raised = { position: [0, height, 0], target: [0, height - Math.tan(p1) * 100, -100], fov: 55 };
   assert.ok(!boxCorners(spot).every(p => isVisibleFrom(raised, p, 1000)), 'shallowest');
 });
+
+test('崖の上から見ると、クジラの出る場所が画面のまん中に来て、水平線は画面の上のほうに見える', async () => {
+  const { horizonFromTop } = await import('../src/logic/view.js');
+  const { CLIFF_HEIGHT } = await import('../src/scene/cameras.js');
+  const cliff = CAMERA_PRESETS.cliff;
+  // まっすぐクジラの出る場所に向いている
+  assert.deepEqual(cliff.target, [...SPOT]);
+  assert.ok(CLIFF_HEIGHT < 40, '前より低い崖');
+  const depression = Math.atan(CLIFF_HEIGHT / -SPOT[2]) * 180 / Math.PI;
+  const h = horizonFromTop(depression, cliff.fov);
+  assert.ok(h > 0.2 && h < 0.42, `水平線は上から${(h * 100).toFixed(0)}%`);
+});

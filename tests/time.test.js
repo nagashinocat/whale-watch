@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { hoursFor, blendHours } from '../src/logic/time.js';
+import { hoursFor, blendHours, hoursAtBar, clockOf, clampBarHours } from '../src/logic/time.js';
 import { SKY_MOMENTS } from '../src/logic/skyPalette.js';
 
 test('自動なら実際の時刻', () => {
@@ -34,4 +34,15 @@ test('切り替えは近い方向に移り変わる(0時をまたげる)', () =>
 
 test('自動のときは秒まで反映する(空がなめらかに変わる)', () => {
   assert.equal(hoursFor('auto', new Date(2026, 10, 6, 18, 0, 36)), 18.01);
+});
+
+test('空の時間のバー: 左はしが朝5時、右はしが夜23時。15分きざみ', () => {
+  assert.equal(hoursAtBar(0), 5);
+  assert.equal(hoursAtBar(1), 23);
+  assert.equal(hoursAtBar(0.5), 14);
+  assert.equal(hoursAtBar(-1), 5);
+  assert.equal(hoursAtBar(0.51) % 0.25, 0);
+  assert.equal(clockOf(14.5), '14:30');
+  assert.equal(clockOf(7), '7:00');
+  assert.equal(clampBarHours(30), 23);
 });

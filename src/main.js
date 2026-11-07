@@ -167,6 +167,7 @@ function skyTarget() {
     const real = realSky(new Date());
     return { hours: real.hours, sunAzimuth: real.sunAzimuth, moon: real.moon };
   }
+  if (settings.time === 'custom') return { hours: settings.hours };
   return { hours: hoursFor(settings.time, new Date()) };
 }
 
@@ -391,6 +392,15 @@ const menu = createMenu(document.getElementById('ui'), {
     settings.time = time;
     updateTime(true);
     save();
+  },
+  // バーをなぞって決めた時刻。なぞっているあいだは空をすぐに合わせ、指をはなしたら保存する
+  onTimeHours(h, done) {
+    settings.time = 'custom';
+    settings.hours = h;
+    ++skyTransition;          // 移り変わりのとちゅうなら止める
+    skyHours = h;
+    ocean.setSky({ hours: h });
+    if (done) save();
   },
   // クジラが来る間隔を選びなおす(次に来るまでの時間も、新しい間隔で決めなおす)
   onInterval(name) {

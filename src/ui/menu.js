@@ -1,4 +1,5 @@
 import { TIME_PRESETS, INTERVALS, SHUTTER_SPOTS } from '../logic/config.js';
+import { hoursAtBar, clampBarHours, clockOf } from '../logic/time.js';
 import { TIMER, remainingText, clockText, atClock } from '../logic/timer.js';
 import { tr } from '../logic/i18n.js';
 import { PICKABLE } from '../logic/plus.js';
@@ -178,7 +179,7 @@ export function createMenu(root, handlers) {
           <div class="sky-labels" aria-hidden="true">
             ${['morning', 'day', 'evening', 'night'].map(k => `<span style="left:${barPosition(TIME_PRESETS[k]) * 100}%">${TIME_LABELS[k]}</span>`).join('')}
           </div>
-          <button class="sky-bar" data-skybar aria-label="${T('時間をえらぶ(押した場所に近い時間になります)', 'Choose the time of day')}">
+          <button class="sky-bar" data-skybar role="slider" aria-valuemin="5" aria-valuemax="23" aria-valuenow="12" aria-label="${T('空の時間(なぞると好きな時刻に。押すと近い時間に)', 'Time of day (drag for any time, tap for the nearest)')}">
             <span class="sky-sun" data-sun>${icon('sun', 18)}</span>
           </button>
           <div class="chips" role="group" aria-label="${T('時間', 'Time of day')}">
@@ -519,10 +520,50 @@ export function createMenu(root, handlers) {
   root.querySelectorAll('[data-time]').forEach(b =>
     b.addEventListener('click', () => handlers.onTime(b.dataset.time)));
   // 空の色の帯: 押した場所に近い時間
-  $('[data-skybar]').addEventListener('click', e => {
-    const r = e.currentTarget.getBoundingClientRect();
-    const f = r.width ? (e.clientX - r.left) / r.width : 0.5;
-    handlers.onTime(nearestTime(Math.min(1, Math.max(0, f))));
+  // 空の時間のバー: なぞると好きな時刻に(空もいっしょに動く)。ちょんと押すと、いちばん近い時間(朝・昼・夕方・夜)に
+  const skyBar = $('[data-skybar]');
+  // 帯の上の、太陽(夜は月)の位置
+  function setSunAt(h) {
+    sun.style.left = `${barPosition(h) * 100}%`;
+    const night = h < 5.5 || h > 19;
+    if (sun.classList.contains('night') !== night || !sun.firstChild) {
+      sun.classList.toggle('night', night);
+      sun.innerHTML = icon(night ? 'moon' : 'sun', 18);
+    }
+    skyBar.setAttribute('aria-valuenow', String(Math.round(h * 100) / 100));
+    skyBar.setAttribute('aria-valuetext', clockOf(((h % 24) + 24) % 24));
+  }
+  let skyDrag = null, skyFrame = 0;
+  const barFraction = e => { const r = skyBar.getBoundingClientRect(); return r.width ? (e.clientX - r.left) / r.width : 0.5; };
+  skyBar.addEventListener('pointerdown', e => {
+    skyDrag = { id: e.pointerId, x: e.clientX, moved: false, h: null };
+    try { skyBar.setPointerCapture(e.pointerId); } catch { /* 使えなくても動く */ }
+  });
+  skyBar.addEventListener('pointermove', e => {
+    if (!skyDrag || e.pointerId !== skyDrag.id) return;
+    if (!skyDrag.moved && Math.abs(e.clientX - skyDrag.x) < 6) return;
+    skyDrag.moved = true;
+    skyDrag.h = hoursAtBar(barFraction(e));
+    sun.classList.add('dragging');
+    setSunAt(skyDrag.h);
+    if (!skyFrame) skyFrame = requestAnimationFrame(() => { skyFrame = 0; if (skyDrag?.h != null) handlers.onTimeHours?.(skyDrag.h, false); });
+  });
+  const endSkyDrag = e => {
+    if (!skyDrag || e.pointerId !== skyDrag.id) return;
+    const d = skyDrag; skyDrag = null;
+    sun.classList.remove('dragging');
+    if (d.moved && d.h != null) handlers.onTimeHours?.(d.h, true);
+    else if (e.type === 'pointerup') handlers.onTime(nearestTime(Math.min(1, Math.max(0, barFraction(e)))));
+  };
+  skyBar.addEventListener('pointerup', endSkyDrag);
+  skyBar.addEventListener('pointercancel', endSkyDrag);
+  // キーボードでは、左右の矢印で30分ずつ
+  skyBar.addEventListener('keydown', e => {
+    const dir = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 }[e.key];
+    if (!dir) return;
+    e.preventDefault();
+    const now = Number(skyBar.getAttribute('aria-valuenow')) || 12;
+    handlers.onTimeHours?.(clampBarHours(Math.round((now + dir * 0.5) * 2) / 2), true);
   });
   summon.addEventListener('click', () => handlers.onSummon());
   volume.addEventListener('input', () => handlers.onVolume(Number(volume.value)));
@@ -544,7 +585,7 @@ export function createMenu(root, handlers) {
   });
 
   function showNow() {
-    now.textContent = `${CAMERA_LABELS[current.camera] ?? ''}${T(' ・ ', ' · ')}${TIME_LABELS[current.time] ?? ''}`;
+    now.textContent = `${CAMERA_LABELS[current.camera] ?? ''}${T(' ・ ', ' · ')}${current.time === 'custom' ? clockOf(current.hours ?? 12) : TIME_LABELS[current.time] ?? ''}`;
     const sleep = current.mode === 'sleep';
     sleepNote.hidden = !sleep;
     sleepBtn.setAttribute('aria-label', sleep ? T('おやすみモード(オン)。押すとクジラの声がもどります', 'Sleep mode on. Tap to bring back whale calls') : T('おやすみモード(オフ)。押すとクジラの声が止まります', 'Sleep mode off. Tap to mute whale calls'));
@@ -564,10 +605,10 @@ export function createMenu(root, handlers) {
       tourNext.focus();
     },
     hasTarget: name => !!tourTarget(name),
-    setValues({ mode, camera, volume: v, time, interval = 'normal', shutter = 'center', lang: langChoice = 'auto', whisper = true, hydrophone = false, herald = false }) {
+    setValues({ mode, camera, volume: v, time, hours = 12, interval = 'normal', shutter = 'center', lang: langChoice = 'auto', whisper = true, hydrophone = false, herald = false }) {
       heraldBtn.setAttribute('aria-pressed', String(herald));
       heraldBtn.classList.toggle('on', herald);
-      current = { mode, camera, time };
+      current = { mode, camera, time, hours };
       hydroBtn.setAttribute('aria-pressed', String(hydrophone));
       hydroBtn.classList.toggle('on', hydrophone);
       whisperBtn.setAttribute('aria-pressed', String(whisper));
@@ -594,15 +635,11 @@ export function createMenu(root, handlers) {
       sleepBtn.setAttribute('aria-pressed', String(mode === 'sleep'));
       volume.value = String(v);
       if (TIME_PRESETS[time] != null) this.setSunHours(TIME_PRESETS[time]);
+      else if (time === 'custom') this.setSunHours(hours);
       showNow();
     },
     // 空の色の帯の上の、いまの太陽(夜は月)の位置
-    setSunHours(h) {
-      sun.style.left = `${barPosition(h) * 100}%`;
-      const night = h < 5.5 || h > 19;
-      sun.classList.toggle('night', night);
-      sun.innerHTML = icon(night ? 'moon' : 'sun', 18);
-    },
+    setSunHours(h) { setSunAt(h); },
     // タイマー(at: 鳴る時刻のミリ秒。null でなし)。残り時間の表示も、これで新しくする
     setTimer(at) {
       timerAt = at;

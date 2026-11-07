@@ -10,7 +10,7 @@ export const TOUR_STEPS = Object.freeze([
   { id: 'hello', target: null, panel: false,
     text: { ja: 'ようこそ!ここは、クジラが見守る海です。海をタップすると、操作パネルが出たり消えたりします。ボタンをかんたんに紹介しますね', en: 'Welcome to a sea where whales keep watch. Tap the sea to show or hide the control panel. Here is a quick look at the buttons.' } },
   { id: 'sky', target: 'skybar', panel: true,
-    text: { ja: '空の時間。バーを押すと、朝・昼・夕方・夜に変わります。「自動」は、いまの本物の空です', en: 'Time of day. Tap the bar for morning, day, evening or night. “Auto” follows the real sky.' } },
+    text: { ja: '空の時間。太陽を指でなぞると、好きな時刻の空になります。ちょんと押すと朝・昼・夕方・夜に。「自動」は、いまの本物の空です', en: 'Time of day. Drag the sun for any time, or tap for morning, day, evening or night. “Auto” follows the real sky.' } },
   { id: 'cams', target: 'cams', panel: true,
     text: { ja: '見る場所。崖の上・上空・間近の3つのカメラから選べます', en: 'Where to watch from: the cliff, the sky, or close up.' } },
   { id: 'book', target: 'zukan-open', panel: true,

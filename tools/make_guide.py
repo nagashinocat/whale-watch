@@ -106,7 +106,7 @@ def page(L):
           'Tap the sea to show the panel, and tap again to hide it. It stays put until you do.'),
         f'''<dl class="legend">
           <div><dt>{T('景色', 'View')}</dt><dd>{T('崖の上・上空・間近の3つのカメラ', 'Three cameras: Cliff, Sky and Up close')}</dd></div>
-          <div><dt>{T('空', 'Sky')}</dt><dd>{T('帯をタップして朝・昼・夕方・夜。ゴールデンアワーやブルーアワーも。「自動」は本物の空に合わせます', 'Tap the bar for morning, day, evening or night, plus golden and blue hour. “Auto” follows the real sky')}</dd></div>
+          <div><dt>{T('空', 'Sky')}</dt><dd>{T('帯の太陽を指でなぞると、好きな時刻の空に(15分きざみ)。ちょんと押すと朝・昼・夕方・夜。ゴールデンアワーやブルーアワーも。「自動」は本物の空に合わせます', 'Drag the sun along the bar for any time of day (in 15-minute steps), or tap for morning, day, evening or night, plus golden and blue hour. “Auto” follows the real sky')}</dd></div>
           <div><dt>{T('図鑑', 'Book')}</dt><dd>{T('会えたクジラの記録', 'Your record of whales you have met')}</dd></div>
           <div><dt>{T('シャッター', 'Shutter')}</dt><dd>{T('いまの海を写真に', 'Take a photo of the sea right now')}</dd></div>
           <div><dt>{T('呼ぶ', 'Call')}</dt><dd>{T('すぐにクジラが来てくれる(図鑑には数えません)', 'A whale comes right away (not counted in your Book)')}</dd></div>

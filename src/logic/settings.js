@@ -16,7 +16,9 @@ export function loadSettings(storage) {
     mode: MODES.includes(saved.mode) ? saved.mode : DEFAULTS.mode,
     camera: CAMERAS.includes(saved.camera) ? saved.camera : DEFAULTS.camera,
     volume: isVolume(saved.volume) ? saved.volume : DEFAULTS.volume,
-    time: Object.hasOwn(TIME_PRESETS, saved.time) ? saved.time : DEFAULTS.time,
+    // 'custom': バーをなぞって決めた時刻(hours)
+    time: Object.hasOwn(TIME_PRESETS, saved.time) || saved.time === 'custom' ? saved.time : DEFAULTS.time,
+    hours: Number.isFinite(saved.hours) && saved.hours >= 5 && saved.hours <= 23 ? saved.hours : DEFAULTS.hours,
     interval: Object.hasOwn(INTERVALS, saved.interval) ? saved.interval : DEFAULTS.interval,
     shutter: Object.hasOwn(SHUTTER_SPOTS, saved.shutter) ? saved.shutter : DEFAULTS.shutter,
     lang: ['auto', 'ja', 'en'].includes(saved.lang) ? saved.lang : DEFAULTS.lang,
@@ -34,6 +36,7 @@ export function saveSettings(storage, settings) {
       camera: settings.camera,
       volume: settings.volume,
       time: settings.time,
+      hours: settings.hours,
       interval: settings.interval,
       shutter: settings.shutter,
       lang: settings.lang,

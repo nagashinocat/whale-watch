@@ -20,7 +20,7 @@ export const TIME_PRESETS = Object.freeze({
 });
 
 
-export const DEFAULTS = Object.freeze({ mode: 'normal', camera: 'cliff', volume: 0.5, time: 'auto', interval: 'normal', shutter: 'center', lang: 'auto', whisper: true, hydrophone: false, herald: false });
+export const DEFAULTS = Object.freeze({ mode: 'normal', camera: 'cliff', volume: 0.5, time: 'auto', hours: 12, interval: 'normal', shutter: 'center', lang: 'auto', whisper: true, hydrophone: false, herald: false });
 
 // 操作パネルを閉じても画面に残る、写真のボタンの場所(off は出さない)
 export const SHUTTER_SPOTS = Object.freeze({

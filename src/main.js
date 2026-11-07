@@ -11,7 +11,7 @@ import { createMixer, loadBuffers, camerasWithoutWaves } from './audio/mixer.js'
 import { rangeLabel, createMenu } from './ui/menu.js';
 import { createScheduler } from './logic/scheduler.js';
 import { COMING, heraldWay, shouldGoBack } from './logic/comingSoon.js';
-import { AWAY, awayPlan, isPhoneLike, setAudioSession } from './logic/away.js';
+import { AWAY, AWAY_MODES, awayPlan, isPhoneLike, setAudioSession, loadAwayMode, saveAwayMode, logAway, readAwayLog, clearAwayLog } from './logic/away.js';
 import { loadSettings, saveSettings } from './logic/settings.js';
 import { tr, listJoin } from './logic/i18n.js';
 import { hoursFor, blendHours } from './logic/time.js';
@@ -93,6 +93,9 @@ function playWhaleSound(name, opts = {}) {
 }
 // 広告: 本番では広告の会社が決まるまで出さない。動作確認のページでは、出して確かめられる
 let adPlayed = false, adPlaying = false;
+// 音の止め方(動作確認のページだけ、えらべる。src/logic/away.js)と、<audio> を通すときの部品
+const awayMode = DEBUG ? loadAwayMode(safeStorage()) : 'fade';
+let outEl = null;
 let dark = false;      // 真っ暗画面(音を流しっぱなしにして休んでいるので、知らせない)
 let onLanding = true;   // はじめのページを出しているあいだ(スタートを押すまで・しばらく使わなくてもどったとき)
 const effects = createEffects(ocean.scene);
@@ -294,7 +297,30 @@ if (DEBUG) {
   plusText();
   plusToggle.addEventListener('pointerdown', e => e.stopPropagation());
   plusToggle.addEventListener('click', () => { setPlusUnlocked(!plus.unlocked); plusText(); });
-  panel.append(clear, plusToggle, status);
+  // iPhone の「ピン」をくらべる: 音の止め方と、アプリを離れたときの合図の記録
+  const awaySel = document.createElement('select');
+  awaySel.setAttribute('aria-label', '音の止め方');
+  for (const [k, v] of Object.entries(AWAY_MODES)) awaySel.append(new Option(`止め方: ${v}`, k));
+  awaySel.value = awayMode;
+  awaySel.addEventListener('pointerdown', e => e.stopPropagation());
+  awaySel.addEventListener('change', () => {
+    saveAwayMode(safeStorage(), awaySel.value);
+    status.textContent = 'アプリを完全に閉じて開きなおすと、この止め方になります';
+  });
+  const fmt = e => `${new Date(e.t).toLocaleTimeString()}.${String(e.t % 1000).padStart(3, '0')} ${e.ev} 見えない:${e.hidden ? 'はい' : 'いいえ'} 音:${e.state} (${e.mode})`;
+  const logBtn = document.createElement('button');
+  logBtn.textContent = '離れたときの記録を見る';
+  logBtn.addEventListener('pointerdown', e => e.stopPropagation());
+  logBtn.addEventListener('click', () => {
+    const list = readAwayLog(safeStorage()).slice(-14);
+    status.style.whiteSpace = 'pre-line';
+    status.textContent = list.length ? list.map(fmt).join('\n') : 'まだ記録がありません';
+  });
+  const logClear = document.createElement('button');
+  logClear.textContent = '記録を消す';
+  logClear.addEventListener('pointerdown', e => e.stopPropagation());
+  logClear.addEventListener('click', () => { clearAwayLog(safeStorage()); status.textContent = '記録を消しました'; });
+  panel.append(clear, plusToggle, awaySel, logBtn, logClear, status);
   document.body.append(panel);
 }
 
@@ -323,9 +349,19 @@ const menu = createMenu(document.getElementById('ui'), {
       return;
     }
     // iPhone: 音を鳴らすアプリだと伝える(ホーム画面にもどったときの「ピン」を出さない。src/logic/away.js)
-    setAudioSession(navigator, 'playback');
+    if (awayMode === 'fade' || awayMode === 'element') setAudioSession(navigator, 'playback');
     const Ctx = window.AudioContext || window.webkitAudioContext;
     const ctx = new Ctx();
+    // 動作確認のページで「<audio> を通して鳴らす」をえらんだとき: 音の出口を <audio> の部品にする(押したときに鳴らしはじめる)
+    let output;
+    if (awayMode === 'element' && ctx.createMediaStreamDestination) {
+      const dest = ctx.createMediaStreamDestination();
+      outEl = new Audio();
+      outEl.srcObject = dest.stream;
+      outEl.setAttribute('playsinline', '');
+      outEl.play().catch(() => {});
+      output = dest;
+    }
     audioCtx = ctx;
     if (!adPlaying) setTimeout(firstGuide, 1500);   // はじめての人には、ボタンの紹介(チュートリアル)
     await ctx.resume();
@@ -335,7 +371,7 @@ const menu = createMenu(document.getElementById('ui'), {
     document.addEventListener('pointerdown', wake);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
     // 音は読めたものから順に使う(大きな波の音を待たずに、鳴き声や水の音を鳴らせる)
-    mixer = createMixer(ctx, {});
+    mixer = createMixer(ctx, {}, output ? { output } : {});
     if (adPlaying) mixer.setFade(0, 10);   // 広告のあいだは、波の音を出さない
     mixer.setUnderwater(settings.hydrophone);
     mixer.setMode(settings.mode);
@@ -866,32 +902,37 @@ setInterval(() => {
 // もどってきたら、音のしくみを動かしてから、少しずつ大きくする。パソコンでは鳴りつづける
 const phoneLike = isPhoneLike(q => window.matchMedia(q));
 let awayTimer = 0;
-function onAway(hidden) {
+function onAway(hidden, ev) {
   if (!mixer || !audioCtx) return;
+  if (DEBUG) logAway(safeStorage(), { t: Date.now(), ev, hidden: document.hidden, state: audioCtx.state, mode: awayMode });
+  if (awayMode === 'none') return;
   const plan = awayPlan({ hidden, phone: phoneLike, resting });
   if (!plan) return;
   clearTimeout(awayTimer);
   if (plan.action === 'pause') {
     mixer.setAway(true, AWAY.fadeOutMs);
+    if (awayMode === 'soft') return;   // 小さくするだけ(止めない)
     awayTimer = setTimeout(() => {
       if (!document.hidden) return;
+      outEl?.pause();
       // 静かになってから止めて、「音を鳴らすアプリ」の札もはずす(ロック画面に「再生中」を残さない)
       audioCtx.suspend().catch(() => {}).finally(() => { if (document.hidden) setAudioSession(navigator, 'auto'); });
     }, AWAY.fadeOutMs + AWAY.suspendAfterMs);
     return;
   }
   const show = () => mixer.setAway(false, AWAY.fadeInMs);
-  if (plan.resume) setAudioSession(navigator, 'playback');
+  if (plan.resume && awayMode !== 'soft') setAudioSession(navigator, 'playback');
+  if (plan.resume) outEl?.play().catch(() => {});
   if (plan.resume && audioCtx.state !== 'running') audioCtx.resume().then(show, show);
   else show();
 }
-document.addEventListener('visibilitychange', () => onAway(document.hidden));
-window.addEventListener('pagehide', () => onAway(true));
-window.addEventListener('pageshow', () => { if (!document.hidden) onAway(false); });
+document.addEventListener('visibilitychange', () => onAway(document.hidden, document.hidden ? 'hidden' : 'visible'));
+window.addEventListener('pagehide', () => onAway(true, 'pagehide'));
+window.addEventListener('pageshow', () => { if (!document.hidden) onAway(false, 'pageshow'); });
 // アプリを切りかえはじめたとき(iPhone では見えなくなるより先に届く)。フォーカスがもどったら大きくもどす
-window.addEventListener('blur', () => onAway(true));
-window.addEventListener('focus', () => { if (!document.hidden) onAway(false); });
-document.addEventListener('freeze', () => onAway(true));
+window.addEventListener('blur', () => onAway(true, 'blur'));
+window.addEventListener('focus', () => { if (!document.hidden) onAway(false, 'focus'); });
+document.addEventListener('freeze', () => onAway(true, 'freeze'));
 
 // 見えていないときは描画を止めて電池を節約する
 document.addEventListener('visibilitychange', () => {

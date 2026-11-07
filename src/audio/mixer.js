@@ -85,7 +85,7 @@ function rampTo(param, ctx, target, ms) {
 
 // 波とクジラの音の経路。
 // options.waveAhead: 波の音を何秒先まで予約しておくか(ためすときに長くする)
-export function createMixer(ctx, buffers, { waveAhead = WAVE_LOOP.ahead } = {}) {
+export function createMixer(ctx, buffers, { waveAhead = WAVE_LOOP.ahead, output = ctx.destination } = {}) {
   let mode = 'normal';
   let volume = 0.5;
   let camera = 'cliff';
@@ -95,7 +95,7 @@ export function createMixer(ctx, buffers, { waveAhead = WAVE_LOOP.ahead } = {}) 
   // いちばん最後の出口(スマホでアプリを切りかえたときに、ここで音をすばやく小さくする。src/logic/away.js)
   const master = ctx.createGain();
   master.gain.value = 1;
-  master.connect(ctx.destination);
+  master.connect(output);
   const out = ctx.createGain();
   out.gain.value = 1;
   out.connect(master);

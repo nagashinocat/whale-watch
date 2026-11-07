@@ -33,3 +33,14 @@ test('iPhone の「音の使い方」を切りかえる。ない端末や、こ�
   const bad = { audioSession: { get type() { return 'auto'; }, set type(v) { throw new Error('x'); } } };
   assert.equal(setAudioSession(bad, 'playback'), false);
 });
+
+test('動作確認の止め方と、離れたときの記録(新しい60件まで)', async () => {
+  const { loadAwayMode, saveAwayMode, logAway, readAwayLog, clearAwayLog } = await import('../src/logic/away.js');
+  const m = {}; const st = { getItem: k => m[k] ?? null, setItem: (k, v) => { m[k] = v; }, removeItem: k => { delete m[k]; } };
+  assert.equal(loadAwayMode(st), 'fade');
+  saveAwayMode(st, 'element'); assert.equal(loadAwayMode(st), 'element');
+  saveAwayMode(st, 'xxx'); assert.equal(loadAwayMode(st), 'fade');
+  for (let i = 0; i < 70; i++) logAway(st, { t: i, ev: 'blur' });
+  const list = readAwayLog(st); assert.equal(list.length, 60); assert.equal(list[0].t, 10);
+  clearAwayLog(st); assert.deepEqual(readAwayLog(st), []);
+});

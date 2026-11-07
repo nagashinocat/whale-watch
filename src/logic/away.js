@@ -24,6 +24,38 @@ export function setAudioSession(nav, type) {
   try { if (nav?.audioSession && nav.audioSession.type !== type) nav.audioSession.type = type; return true; } catch { return false; }
 }
 
+// 音の止め方(動作確認のページで、iPhone の「ピン」をくらべるため。本番は 'fade')
+//   fade: 「再生」の札 + すばやく小さくしてから止める / soft: 小さくするだけ(止めない・札もつけない)
+//   none: 何もしない(前のまま) / element: 音を <audio> の部品を通して鳴らし、小さくしてから止める
+export const AWAY_MODES = Object.freeze({
+  fade: '再生の札 + 小さくして止める(いまの方法)',
+  soft: '小さくするだけ(止めない)',
+  none: '何もしない(前のまま)',
+  element: '<audio> を通して鳴らす',
+});
+const MODE_KEY = 'whale-ocean-away-mode';
+const LOG_KEY = 'whale-ocean-away-log';
+export function loadAwayMode(storage) {
+  try { const v = storage.getItem(MODE_KEY); return Object.hasOwn(AWAY_MODES, v) ? v : 'fade'; } catch { return 'fade'; }
+}
+export function saveAwayMode(storage, mode) {
+  try { storage.setItem(MODE_KEY, mode); } catch { /* 保存できなくても続ける */ }
+}
+// アプリを離れたときに届いた合図の記録(つぎに開いたとき、動作確認のページで見る)。新しい60件まで
+export function logAway(storage, entry) {
+  try {
+    const list = JSON.parse(storage.getItem(LOG_KEY) || '[]');
+    list.push(entry);
+    storage.setItem(LOG_KEY, JSON.stringify(list.slice(-60)));
+  } catch { /* 保存できなくても続ける */ }
+}
+export function readAwayLog(storage) {
+  try { const v = JSON.parse(storage.getItem(LOG_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; }
+}
+export function clearAwayLog(storage) {
+  try { storage.removeItem(LOG_KEY); } catch { /* 保存できなくても続ける */ }
+}
+
 // 見えなくなった・もどってきたときにすること。
 // 'pause': 小さくして止める / 'show': 音を大きくもどす(resume: 音のしくみも動かすか)/ null: 何もしない
 export function awayPlan({ hidden, phone, resting = false }) {

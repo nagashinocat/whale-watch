@@ -1,11 +1,13 @@
-import { MENU_HIDE_MS, TIME_PRESETS, INTERVALS, SHUTTER_SPOTS } from '../logic/config.js';
+import { TIME_PRESETS, INTERVALS, SHUTTER_SPOTS } from '../logic/config.js';
 import { TIMER, remainingText, clockText, atClock } from '../logic/timer.js';
 import { tr } from '../logic/i18n.js';
+import { PICKABLE } from '../logic/plus.js';
+import { patternLabel } from '../logic/patterns.js';
 
 // 操作パネル(カメラアプリのような形)。
 // 上: いまの見え方(カメラ・時間)と、おやすみ・音量・全画面の丸いボタン
 // 下: 空の色の帯(時間)、景色の絵(カメラ)、図鑑・シャッター(写真)・呼ぶ
-// 画面をタップすると出て、しばらくすると消える(赤ちゃんを寝かせるときにじゃまにならないように)
+// 画面をタップすると出て、もう一度タップすると消える(勝手には消えない)
 
 const T = (ja, en) => tr({ ja, en });
 const CAMERA_LABELS = { cliff: T('崖の上', 'Cliff'), sky: T('上空', 'Sky'), near: T('間近', 'Up close') };
@@ -44,6 +46,8 @@ const ICON = {
   camera: '<path d="M4 8h3l1.5-2h7L17 8h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle>',
   whale: '<path d="M3 13c2-4 7-6 12-5l3-2v3c1.5 1 2.5 2 3 3l-3 1c-3 4-10 5-15 0z"></path>',
   sun: '<circle cx="12" cy="12" r="4"></circle><path d="M12 3v2M12 19v2M3 12h2M19 12h2"></path>',
+  spark: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path><path d="M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"></path>',
+  lock: '<rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path>',
   clock: '<circle cx="12" cy="13" r="7.5"></circle><path d="M12 9v4l2.5 2M9.5 3h5"></path>',
 };
 const icon = (name, size = 22) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[name]}</svg>`;
@@ -51,7 +55,7 @@ const icon = (name, size = 22) => `<svg viewBox="0 0 24 24" width="${size}" heig
 export function createMenu(root, handlers) {
   root.innerHTML = `
     <div class="start" data-start>
-      <p>${T('さぁ、クジラたちに会いに行こう', 'Let\'s go meet the whales')}</p>
+      <p>${T('さぁ、クジラたちに会いにいこう', 'Let\'s go meet the whales')}</p>
     </div>
     <div class="hud" data-menu hidden>
       <div class="hud-top">
@@ -77,9 +81,34 @@ export function createMenu(root, handlers) {
         <div class="interval" role="group" aria-label="${T('クジラが来る間隔', 'How often whales come')}">
           <p class="interval-title">${T('クジラが来る間隔', 'How often whales come')}</p>
           <div class="interval-chips">
-            ${Object.entries(INTERVALS).map(([k, v]) => `<button data-interval="${k}" aria-pressed="false"><b>${tr(v.label)}</b><span>${rangeLabel(v)}</span></button>`).join('')}
+            ${Object.entries(INTERVALS).map(([k, v]) => `<button data-interval="${k}" aria-pressed="false"><b>${tr(v.label)}</b><span>${rangeLabel(v)}</span>${k === 'often' ? `<i class="plus-tag" data-plustag>${T('プラス', 'Plus')}</i>` : ''}</button>`).join('')}
           </div>
         </div>
+      </div>
+      <div class="pick-pop" data-pickpop hidden role="dialog" aria-label="${T('えらんで呼ぶ', 'Choose what to see')}">
+        <div class="pick-head">
+          <p>${icon('spark', 18)}${T('見たい姿をえらんでね', 'What would you like to see?')}</p>
+          <button class="pick-close" data-pickclose aria-label="${T('閉じる', 'Close')}">×</button>
+        </div>
+        <label class="pick-whale">${T('来てほしいクジラ', 'Which whale')}
+          <select data-pickwhale><option value="">${T('おまかせ', 'Any whale')}</option></select>
+        </label>
+        <div class="pick-grid">
+          ${PICKABLE.map(n => `<button data-pick="${n}">${patternLabel(n)}</button>`).join('')}
+        </div>
+        <small>${T('数秒で来てくれます。えらんで呼んだクジラは、図鑑には数えません', 'It arrives in a few seconds. Whales you choose are not counted in your Book.')}</small>
+      </div>
+      <div class="plus-sheet" data-plussheet hidden role="dialog" aria-labelledby="plus-title">
+        <p class="plus-kicker">${icon('spark', 16)}${T('クジラの見える海', 'Whale Ocean')}</p>
+        <h2 id="plus-title">${T('プラス', 'Plus')}</h2>
+        <ul>
+          <li><b>${T('えらんで呼ぶ', 'Choose what to see')}</b>${T('大ジャンプ、バブルネット、目が合う…見たい姿を、すぐに呼べます', 'Call up any of 17 behaviors, from full breaches to bubble-nets, right away')}</li>
+          <li><b>${T('来てほしいクジラ', 'Pick the whale')}</b>${T('図鑑にのっている、お気に入りの子を呼べます', 'Bring back a favorite whale from your Book')}</li>
+          <li><b>${T('よく来る(5〜15分)', 'Often (5–15 min)')}</b>${T('クジラがいちばんたくさん来る間隔', 'The most frequent whale visits')}</li>
+        </ul>
+        <p class="plus-price" data-plusprice></p>
+        <button class="plus-buy" data-plusbuy>${T('プラスにする', 'Get Plus')}</button>
+        <button class="plus-later" data-pluslater>${T('あとで', 'Not now')}</button>
       </div>
       <label class="vol-pop" data-volpop hidden>${T('音量', 'Volume')}<input type="range" min="0" max="1" step="0.01" data-volume></label>
       <div class="hud-bottom">
@@ -110,6 +139,7 @@ export function createMenu(root, handlers) {
           <button class="shutter" data-photo aria-label="${T('写真を撮る', 'Take a photo')}">${icon('camera', 30)}</button>
           <button class="act act-main" data-summon>${icon('whale', 24)}${T('呼ぶ', 'Call')}</button>
         </div>
+        <button class="pick-open" data-pickopen aria-expanded="false">${icon('spark', 18)}${T('えらんで呼ぶ', 'Choose what to see')}<i class="plus-tag" data-plustag>${T('プラス', 'Plus')}</i></button>
         <div class="shutter-spot" role="group" aria-label="${T('パネルを閉じても残る、写真のボタンの場所', 'Where to keep the photo button when the panel is closed')}">
           <span>${icon('camera', 16)}${T('閉じても残るボタン', 'Photo button')}</span>
           ${Object.entries(SHUTTER_SPOTS).map(([k, v]) => `<button data-spot="${k}" aria-pressed="false">${tr(v)}</button>`).join('')}
@@ -161,19 +191,12 @@ export function createMenu(root, handlers) {
   const sleepMark = $('[data-sleepmark]');
   let started = false;
   let toastTimer = null;
-  let hideTimer = null;
   let current = { mode: 'normal', camera: 'cliff', time: 'auto' };
 
   if (!document.documentElement.requestFullscreen) $('[data-full]').hidden = true;
 
-  function scheduleHide() {
-    clearTimeout(hideTimer);
-    hideTimer = setTimeout(() => {
-      // タイマーを決めているあいだは隠さない
-      if (!timerPop.hidden) { scheduleHide(); return; }
-      menu.hidden = true; volpop.hidden = true; soundBtn.setAttribute('aria-expanded', 'false'); showSleepMark();
-    }, MENU_HIDE_MS);
-  }
+  // パネルは勝手には消えない(タップで出したり消したりだけ)。前は数秒で消えていた名残で、呼ぶ場所は残してある
+  function scheduleHide() {}
 
   function showMenu() {
     menu.hidden = false;
@@ -199,7 +222,7 @@ export function createMenu(root, handlers) {
     handlers.onStart();
   });
 
-  // 海をタップするとパネルが出る。パネルを触っている間は隠さない。
+  // 海をタップするとパネルが出て、もう一度タップすると消える
   document.addEventListener('pointerdown', e => {
     if (!started) return;
     // 図鑑や写真を見ているあいだは、パネルを出したり隠したりしない
@@ -208,8 +231,42 @@ export function createMenu(root, handlers) {
     if (floatShutter.contains(e.target)) return;   // 残したシャッターを押してもパネルは出さない
     if (menu.contains(e.target)) scheduleHide();
     else if (menu.hidden) showMenu();
-    else { menu.hidden = true; showSleepMark(); }
+    else hideMenu();
   });
+  function hideMenu() {
+    menu.hidden = true;
+    volpop.hidden = true; soundBtn.setAttribute('aria-expanded', 'false');
+    timerPop.hidden = true; timerBtn.setAttribute('aria-expanded', 'false');
+    closePick(); plusSheet.hidden = true;
+    showSleepMark();
+  }
+
+  // ---- プラス: えらんで呼ぶ・来てほしいクジラ・よく来る ----
+  const pickOpen = $('[data-pickopen]');
+  const pickPop = $('[data-pickpop]');
+  const pickWhale = $('[data-pickwhale]');
+  const plusSheet = $('[data-plussheet]');
+  let plus = false;
+  const openPlus = () => { closePick(); timerPop.hidden = true; plusSheet.hidden = false; };
+  function closePick() { pickPop.hidden = true; pickOpen.setAttribute('aria-expanded', 'false'); }
+  pickOpen.addEventListener('click', () => {
+    if (!plus) { openPlus(); return; }
+    if (!pickPop.hidden) { closePick(); return; }
+    // 来てほしいクジラは、図鑑にのっている子だけ(開くたびに作りなおす)
+    const keep = pickWhale.value;
+    pickWhale.length = 1;
+    for (const w of handlers.pickWhales?.() ?? []) pickWhale.append(new Option(w.name, String(w.id)));
+    pickWhale.value = [...pickWhale.options].some(o => o.value === keep) ? keep : '';
+    volpop.hidden = true; timerPop.hidden = true;
+    pickPop.hidden = false;
+    pickOpen.setAttribute('aria-expanded', 'true');
+  });
+  $('[data-pickclose]').addEventListener('click', closePick);
+  root.querySelectorAll('[data-pick]').forEach(b => b.addEventListener('click', () => {
+    if (handlers.onPick?.(b.dataset.pick, pickWhale.value ? Number(pickWhale.value) : null) !== false) closePick();
+  }));
+  $('[data-plusbuy]').addEventListener('click', () => handlers.onPlusBuy?.());
+  $('[data-pluslater]').addEventListener('click', () => { plusSheet.hidden = true; });
   menu.addEventListener('input', scheduleHide);
 
   sleepBtn.addEventListener('click', () => handlers.onMode(current.mode === 'sleep' ? 'normal' : 'sleep'));
@@ -239,6 +296,7 @@ export function createMenu(root, handlers) {
   });
   timerCancel.addEventListener('click', () => { handlers.onTimerCancel?.(); closeTimerPop(); });
   root.querySelectorAll('[data-interval]').forEach(b => b.addEventListener('click', () => {
+    if (!plus && b.dataset.interval === 'often') { openPlus(); return; }
     handlers.onInterval?.(b.dataset.interval);
     scheduleHide();
   }));
@@ -343,7 +401,20 @@ export function createMenu(root, handlers) {
     },
     setSummonEnabled(enabled) {
       summon.disabled = !enabled;
+      root.querySelectorAll('[data-pick]').forEach(b => { b.disabled = !enabled; });
     },
+    // プラスが使えるか。使えないときは「プラス」の札を出し、押すと案内を出す
+    setPlus(unlocked, { price = '', canBuy = true } = {}) {
+      plus = unlocked;
+      root.querySelectorAll('[data-plustag]').forEach(t => { t.hidden = unlocked; });
+      $('[data-plusprice]').textContent = price;
+      $('[data-plusprice]').hidden = !price;
+      $('[data-plusbuy]').disabled = !canBuy;
+      $('[data-plusbuy]').textContent = canBuy ? T('プラスにする', 'Get Plus') : T('準備中です', 'Coming soon');
+      if (unlocked) plusSheet.hidden = true;
+      else closePick();
+    },
+    openPlus,
     setSummonStatus(text) {
       status.hidden = !text;
       status.textContent = text ?? '';

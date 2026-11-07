@@ -70,6 +70,5 @@ export const SUMMON = Object.freeze({ minDelayMs: 10 * 1000, maxDelayMs: 30 * 10
 
 export const AUDIO = Object.freeze({ whaleMaxRatio: 0.8, fadeMs: 3000 });
 
-export const MENU_HIDE_MS = 4000;
 
 export const STORAGE_KEY = 'whale-ocean-settings';

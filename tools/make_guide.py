@@ -69,7 +69,7 @@ def page(L):
     nav_html = ''.join(f'<a href="#{k}-{L}">{v}</a>' for k, v in nav)
     S = []
     S.append(section(L, 'start', 'sun', ICON['start'], T('まずは、海へ', 'First, head to the sea'),
-        T('画面の「さぁ、クジラたちに会いに行こう」をタップすると、波の音が流れはじめます。あとは、のんびり待つだけ。',
+        T('画面の「さぁ、クジラたちに会いにいこう」をタップすると、波の音が流れはじめます。あとは、のんびり待つだけ。',
           'Tap “Let’s go meet the whales” and the waves start rolling in. Then just relax and wait.'),
         f'''<ul class="steps">
           <li>{T('音を出したいときは、iPhone のマナーモードを切っておいてね。', 'Turn off silent mode on iPhone to hear the sound.')}</li>
@@ -78,8 +78,8 @@ def page(L):
         </ul>''',
         [phone(f'{L}-start.jpg', T('はじめの画面', 'Start screen'), -3)]))
     S.append(section(L, 'panel', 'sea', ICON['panel'], T('タップでパネルが出るよ', 'Tap for the control panel'),
-        T('海をタップすると操作パネルが出て、しばらくすると自動で消えます。赤ちゃんの寝かしつけ中も、じゃまになりません。',
-          'Tap the sea to show the panel. It hides by itself after a while, so it never gets in the way.'),
+        T('海をタップすると操作パネルが出て、もう一度タップすると消えます。勝手には消えないので、ゆっくり選べます。',
+          'Tap the sea to show the panel, and tap again to hide it. It stays put until you do.'),
         f'''<dl class="legend">
           <div><dt>{T('景色', 'View')}</dt><dd>{T('崖の上・上空・間近の3つのカメラ', 'Three cameras: Cliff, Sky and Up close')}</dd></div>
           <div><dt>{T('空', 'Sky')}</dt><dd>{T('帯をタップして朝・昼・夕方・夜。ゴールデンアワーやブルーアワーも。「自動」は本物の空に合わせます', 'Tap the bar for morning, day, evening or night, plus golden and blue hour. “Auto” follows the real sky')}</dd></div>
@@ -169,7 +169,7 @@ def page(L):
   <nav class="toc" aria-label="{T('もくじ', 'Contents')}">{nav_html}</nav>
   {''.join(S)}
   <footer class="foot">
-    <a class="btn" href="./">{T('さぁ、クジラたちに会いに行こう', 'Let’s go meet the whales')}</a>
+    <a class="btn" href="./">{T('さぁ、クジラたちに会いにいこう', 'Let’s go meet the whales')}</a>
     <p><a href="about.html">{T('このアプリについて(素材・データの扱い)', 'About this app (credits, privacy)')}</a></p>
   </footer>
 </div>'''

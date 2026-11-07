@@ -159,6 +159,46 @@
     .interval-chips span { font-size: 10.5px; color: rgba(238, 243, 247, 0.7); }
     .interval-chips button.on { background: #9fd3e6; color: #0b2233; border-color: #9fd3e6; }
     .interval-chips button.on span { color: #16405a; }
+    /* プラス: 「えらんで呼ぶ」と、案内のカード。使えないところには小さな「プラス」の札 */
+    .plus-tag { font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; color: #3a2a08; background: #ffd28a;
+      border-radius: 999px; padding: 1px 7px; line-height: 1.5; }
+    .plus-tag[hidden] { display: none; }
+    .interval-chips button { position: relative; }
+    .interval-chips .plus-tag { position: absolute; top: -8px; right: -4px; }
+    .pick-open { justify-self: center; width: auto !important; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; min-height: 40px;
+      padding: 0 16px; border-radius: 999px; background: rgba(255, 210, 138, 0.12); border: 1px solid rgba(255, 210, 138, 0.55); color: #ffe7c2; }
+    .pick-open[aria-expanded="true"] { background: rgba(255, 210, 138, 0.28); }
+    .pick-pop { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(18px, env(safe-area-inset-bottom)); z-index: 7;
+      width: min(440px, calc(100vw - 28px)); max-height: min(70vh, 560px); overflow-y: auto; box-sizing: border-box; padding: 14px;
+      display: flex; flex-direction: column; gap: 10px; font-size: 13px; background: rgba(10, 18, 28, 0.97); border: 1px solid rgba(255, 210, 138, 0.5);
+      border-radius: 18px; }
+    .pick-pop[hidden], .plus-sheet[hidden] { display: none; }
+    .pick-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .pick-head p { margin: 0; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: #ffe7c2; }
+    .pick-close { width: 40px; height: 40px; min-height: 40px; padding: 0; border-radius: 50%; font-size: 20px; line-height: 1;
+      background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); color: var(--text); }
+    .pick-whale { display: flex; align-items: center; gap: 10px; }
+    .pick-whale select { flex: 1; min-width: 0; font: inherit; color: var(--text); background: rgba(255, 255, 255, 0.08); min-height: 40px;
+      border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 10px; padding: 0 8px; color-scheme: dark; }
+    .pick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+    .pick-grid button { font: inherit; font-size: 13px; color: var(--text); text-align: left; min-height: 44px; padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; }
+    .pick-grid button:active { background: rgba(255, 210, 138, 0.25); }
+    .pick-grid button:disabled { opacity: 0.45; }
+    .pick-pop small { color: rgba(238, 243, 247, 0.65); line-height: 1.5; }
+    .plus-sheet { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 8; width: min(360px, calc(100vw - 32px));
+      box-sizing: border-box; padding: 22px 20px 16px; border-radius: 22px; background: #0e2233; border: 1px solid rgba(255, 210, 138, 0.6);
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 10px; }
+    .plus-kicker { margin: 0; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #ffd28a; letter-spacing: 0.06em; }
+    .plus-sheet h2 { margin: 0 0 4px; font-size: 30px; line-height: 1.1; color: #ffe7c2; }
+    .plus-sheet ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+    .plus-sheet li { display: grid; gap: 2px; font-size: 13px; line-height: 1.5; color: rgba(238, 243, 247, 0.8); padding-left: 14px; border-left: 2px solid rgba(255, 210, 138, 0.6); }
+    .plus-sheet li b { color: var(--text); font-size: 14px; }
+    .plus-price { margin: 4px 0 0; font-size: 18px; font-weight: 700; text-align: center; }
+    .plus-price[hidden] { display: none; }
+    .plus-buy { min-height: 50px; border-radius: 999px; border: 0; background: #ffd28a; color: #3a2a08; font: inherit; font-weight: 700; font-size: 16px; }
+    .plus-buy:disabled { background: rgba(255, 210, 138, 0.3); color: rgba(255, 231, 194, 0.8); }
+    .plus-later { min-height: 40px; border: 0; background: transparent; color: rgba(238, 243, 247, 0.7); font: inherit; font-size: 13px; }
     /* パネルを閉じても残る写真のボタン(左下・真ん中・右下) */
     .float-shutter { position: fixed; bottom: max(22px, calc(env(safe-area-inset-bottom) + 12px)); z-index: 6;
       width: 64px; height: 64px; min-height: 64px; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;

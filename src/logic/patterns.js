@@ -1,3 +1,4 @@
+import { lang } from './i18n.js';
 // 出方ごとの長さ・必要なモデル・鳴らす声。
 export const PATTERNS = Object.freeze({
   voice: { durationMs: 60000, needs: null, sound: 'humpback' },
@@ -70,3 +71,19 @@ export const PATTERN_LABELS = Object.freeze({
   eyeContact: '目が合う(すぐ目の前)',
   summon: '呼んだクジラ',
 });
+
+// 出かたの名前(日本語と英語)。プラスの「えらんで呼ぶ」に使う
+const PATTERN_EN = Object.freeze({
+  voice: 'Song only', spout: 'Blow & back', fluke: 'Fluke-up dive', motherCalf: 'Mother & calf', sleeping: 'Sleeping whales',
+  breach: 'Breach', bigBreach: 'Full breach', groupBreach: 'Group breach', calfBreach: 'Calf breach', pod: 'Pod',
+  spyhop: 'Spyhop', groupSpyhop: 'Group spyhop', pecSlap: 'Flipper slap', lobtail: 'Tail slap', feeding: 'Lunge feeding',
+  bubbleNet: 'Bubble-net', eyeContact: 'Eye to eye', summon: 'Called whale',
+});
+// 日本語は、ボタンに収まる短い名前(使い方ガイドと同じ)
+const PATTERN_JA = Object.freeze({
+  voice: '鳴き声だけ', spout: '潮吹きと背中', fluke: '尾びれを上げて潜る', motherCalf: '親子で泳ぐ', sleeping: '寝ているクジラ',
+  breach: 'ジャンプ', bigBreach: '大ジャンプ', groupBreach: '群れでジャンプ', calfBreach: '親子でジャンプ', pod: '群れで泳ぐ',
+  spyhop: 'スパイホップ', groupSpyhop: '群れでスパイホップ', pecSlap: '胸びれでたたく', lobtail: '尾びれでたたく', feeding: '捕食',
+  bubbleNet: 'バブルネット', eyeContact: '目が合う', summon: '呼んだクジラ',
+});
+export const patternLabel = (name, l = lang()) => (l === 'en' ? PATTERN_EN : PATTERN_JA)[name];

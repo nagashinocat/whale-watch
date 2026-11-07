@@ -31,6 +31,7 @@ export function createScheduler({ now, rng = Math.random, intervalScale = 1, fre
 
   let busy = null;          // 'natural' | 'summon' | null
   let summonAt = null;      // 呼んだクジラの到着予定
+  let summonPattern = null; // えらんで呼んだ出かた(プラス)。null ならふつうの「呼ぶ」
   let pausedRemaining = 0;  // 呼んだクジラがいる間に止めた自然出現の残り時間
   let prevPattern = null;
   let quiet = false;        // タイマーのあいだは、自然には出さない(呼んだクジラは来る)
@@ -44,7 +45,9 @@ export function createScheduler({ now, rng = Math.random, intervalScale = 1, fre
         summonAt = null;
         busy = 'summon';
         pausedRemaining = Math.max(0, s.nextAt - t);
-        return { kind: 'summon', pattern: 'summon' };
+        const pattern = summonPattern;
+        summonPattern = null;
+        return pattern ? { kind: 'pick', pattern } : { kind: 'summon', pattern: 'summon' };
       }
       if (summonAt === null && !quiet && t >= s.nextAt) {
         busy = 'natural';
@@ -54,9 +57,12 @@ export function createScheduler({ now, rng = Math.random, intervalScale = 1, fre
       return null;
     },
 
-    summon(t) {
+    // pattern を渡すと、その出かたで来る(プラスの「えらんで呼ぶ」。delay は [最短, 最長] ミリ秒)
+    summon(t, pattern = null, delay = null) {
       if (summonAt !== null || busy === 'summon') return false;
-      summonAt = t + between(rng, SUMMON.minDelayMs, SUMMON.maxDelayMs);
+      const [lo, hi] = delay ?? [SUMMON.minDelayMs, SUMMON.maxDelayMs];
+      summonAt = t + between(rng, lo, hi);
+      summonPattern = pattern;
       return true;
     },
 

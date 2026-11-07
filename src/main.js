@@ -23,6 +23,8 @@ import { PHOTOS } from './logic/photos.js';
 import { createZukan } from './ui/zukan.js';
 import { createPhotoStore } from './ui/photoStore.js';
 import { portraitOf } from './scene/portrait.js';
+import { PLUS, loadPlus, savePlus, usableInterval, pickableWhales } from './logic/plus.js';
+import { patternLabel } from './logic/patterns.js';
 
 // メニューに表示する素材のクレジット(assets/CREDITS.md と合わせる)
 const CREDITS = [
@@ -37,10 +39,14 @@ const DEBUG = window.WHALE_DEBUG === true || params.has('debug') || location.has
 const FAST = params.has('fast') || location.hash === '#debug-fast';
 
 const settings = loadSettings(safeStorage());
+// 有料の「プラス」が使えるか。使えないのに「よく来る」が保存されていたら、「たくさん来る」にする
+const plus = loadPlus(safeStorage());
+settings.interval = usableInterval(settings.interval, plus.unlocked);
 // クジラ図鑑(尾びれの模様で見分けたクジラの記録)
 let book = loadBook(safeStorage());
 let forcedVisitor = null;
-let timerVisitor = null;   // タイマーで知らせに来るクジラの番号
+let timerVisitor = null;
+let pickedWhale = null, eventWhale = null;   // プラスの「来てほしいクジラ」(呼んだときに決め、来たときに使う)   // タイマーで知らせに来るクジラの番号
 let countingSightings = true;   // いまの出方を図鑑に数えるか(「呼ぶ」で来たクジラは数えない)
 let pendingSightings = [], sightingTimer = null;   // まとめて出すお知らせ   // 動作確認用: 出すクジラの番号
 // 撮った写真(この端末のブラウザに保存する)
@@ -72,6 +78,8 @@ const whalesReady = createWhales(ocean.scene, {
   visitor(taken = []) {
     // 動作確認のページで「出すクジラ」を選んでいたら、その子を出す
     if (forcedVisitor && !taken.includes(forcedVisitor)) return forcedVisitor;
+    // プラスで「来てほしいクジラ」を選んで呼んだときは、その子が来る
+    if (eventWhale && !taken.includes(eventWhale)) return eventWhale;
     // タイマーで知らせに来るクジラは、先に決めてある(お知らせに名前を出すため)
     if (timerVisitor && !taken.includes(timerVisitor)) { const id = timerVisitor; timerVisitor = null; return id; }
     let id = nextVisitor(book);
@@ -160,7 +168,8 @@ function refreshSummonButton() {
 
 // 出番係のイベントを、演出と音に渡す。終わったら出番係に知らせる。
 async function handleEvent(event) {
-  if (event.kind === 'summon') menu.setSummonStatus(null);
+  if (event.kind === 'summon' || event.kind === 'pick') menu.setSummonStatus(null);
+  if (event.kind === 'pick') { eventWhale = pickedWhale; pickedWhale = null; }
   countingSightings = countsForZukan(event);
   try {
     const whales = await whalesReady;
@@ -182,6 +191,7 @@ async function handleEvent(event) {
     ]);
   } finally {
     // 動作確認とタイマーは、出番係の順番とは別に出す
+    if (event.kind === 'pick') eventWhale = null;
     if (event.kind !== 'debug' && event.kind !== 'timer') scheduler.endEvent(Date.now());
     refreshSummonButton();
   }
@@ -235,7 +245,13 @@ if (DEBUG) {
     showBook();
     status.textContent = '図鑑を空にしました';
   });
-  panel.append(clear, status);
+  // プラスを使える・使えないを切りかえる(両方の見え方を確かめるため)
+  const plusToggle = document.createElement('button');
+  const plusText = () => { plusToggle.textContent = plus.unlocked ? 'プラス: 使える(押すと使えない状態へ)' : 'プラス: 使えない(押すと使える状態へ)'; };
+  plusText();
+  plusToggle.addEventListener('pointerdown', e => e.stopPropagation());
+  plusToggle.addEventListener('click', () => { setPlusUnlocked(!plus.unlocked); plusText(); });
+  panel.append(clear, plusToggle, status);
   document.body.append(panel);
 }
 
@@ -310,6 +326,26 @@ const menu = createMenu(document.getElementById('ui'), {
     mixer?.setVolume(volume);
     save();
   },
+  // プラス: 見たい姿(と、来てほしいクジラ)をえらんで呼ぶ
+  onPick(pattern, whaleId) {
+    if (!plus.unlocked) { menu.openPlus(); return false; }
+    if (!scheduler.summon(Date.now(), pattern, PLUS.pickDelayMs)) return false;
+    pickedWhale = whaleId;
+    const who = whaleId ? displayName(whaleId, book) : null;
+    menu.setSummonStatus(tr({
+      ja: `${who ? `${who}が` : ''}「${patternLabel(pattern)}」をしに来ます…`,
+      en: `${who ? `${who} is` : 'A whale is'} coming: ${patternLabel(pattern)}…`,
+    }));
+    menu.setSummonEnabled(false);
+    return true;
+  },
+  pickWhales: () => pickableWhales(book),
+  // 支払いの方法が決まるまでは「準備中」。動作確認のページでは、押すとすぐ使えるようになる
+  onPlusBuy() {
+    if (!DEBUG) return;
+    setPlusUnlocked(true);
+    menu.showToast(tr({ ja: 'プラスが使えるようになりました(動作確認)', en: 'Plus unlocked (test)' }));
+  },
   onSummon() {
     if (scheduler.summon(Date.now())) {
       menu.setSummonStatus(tr({ ja: '呼んでいます…(呼んだクジラは図鑑に数えません)', en: 'Calling… (whales you call are not counted in your Book)' }));
@@ -339,6 +375,14 @@ const menu = createMenu(document.getElementById('ui'), {
 });
 
 menu.setValues(settings);
+function setPlusUnlocked(on) {
+  plus.unlocked = on;
+  savePlus(safeStorage(), plus);
+  menu.setPlus(on, { canBuy: DEBUG });
+  const usable = usableInterval(settings.interval, on);
+  if (usable !== settings.interval) { settings.interval = usable; scheduler.setFrequency(usable, Date.now()); save(); }
+}
+menu.setPlus(plus.unlocked, { canBuy: DEBUG });
 menu.showCredits(CREDITS);
 document.title = tr({ ja: 'クジラの見える海', en: 'Whale Ocean' });
 // 図鑑の中身と、パネルの図鑑のしるし(何頭のっているか)を新しくする

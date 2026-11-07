@@ -25,7 +25,7 @@ function el(tag, { cls, text, attrs } = {}, children = []) {
 // クジラ図鑑(調査ファイルの見た目)。茶色い紙のフォルダーに、1頭ずつの調査書類が入っている。
 // 上の見出しタブで「ファイル一覧」「写真」や、となりの子に切りかえる。
 // handlers: { onRename(id, name) }、photos: 写真の保存場所、portrait(ind): 全身の姿の絵のアドレス、nameOf(id)
-export function createZukan(root, { onRename, photos, portrait, nameOf }) {
+export function createZukan(root, { onRename, onBackup, onRestore, photos, portrait, nameOf }) {
   const panel = el('section', { cls: 'zk', attrs: { 'aria-label': T('クジラ図鑑', 'Whale Book') } });
   panel.hidden = true;
   const back = el('button', { cls: 'zk-btn', text: T('← ファイル一覧', '← All files') });
@@ -176,7 +176,33 @@ export function createZukan(root, { onRename, photos, portrait, nameOf }) {
       item.addEventListener('click', () => go({ tab: 'whales', detail: e.id }));
       list.append(el('li', {}, [item]));
     }
-    out.append(list);
+    out.append(list, backupBox());
+  }
+
+  // ---- バックアップ(機種変更のときなどに) ----
+  function backupBox() {
+    const msg = el('p', { cls: 'zk-backup-msg', attrs: { role: 'status' } });
+    const save = el('button', { cls: 'zk-backup-btn', text: T('ファイルに書き出す', 'Save to a file') });
+    const pick = el('input', { attrs: { type: 'file', accept: '.json,application/json', hidden: '' } });
+    const load = el('button', { cls: 'zk-backup-btn', text: T('ファイルから読み込む', 'Load from a file') });
+    save.addEventListener('click', async () => {
+      save.disabled = true;
+      try { msg.textContent = await onBackup?.() ?? ''; } finally { save.disabled = false; }
+    });
+    load.addEventListener('click', () => pick.click());
+    pick.addEventListener('change', async () => {
+      const file = pick.files?.[0];
+      pick.value = '';
+      if (!file) return;
+      load.disabled = true;
+      try { msg.textContent = await onRestore?.(file) ?? ''; } finally { load.disabled = false; }
+    });
+    return el('div', { cls: 'zk-backup' }, [
+      el('h2', { text: T('バックアップ', 'Backup') }),
+      el('p', { cls: 'zk-note', text: T('図鑑と写真は、この端末のブラウザの中にだけ保存されています。機種変更の前などに、ファイルに書き出しておくと安心です。読み込むと、いまの図鑑と合わせます(消えることはありません)。', 'Your Book and photos are stored only in this browser. Save them to a file before changing phones. Loading a file merges it with your current Book; nothing is removed.') }),
+      el('div', { cls: 'zk-backup-row' }, [save, load, pick]),
+      msg,
+    ]);
   }
 
   // ---- 1頭の調査書類 ----

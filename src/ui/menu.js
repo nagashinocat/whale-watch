@@ -2,6 +2,7 @@ import { TIME_PRESETS, INTERVALS, SHUTTER_SPOTS } from '../logic/config.js';
 import { TIMER, remainingText, clockText, atClock } from '../logic/timer.js';
 import { tr } from '../logic/i18n.js';
 import { PICKABLE } from '../logic/plus.js';
+import { SLEEP_TIMER } from '../logic/sleepTimer.js';
 import { patternLabel } from '../logic/patterns.js';
 
 // 操作パネル(カメラアプリのような形)。
@@ -13,6 +14,7 @@ const T = (ja, en) => tr({ ja, en });
 const CAMERA_LABELS = { cliff: T('崖の上', 'Cliff'), sky: T('上空', 'Sky'), near: T('間近', 'Up close') };
 const TIME_LABELS = { auto: T('自動', 'Auto'), morning: T('朝', 'Morning'), day: T('昼', 'Day'), evening: T('夕方', 'Evening'), night: T('夜', 'Night'), golden: T('ゴールデンアワー', 'Golden hour'), blue: T('ブルーアワー', 'Blue hour') };
 const TIMER_IDLE = () => T('決めた時間になると、クジラが鳴きながら知らせに来ます', 'When the time comes, a whale swims up calling to let you know.');
+const SLEEP_IDLE = () => T('波の音をだんだん小さくして、静かに止めます。小さくなりはじめたら、クジラは来ません', 'Fades the waves out slowly, then stops. No whales come once it starts fading.');
 const LANG_LABELS = { auto: T('自動', 'Auto'), ja: '日本語', en: 'English' };
 
 // 空の色の帯の上の位置(朝5時 0% 〜 夜23時 100%)
@@ -47,6 +49,7 @@ const ICON = {
   whale: '<path d="M3 13c2-4 7-6 12-5l3-2v3c1.5 1 2.5 2 3 3l-3 1c-3 4-10 5-15 0z"></path>',
   sun: '<circle cx="12" cy="12" r="4"></circle><path d="M12 3v2M12 19v2M3 12h2M19 12h2"></path>',
   spark: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path><path d="M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"></path>',
+  dark: '<rect x="6" y="3" width="12" height="18" rx="2.5"></rect><path d="M14.5 9.5a3 3 0 1 1-3-3 2.3 2.3 0 0 0 3 3z"></path>',
   lock: '<rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path>',
   clock: '<circle cx="12" cy="13" r="7.5"></circle><path d="M12 9v4l2.5 2M9.5 3h5"></path>',
 };
@@ -64,6 +67,7 @@ export function createMenu(root, handlers) {
           <button class="round" data-full aria-label="${T('全画面', 'Full screen')}">${icon('full', 20)}</button>
           <button class="round" data-timer aria-label="${T('タイマーと、クジラが来る間隔', 'Timer and how often whales come')}" aria-expanded="false">${icon('clock', 21)}</button>
           <button class="round" data-sound aria-label="${T('音量', 'Volume')}" aria-expanded="false">${icon('sound', 20)}</button>
+          <button class="round" data-dark aria-label="${T('画面を真っ暗にする(音はそのまま)', 'Turn the screen dark (sound keeps playing)')}">${icon('dark', 21)}</button>
           <button class="round" data-sleep aria-label="${T('おやすみモード', 'Sleep mode')}" aria-pressed="false">${icon('moon', 22)}</button>
         </div>
       </div>
@@ -78,6 +82,14 @@ export function createMenu(root, handlers) {
         </form>
         <button class="timer-cancel" data-timercancel hidden>${T('タイマーをやめる', 'Cancel timer')}</button>
         <small>${T('画面をつけたまま、このページを開いておいてください(画面が消えると鳴りません)', 'Keep this page open with the screen on (it can\'t ring once the screen turns off).')}</small>
+        <div class="interval" role="group" aria-label="${T('おやすみタイマー', 'Sleep timer')}">
+          <p class="interval-title">${icon('moon', 15)}${T('おやすみタイマー', 'Sleep timer')}</p>
+          <p class="timer-now" data-sleepnow>${SLEEP_IDLE()}</p>
+          <div class="timer-chips">
+            ${SLEEP_TIMER.presets.map(m => `<button data-sleepafter="${m}">${m < 60 ? T(`${m}分`, `${m} min`) : m % 60 ? T(`${Math.floor(m / 60)}時間半`, `${m / 60} h`) : T(`${m / 60}時間`, `${m / 60} h`)}</button>`).join('')}
+          </div>
+          <button class="timer-cancel" data-sleepcancel hidden>${T('おやすみタイマーをやめる', 'Cancel sleep timer')}</button>
+        </div>
         <div class="interval" role="group" aria-label="${T('クジラが来る間隔', 'How often whales come')}">
           <p class="interval-title">${T('クジラが来る間隔', 'How often whales come')}</p>
           <div class="interval-chips">
@@ -160,6 +172,13 @@ export function createMenu(root, handlers) {
       <p>${icon('clock', 22)}<span data-alarmtext>${T('時間です', 'Time\'s up')}</span></p>
       <button data-alarmstop>${T('止める', 'Stop')}</button>
     </div>
+    <div class="blackout" data-blackout hidden><p>${T('タップでもどります', 'Tap to come back')}</p></div>
+    <div class="rest" data-rest hidden>
+      <p class="rest-title">${icon('moon', 26)}${T('おやすみなさい', 'Good night')}</p>
+      <p>${T('タップすると、また波の音が流れます', 'Tap to bring the waves back')}</p>
+    </div>
+    <p class="hint" data-hint hidden role="status"></p>
+    <button class="update" data-update hidden>${T('新しい版があります。タップで更新', 'A new version is ready. Tap to update')}</button>
     <span class="sleep-mark" data-sleepmark hidden aria-label="${T('おやすみモード中', 'Sleep mode on')}">${icon('moon', 18)}</span>
     <p class="toast" data-toast hidden></p>
     <div class="flash" data-flash hidden></div>`;
@@ -200,6 +219,7 @@ export function createMenu(root, handlers) {
 
   function showMenu() {
     menu.hidden = false;
+    handlers.onMenuShown?.();
     showSleepMark();
     scheduleHide();
   }
@@ -209,7 +229,8 @@ export function createMenu(root, handlers) {
     sleepMark.hidden = !(started && current.mode === 'sleep' && menu.hidden);
     timerMark.hidden = !(started && timerAt != null && menu.hidden);
     // パネルを閉じているあいだだけ出す(開いているときはパネルの中のシャッターを使う)
-    floatShutter.hidden = !(started && menu.hidden && shutterSpot !== 'off');
+    // 真っ暗な画面と「おやすみなさい」のときは出さない
+    floatShutter.hidden = !(started && menu.hidden && shutterSpot !== 'off' && blackout.hidden && rest.hidden);
     floatShutter.dataset.at = shutterSpot;
     floatShutter.classList.toggle('dim', current.mode === 'sleep');   // おやすみモードでは暗めに
   }
@@ -225,6 +246,9 @@ export function createMenu(root, handlers) {
   // 海をタップするとパネルが出て、もう一度タップすると消える
   document.addEventListener('pointerdown', e => {
     if (!started) return;
+    // 真っ暗な画面と「おやすみなさい」は、タップ(click)でもどす。ここではパネルを出さない
+    if (blackout.contains(e.target) || rest.contains(e.target) || update.contains(e.target)) return;
+    if (!hint.hidden) hideHint();
     // 図鑑や写真を見ているあいだは、パネルを出したり隠したりしない
     if (handlers.isOverlay?.(e.target)) return;
     if (alarm.contains(e.target)) return;
@@ -240,6 +264,26 @@ export function createMenu(root, handlers) {
     closePick(); plusSheet.hidden = true;
     showSleepMark();
   }
+
+  // ---- 真っ暗な画面・おやすみなさい・はじめての案内・新しい版 ----
+  const blackout = $('[data-blackout]');
+  const rest = $('[data-rest]');
+  const hint = $('[data-hint]');
+  const update = $('[data-update]');
+  let hintTimer = null;
+  function hideHint() { hint.hidden = true; clearTimeout(hintTimer); }
+  $('[data-dark]').addEventListener('click', () => handlers.onDark?.(true));
+  blackout.addEventListener('click', () => handlers.onDark?.(false));
+  rest.addEventListener('click', () => handlers.onWake?.());
+  // おやすみタイマー
+  const sleepNow = $('[data-sleepnow]');
+  const sleepCancel = $('[data-sleepcancel]');
+  let sleepOn = false;
+  root.querySelectorAll('[data-sleepafter]').forEach(b => b.addEventListener('click', () => {
+    handlers.onSleepTimer?.(Number(b.dataset.sleepafter));
+    closeTimerPop();
+  }));
+  sleepCancel.addEventListener('click', () => { handlers.onSleepCancel?.(); closeTimerPop(); });
 
   // ---- プラス: えらんで呼ぶ・来てほしいクジラ・よく来る ----
   const pickOpen = $('[data-pickopen]');
@@ -379,7 +423,7 @@ export function createMenu(root, handlers) {
     setTimer(at) {
       timerAt = at;
       const on = at != null;
-      timerBtn.classList.toggle('on', on);
+      timerBtn.classList.toggle('on', on || sleepOn);
       timerCancel.hidden = !on;
       const left = on ? T(`${clockText(at)}に鳴ります(${remainingText(at - Date.now())})`, `Rings at ${clockText(at)} (${remainingText(at - Date.now())})`) : '';
       timerNow.textContent = on ? left : TIMER_IDLE();
@@ -419,6 +463,42 @@ export function createMenu(root, handlers) {
       else closePick();
     },
     openPlus,
+    // おやすみタイマー(text: 「23:40に止まります」など。null でなし)
+    setSleepTimer(text) {
+      sleepOn = text != null;
+      sleepNow.textContent = text ?? SLEEP_IDLE();
+      sleepCancel.hidden = !sleepOn;
+      timerBtn.classList.toggle('on', sleepOn || timerAt != null);
+    },
+    // 画面を真っ暗にする(パネルも閉じる)。「タップでもどります」は少しして消える
+    setDark(on) {
+      if (on) hideMenu();
+      blackout.hidden = !on;
+      showSleepMark();
+      blackout.classList.remove('fade');
+      if (on) { void blackout.offsetWidth; blackout.classList.add('fade'); }
+    },
+    // おやすみタイマーが終わったときの、暗い「おやすみなさい」
+    setResting(on) {
+      if (on) hideMenu();
+      rest.hidden = !on;
+      showSleepMark();
+    },
+    // はじめての案内の吹き出し。at: 'center'(海のまん中) | 'panel'(パネルの上)
+    showHint(text, at = 'center', ms = 9000) {
+      hint.textContent = text;
+      hint.dataset.at = at;
+      hint.hidden = false;
+      clearTimeout(hintTimer);
+      hintTimer = setTimeout(hideHint, ms);
+    },
+    hideHint,
+    // 新しい版があるとき。押すと onTap
+    showUpdate(onTap) {
+      update.hidden = false;
+      update.onclick = () => { update.disabled = true; onTap(); };
+    },
+    isOpen: () => !menu.hidden,
     setSummonStatus(text) {
       status.hidden = !text;
       status.textContent = text ?? '';

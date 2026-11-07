@@ -65,7 +65,7 @@ def page(L):
         for a, b, c, d, r in PATTERNS)
     nav = [('start', T('はじめる', 'Start')), ('panel', T('操作パネル', 'Panel')), ('whales', T('クジラの出かた', 'Whales')),
            ('book', T('写真と図鑑', 'Photos & Book')), ('share', T('シェア', 'Share')), ('timer', T('タイマー', 'Timer')),
-           ('sleep', T('おやすみ', 'Sleep')), ('help', T('こまったとき', 'Help'))]
+           ('sleep', T('おやすみ', 'Sleep')), ('night', T('寝かしつけ', 'Bedtime')), ('help', T('こまったとき', 'Help'))]
     nav_html = ''.join(f'<a href="#{k}-{L}">{v}</a>' for k, v in nav)
     S = []
     S.append(section(L, 'start', 'sun', ICON['start'], T('まずは、海へ', 'First, head to the sea'),
@@ -86,7 +86,7 @@ def page(L):
           <div><dt>{T('図鑑', 'Book')}</dt><dd>{T('会えたクジラの記録', 'Your record of whales you have met')}</dd></div>
           <div><dt>{T('シャッター', 'Shutter')}</dt><dd>{T('いまの海を写真に', 'Take a photo of the sea right now')}</dd></div>
           <div><dt>{T('呼ぶ', 'Call')}</dt><dd>{T('すぐにクジラが来てくれる(図鑑には数えません)', 'A whale comes right away (not counted in your Book)')}</dd></div>
-          <div><dt>{T('右上', 'Top right')}</dt><dd>{T('全画面・タイマー・音量・おやすみモード', 'Full screen, timer, volume and sleep mode')}</dd></div>
+          <div><dt>{T('右上', 'Top right')}</dt><dd>{T('全画面・タイマー・音量・真っ暗画面・おやすみモード', 'Full screen, timers, volume, dark screen and sleep mode')}</dd></div>
           <div><dt>{T('言語', 'Language')}</dt><dd>{T('日本語と English を切りかえ', 'Switch between Japanese and English')}</dd></div>
         </dl>''',
         [phone(f'{L}-panel.jpg', T('操作パネル', 'Control panel'), 2)]))
@@ -110,7 +110,8 @@ def page(L):
           <li><b>3{T('回', '×')}</b>{T('体重と特徴', 'Weight and features')}</li>
           <li class="cam"><b>{ICON['camera']}</b>{T('その子の写真を撮ると、全身の姿がのる', 'Photograph it to add its full-body portrait')}</li>
         </ul>
-        <p>{T('「名前を付ける」で、好きな名前に変えられます。真っ白な子やフジツボだらけの子など、24頭の個性をさがしてね。', 'Tap “Rename” to give it any name you like. Look for all 24, from a pure white whale to one covered in barnacles.')}</p>''',
+        <p>{T('「名前を付ける」で、好きな名前に変えられます。真っ白な子やフジツボだらけの子など、24頭の個性をさがしてね。', 'Tap “Rename” to give it any name you like. Look for all 24, from a pure white whale to one covered in barnacles.')}</p>
+        <p class="tip-box">{T('機種変更の前は、図鑑のいちばん下の「バックアップ」で、図鑑と写真をファイルに書き出しておくと安心。新しいスマホで「ファイルから読み込む」と、もとにもどります。', 'Changing phones? Use “Backup” at the bottom of the Book to save your whales and photos to a file, then “Load from a file” on the new phone.')}</p>''',
         [phone(f'{L}-book.jpg', T('図鑑の一覧', 'Whale Book list'), -2), phone(f'{L}-whale.jpg', T('1頭のページ', 'A whale’s page'), 3)]))
     S.append(section(L, 'share', 'sea', ICON['share'], T('お気に入りを、シェア', 'Share your favorites'),
         T('図鑑の「この子をシェアする」や「写真と名前を1枚にまとめてシェア」で、X や Instagram にそのまま投稿できる1枚ができます。',
@@ -137,9 +138,18 @@ def page(L):
           <li>{T('パネルの下の「閉じても残るボタン」で、写真のボタンを左下・真ん中・右下に残せます。', 'Under “Photo button” you can keep a shutter on screen at the left, center or right.')}</li>
         </ul>''',
         [phone(f'{L}-sleep.jpg', T('おやすみモード', 'Sleep mode'), 2), phone(f'{L}-closed.jpg', T('パネルを閉じたところ', 'Panel closed'), -3)]))
+    S.append(section(L, 'night', 'night', ICON['moon'], T('寝かしつけの、心強い味方', 'Bedtime helpers'),
+        T('時計のボタンの「おやすみタイマー」を決めると、波の音がだんだん小さくなって、静かに止まります。眠ったあとに音が鳴りつづけません。',
+          'Set the “Sleep timer” under the clock button and the waves slowly fade out, then stop, so nothing keeps playing after your little one drifts off.'),
+        f'''<ul class="steps">
+          <li>{T('15分・30分・1時間・1時間半から選べます。後ろの半分で、ゆっくり小さくなります。', 'Choose 15 min, 30 min, 1 h or 1.5 h. The second half fades out gently.')}</li>
+          <li>{T('小さくなりはじめたら、クジラは来ません。止まったあとは、画面をタップすると、また流れます。', 'No whales come once the fade begins. When it stops, tap the screen to start the waves again.')}</li>
+          <li>{T('右上の「真っ暗画面」のボタンで、音はそのままに画面だけ真っ暗にできます。タップでもどります。夜の部屋がまぶしくならず、電池ももちます。', 'The dark-screen button at the top right turns the screen black while the sound keeps playing. Tap to come back. No glow in the bedroom, and it saves battery.')}</li>
+        </ul>''',
+        [phone(f'{L}-sleeptimer.jpg', T('おやすみタイマー', 'Sleep timer'), -2)]))
     faq = [
         (T('音が出ない', 'No sound'), T('マナーモードを切って、音量を上げてみてね。おやすみモードのときは、クジラの声は鳴りません。', 'Turn off silent mode and turn up the volume. In sleep mode, whale calls do not play.')),
-        (T('しばらくすると止まる', 'It stops after a while'), T('画面が消えると止まります。スマホの自動ロックを長めにするか、充電しながら使ってね。', 'It pauses when the screen sleeps. Set a longer auto-lock or keep the phone charging.')),
+        (T('しばらくすると止まる', 'It stops after a while'), T('画面が消えると止まります。おやすみタイマーを決めているあいだは、画面がつけたままになります(できる端末のみ)。画面の光が気になるときは「真っ暗画面」を使ってね。', 'It pauses when the screen sleeps. While a sleep timer is set, the screen stays on (on supported devices). If the light bothers you, use the dark screen.')),
         (T('クジラが来ない', 'No whales come'), T('30〜90分に1回くらいです。待てないときは「呼ぶ」か、時計のボタンで「多め」に。', 'They come about once every 30–90 minutes. Tap “Call”, or choose “More” under the clock button.')),
         (T('図鑑や写真は、どこにあるの?', 'Where are my Book and photos?'), T('このスマホのブラウザの中だけに保存されています。どこにも送っていません。', 'Only in this browser on this device. Nothing is sent anywhere.')),
     ]
@@ -234,6 +244,7 @@ CSS = '''
   .card-shot { margin: 0; width: min(300px, 80vw); border: 4px solid var(--line); border-radius: 18px; overflow: hidden; box-shadow: 6px 6px 0 var(--shadow); transform: rotate(2deg); }
   .card-shot img { display: block; width: 100%; height: auto; }
   .steps { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+  .tip-box { margin: 10px 0 0; padding: 10px 14px; border-radius: 14px; background: var(--wave); font-size: 14px; }
   .steps .tip { list-style: none; margin-left: -1.2em; padding: 8px 12px; border-radius: 14px; background: var(--wave); font-size: 14px; }
   .legend { display: grid; gap: 8px; margin: 0; }
   .legend div { display: grid; grid-template-columns: 6.5em minmax(0, 1fr); gap: 10px; align-items: baseline; }

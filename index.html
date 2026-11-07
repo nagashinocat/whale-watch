@@ -201,6 +201,43 @@
     .plus-buy { min-height: 50px; border-radius: 999px; border: 0; background: #ffd28a; color: #3a2a08; font: inherit; font-weight: 700; font-size: 16px; }
     .plus-buy:disabled { background: rgba(255, 210, 138, 0.3); color: rgba(255, 231, 194, 0.8); }
     .plus-later { min-height: 40px; border: 0; background: transparent; color: rgba(238, 243, 247, 0.7); font: inherit; font-size: 13px; }
+    /* 右上の丸いボタンが5つになっても、せまい画面に収まるように */
+    @media (max-width: 400px) { .hud-round { gap: 6px; } .round { width: 44px; height: 44px; min-height: 44px; } }
+    .timer-pop { max-height: calc(100vh - 100px - env(safe-area-inset-top)); overflow-y: auto; }
+    .interval-title { display: inline-flex; align-items: center; gap: 6px; }
+    /* 画面を真っ暗に(音はそのまま)。「タップでもどります」は少しして消える */
+    .blackout { position: fixed; inset: 0; z-index: 40; background: #000; display: flex; align-items: flex-end; justify-content: center;
+      padding-bottom: max(40px, env(safe-area-inset-bottom)); cursor: pointer; }
+    .blackout[hidden], .rest[hidden], .hint[hidden], .update[hidden] { display: none; }
+    .blackout p { margin: 0; font-size: 13px; color: rgba(238, 243, 247, 0.35); }
+    .blackout.fade p { animation: darkHint 4s ease forwards; }
+    @keyframes darkHint { 0%, 60% { opacity: 1; } 100% { opacity: 0; } }
+    /* おやすみタイマーが終わったとき */
+    .rest { position: fixed; inset: 0; z-index: 39; background: rgba(2, 6, 12, 0.94); display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 24px; cursor: pointer; color: rgba(238, 243, 247, 0.45); font-size: 13px; }
+    .rest p { margin: 0; }
+    .rest-title { display: inline-flex; align-items: center; gap: 10px; font-size: 20px; color: rgba(238, 243, 247, 0.6); }
+    /* はじめての案内の吹き出し */
+    .hint { position: fixed; z-index: 12; left: 50%; transform: translateX(-50%); width: max-content; max-width: min(320px, calc(100vw - 40px));
+      margin: 0; padding: 12px 16px; border-radius: 16px; background: #fdf6e3; color: #0b2233; font-size: 14px; line-height: 1.6; text-align: center;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); pointer-events: none; animation: hintIn .35s ease-out; }
+    .hint[data-at="center"] { top: 42%; }
+    .hint[data-at="panel"] { top: calc(max(16px, env(safe-area-inset-top)) + 64px); }
+    .hint::after { content: ''; position: absolute; left: 50%; margin-left: -8px; border: 8px solid transparent; }
+    .hint[data-at="center"]::after { top: 100%; border-top-color: #fdf6e3; }
+    @keyframes hintIn { from { opacity: 0; transform: translate(-50%, 8px); } }
+    /* 新しい版のお知らせ */
+    .update { position: fixed; z-index: 41; top: calc(max(16px, env(safe-area-inset-top)) + 60px); left: 50%; transform: translateX(-50%);
+      width: max-content; max-width: calc(100vw - 32px); min-height: 44px; padding: 0 18px; border-radius: 999px; border: 0;
+      background: #9fd3e6; color: #0b2233; font: inherit; font-size: 14px; font-weight: 700; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); }
+    /* 図鑑のバックアップ */
+    .zk-backup { margin-top: 18px; padding-top: 14px; border-top: 1px dashed #c9bda4; display: flex; flex-direction: column; gap: 8px; }
+    .zk-backup h2 { margin: 0; font-size: 15px; }
+    .zk-backup-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .zk-backup-btn { flex: 1 1 140px; font: inherit; font-size: 13px; font-weight: 700; min-height: 44px; border-radius: 12px;
+      color: #2f5d7c; background: transparent; border: 2px solid #2f5d7c; }
+    .zk-backup-btn:disabled { opacity: 0.6; }
+    .zk-backup-msg { margin: 0; font-size: 12px; line-height: 1.6; color: #2f5d7c; min-height: 1em; }
     /* パネルを閉じても残る写真のボタン(左下・真ん中・右下) */
     .float-shutter { position: fixed; bottom: max(22px, calc(env(safe-area-inset-bottom) + 12px)); z-index: 6;
       width: 64px; height: 64px; min-height: 64px; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;

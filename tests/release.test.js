@@ -32,3 +32,13 @@ test('公開するページに、動作確認のボタンは出ない(?debug=1 �
   assert.ok(!html.includes('WHALE_DEBUG'), 'index.html で動作確認がオンになっている');
   assert.ok(!html.includes('WHALE_TEST_SPOT'));
 });
+
+test('新しい版は、使っている人が「更新」を押してから切りかわる(使っている途中で入れかわらない)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
+  const install = sw.slice(sw.indexOf("addEventListener('install'"), sw.indexOf("addEventListener('message'"));
+  assert.ok(!install.includes('skipWaiting'), 'install ではすぐに切りかえない');
+  assert.match(sw, /event\.data === 'skipWaiting'\) self\.skipWaiting\(\)/);
+  const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+  assert.match(main, /postMessage\('skipWaiting'\)/);
+});

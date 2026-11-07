@@ -36,8 +36,12 @@ self.addEventListener('install', event => {{
     await cache.addAll(FILES);
     // 外のファイルは、読めなくてもアプリの準備は続ける
     await Promise.all(CDN.map(u => cache.add(new Request(u, {{ mode: 'cors' }})).catch(() => {{}})));
-    await self.skipWaiting();
+    // 新しい版は、使っている人が「更新」を押すまで待つ(使っている途中で中身が入れかわらないように)
   }})());
+}});
+
+self.addEventListener('message', event => {{
+  if (event.data === 'skipWaiting') self.skipWaiting();
 }});
 
 self.addEventListener('activate', event => {{

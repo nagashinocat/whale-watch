@@ -221,7 +221,8 @@ export function createOcean(canvas) {
     if (shakeAmount > 0.001) shakeAmount *= Math.exp(-dt * 3);
     if (preset.sway || shakeAmount > 0.001) placeCamera();
     for (const fn of updaters) fn(dt);
-    renderer.render(scene, camera);
+    // 画面を真っ暗にしているあいだは、動きだけ進めて描かない(電池を節約する)
+    if (!eco) renderer.render(scene, camera);
   }
 
   // 写真: いまの画面をもう一度描いて、すぐに写しとる(描いたあとすぐでないと、画面が消えてしまう)。
@@ -253,7 +254,7 @@ export function createOcean(canvas) {
     const realDt = last ? (t - last) / 1000 : 0;
     last = t;
     // 大きさを変えると画面がいったん消えるので、変えるのは描く前にする(描いたあとに変えると、そのコマが真っ暗になる)
-    if (realDt > 0) adjustQuality(realDt);
+    if (realDt > 0 && !eco) adjustQuality(realDt);
     render(dt);
     requestAnimationFrame(loop);
   }
@@ -267,6 +268,12 @@ export function createOcean(canvas) {
 
   function stop() {
     running = false;
+  }
+
+  let eco = false;
+  function setEco(on) {
+    eco = on;
+    if (!on && running) renderer.render(scene, camera);
   }
 
   window.addEventListener('resize', () => {
@@ -288,6 +295,7 @@ export function createOcean(canvas) {
     snapshot,
     start,
     stop,
+    setEco,
     scene,
     camera,
     // 毎フレーム呼んでほしい処理(クジラ・エフェクト)を登録する

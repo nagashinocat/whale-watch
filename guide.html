@@ -70,6 +70,7 @@
   .card-shot { margin: 0; width: min(300px, 80vw); border: 4px solid var(--line); border-radius: 18px; overflow: hidden; box-shadow: 6px 6px 0 var(--shadow); transform: rotate(2deg); }
   .card-shot img { display: block; width: 100%; height: auto; }
   .steps { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+  .tip-box { margin: 10px 0 0; padding: 10px 14px; border-radius: 14px; background: var(--wave); font-size: 14px; }
   .steps .tip { list-style: none; margin-left: -1.2em; padding: 8px 12px; border-radius: 14px; background: var(--wave); font-size: 14px; }
   .legend { display: grid; gap: 8px; margin: 0; }
   .legend div { display: grid; grid-template-columns: 6.5em minmax(0, 1fr); gap: 10px; align-items: baseline; }
@@ -119,7 +120,7 @@
     </div>
     <div class="hero-shot"><figure class="phone" style="--tilt:4deg"><img src="assets/guide/ja-closed.jpg" alt="海とクジラ" loading="lazy" width="520" height="1126"></figure></div>
   </header>
-  <nav class="toc" aria-label="もくじ"><a href="#start-ja">はじめる</a><a href="#panel-ja">操作パネル</a><a href="#whales-ja">クジラの出かた</a><a href="#book-ja">写真と図鑑</a><a href="#share-ja">シェア</a><a href="#timer-ja">タイマー</a><a href="#sleep-ja">おやすみ</a><a href="#help-ja">こまったとき</a></nav>
+  <nav class="toc" aria-label="もくじ"><a href="#start-ja">はじめる</a><a href="#panel-ja">操作パネル</a><a href="#whales-ja">クジラの出かた</a><a href="#book-ja">写真と図鑑</a><a href="#share-ja">シェア</a><a href="#timer-ja">タイマー</a><a href="#sleep-ja">おやすみ</a><a href="#night-ja">寝かしつけ</a><a href="#help-ja">こまったとき</a></nav>
   
   <section class="feature" id="start-ja" style="--c: var(--sun)">
     <div class="feature-text">
@@ -145,7 +146,7 @@
           <div><dt>図鑑</dt><dd>会えたクジラの記録</dd></div>
           <div><dt>シャッター</dt><dd>いまの海を写真に</dd></div>
           <div><dt>呼ぶ</dt><dd>すぐにクジラが来てくれる(図鑑には数えません)</dd></div>
-          <div><dt>右上</dt><dd>全画面・タイマー・音量・おやすみモード</dd></div>
+          <div><dt>右上</dt><dd>全画面・タイマー・音量・真っ暗画面・おやすみモード</dd></div>
           <div><dt>言語</dt><dd>日本語と English を切りかえ</dd></div>
         </dl>
     </div>
@@ -172,6 +173,7 @@
           <li class="cam"><b><svg viewBox="0 0 24 24"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></b>その子の写真を撮ると、全身の姿がのる</li>
         </ul>
         <p>「名前を付ける」で、好きな名前に変えられます。真っ白な子やフジツボだらけの子など、24頭の個性をさがしてね。</p>
+        <p class="tip-box">機種変更の前は、図鑑のいちばん下の「バックアップ」で、図鑑と写真をファイルに書き出しておくと安心。新しいスマホで「ファイルから読み込む」と、もとにもどります。</p>
     </div>
     <div class="shots"><figure class="phone" style="--tilt:-2deg"><img src="assets/guide/ja-book.jpg" alt="図鑑の一覧" loading="lazy" width="520" height="1126"></figure><figure class="phone" style="--tilt:3deg"><img src="assets/guide/ja-whale.jpg" alt="1頭のページ" loading="lazy" width="520" height="1126"></figure></div>
   </section>
@@ -212,12 +214,25 @@
     </div>
     <div class="shots"><figure class="phone" style="--tilt:2deg"><img src="assets/guide/ja-sleep.jpg" alt="おやすみモード" loading="lazy" width="520" height="1126"></figure><figure class="phone" style="--tilt:-3deg"><img src="assets/guide/ja-closed.jpg" alt="パネルを閉じたところ" loading="lazy" width="520" height="1126"></figure></div>
   </section>
+  <section class="feature" id="night-ja" style="--c: var(--night)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></span>
+      <h2>寝かしつけの、心強い味方</h2>
+      <p class="lead">時計のボタンの「おやすみタイマー」を決めると、波の音がだんだん小さくなって、静かに止まります。眠ったあとに音が鳴りつづけません。</p>
+      <ul class="steps">
+          <li>15分・30分・1時間・1時間半から選べます。後ろの半分で、ゆっくり小さくなります。</li>
+          <li>小さくなりはじめたら、クジラは来ません。止まったあとは、画面をタップすると、また流れます。</li>
+          <li>右上の「真っ暗画面」のボタンで、音はそのままに画面だけ真っ暗にできます。タップでもどります。夜の部屋がまぶしくならず、電池ももちます。</li>
+        </ul>
+    </div>
+    <div class="shots"><figure class="phone" style="--tilt:-2deg"><img src="assets/guide/ja-sleeptimer.jpg" alt="おやすみタイマー" loading="lazy" width="520" height="1126"></figure></div>
+  </section>
   <section class="feature wide" id="help-ja" style="--c: var(--sea)">
     <div class="feature-text">
       <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01"/></svg></span>
       <h2>こまったときは</h2>
     </div>
-    <div class="faq"><details><summary>音が出ない</summary><p>マナーモードを切って、音量を上げてみてね。おやすみモードのときは、クジラの声は鳴りません。</p></details><details><summary>しばらくすると止まる</summary><p>画面が消えると止まります。スマホの自動ロックを長めにするか、充電しながら使ってね。</p></details><details><summary>クジラが来ない</summary><p>30〜90分に1回くらいです。待てないときは「呼ぶ」か、時計のボタンで「多め」に。</p></details><details><summary>図鑑や写真は、どこにあるの?</summary><p>このスマホのブラウザの中だけに保存されています。どこにも送っていません。</p></details></div>
+    <div class="faq"><details><summary>音が出ない</summary><p>マナーモードを切って、音量を上げてみてね。おやすみモードのときは、クジラの声は鳴りません。</p></details><details><summary>しばらくすると止まる</summary><p>画面が消えると止まります。おやすみタイマーを決めているあいだは、画面がつけたままになります(できる端末のみ)。画面の光が気になるときは「真っ暗画面」を使ってね。</p></details><details><summary>クジラが来ない</summary><p>30〜90分に1回くらいです。待てないときは「呼ぶ」か、時計のボタンで「多め」に。</p></details><details><summary>図鑑や写真は、どこにあるの?</summary><p>このスマホのブラウザの中だけに保存されています。どこにも送っていません。</p></details></div>
   </section>
   <footer class="foot">
     <a class="btn" href="./">さぁ、クジラたちに会いにいこう</a>
@@ -238,7 +253,7 @@
     </div>
     <div class="hero-shot"><figure class="phone" style="--tilt:4deg"><img src="assets/guide/en-closed.jpg" alt="The sea and a whale" loading="lazy" width="520" height="1126"></figure></div>
   </header>
-  <nav class="toc" aria-label="Contents"><a href="#start-en">Start</a><a href="#panel-en">Panel</a><a href="#whales-en">Whales</a><a href="#book-en">Photos & Book</a><a href="#share-en">Share</a><a href="#timer-en">Timer</a><a href="#sleep-en">Sleep</a><a href="#help-en">Help</a></nav>
+  <nav class="toc" aria-label="Contents"><a href="#start-en">Start</a><a href="#panel-en">Panel</a><a href="#whales-en">Whales</a><a href="#book-en">Photos & Book</a><a href="#share-en">Share</a><a href="#timer-en">Timer</a><a href="#sleep-en">Sleep</a><a href="#night-en">Bedtime</a><a href="#help-en">Help</a></nav>
   
   <section class="feature" id="start-en" style="--c: var(--sun)">
     <div class="feature-text">
@@ -264,7 +279,7 @@
           <div><dt>Book</dt><dd>Your record of whales you have met</dd></div>
           <div><dt>Shutter</dt><dd>Take a photo of the sea right now</dd></div>
           <div><dt>Call</dt><dd>A whale comes right away (not counted in your Book)</dd></div>
-          <div><dt>Top right</dt><dd>Full screen, timer, volume and sleep mode</dd></div>
+          <div><dt>Top right</dt><dd>Full screen, timers, volume, dark screen and sleep mode</dd></div>
           <div><dt>Language</dt><dd>Switch between Japanese and English</dd></div>
         </dl>
     </div>
@@ -291,6 +306,7 @@
           <li class="cam"><b><svg viewBox="0 0 24 24"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></b>Photograph it to add its full-body portrait</li>
         </ul>
         <p>Tap “Rename” to give it any name you like. Look for all 24, from a pure white whale to one covered in barnacles.</p>
+        <p class="tip-box">Changing phones? Use “Backup” at the bottom of the Book to save your whales and photos to a file, then “Load from a file” on the new phone.</p>
     </div>
     <div class="shots"><figure class="phone" style="--tilt:-2deg"><img src="assets/guide/en-book.jpg" alt="Whale Book list" loading="lazy" width="520" height="1126"></figure><figure class="phone" style="--tilt:3deg"><img src="assets/guide/en-whale.jpg" alt="A whale’s page" loading="lazy" width="520" height="1126"></figure></div>
   </section>
@@ -331,12 +347,25 @@
     </div>
     <div class="shots"><figure class="phone" style="--tilt:2deg"><img src="assets/guide/en-sleep.jpg" alt="Sleep mode" loading="lazy" width="520" height="1126"></figure><figure class="phone" style="--tilt:-3deg"><img src="assets/guide/en-closed.jpg" alt="Panel closed" loading="lazy" width="520" height="1126"></figure></div>
   </section>
+  <section class="feature" id="night-en" style="--c: var(--night)">
+    <div class="feature-text">
+      <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></span>
+      <h2>Bedtime helpers</h2>
+      <p class="lead">Set the “Sleep timer” under the clock button and the waves slowly fade out, then stop, so nothing keeps playing after your little one drifts off.</p>
+      <ul class="steps">
+          <li>Choose 15 min, 30 min, 1 h or 1.5 h. The second half fades out gently.</li>
+          <li>No whales come once the fade begins. When it stops, tap the screen to start the waves again.</li>
+          <li>The dark-screen button at the top right turns the screen black while the sound keeps playing. Tap to come back. No glow in the bedroom, and it saves battery.</li>
+        </ul>
+    </div>
+    <div class="shots"><figure class="phone" style="--tilt:-2deg"><img src="assets/guide/en-sleeptimer.jpg" alt="Sleep timer" loading="lazy" width="520" height="1126"></figure></div>
+  </section>
   <section class="feature wide" id="help-en" style="--c: var(--sea)">
     <div class="feature-text">
       <span class="badge" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01"/></svg></span>
       <h2>If something seems off</h2>
     </div>
-    <div class="faq"><details><summary>No sound</summary><p>Turn off silent mode and turn up the volume. In sleep mode, whale calls do not play.</p></details><details><summary>It stops after a while</summary><p>It pauses when the screen sleeps. Set a longer auto-lock or keep the phone charging.</p></details><details><summary>No whales come</summary><p>They come about once every 30–90 minutes. Tap “Call”, or choose “More” under the clock button.</p></details><details><summary>Where are my Book and photos?</summary><p>Only in this browser on this device. Nothing is sent anywhere.</p></details></div>
+    <div class="faq"><details><summary>No sound</summary><p>Turn off silent mode and turn up the volume. In sleep mode, whale calls do not play.</p></details><details><summary>It stops after a while</summary><p>It pauses when the screen sleeps. While a sleep timer is set, the screen stays on (on supported devices). If the light bothers you, use the dark screen.</p></details><details><summary>No whales come</summary><p>They come about once every 30–90 minutes. Tap “Call”, or choose “More” under the clock button.</p></details><details><summary>Where are my Book and photos?</summary><p>Only in this browser on this device. Nothing is sent anywhere.</p></details></div>
   </section>
   <footer class="foot">
     <a class="btn" href="./">Let’s go meet the whales</a>

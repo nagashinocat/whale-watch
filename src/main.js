@@ -18,13 +18,16 @@ import { AUDIO, INTERVALS } from './logic/config.js';
 import { loadBook, saveBook, nextVisitor, recordSighting, recordPhoto, bookEntries, setNickname, displayName, population, FLUKE_ID } from './logic/flukeId.js';
 import { traitsText } from './logic/traits.js';
 import { sightingMessage, countsForZukan } from './logic/zukan.js';
-import { TIMER, timerState, loadTimer, saveTimer, clockText } from './logic/timer.js';
+import { TIMER, timerState, loadTimer, saveTimer, clockText, remainingText } from './logic/timer.js';
 import { PHOTOS } from './logic/photos.js';
 import { createZukan } from './ui/zukan.js';
 import { createPhotoStore } from './ui/photoStore.js';
 import { portraitOf } from './scene/portrait.js';
 import { PLUS, loadPlus, savePlus, usableInterval, pickableWhales } from './logic/plus.js';
 import { patternLabel } from './logic/patterns.js';
+import { SLEEP_TIMER, sleepTimerFor, sleepPhase, fadeLevel } from './logic/sleepTimer.js';
+import { loadHints, markHint, nextHint, HINT_TEXT } from './logic/hints.js';
+import { makeBackup, parseBackup, mergeBooks, newPhotos, backupFileName } from './logic/backup.js';
 
 // メニューに表示する素材のクレジット(assets/CREDITS.md と合わせる)
 const CREDITS = [
@@ -55,6 +58,7 @@ const ocean = createOcean(document.getElementById('sea'));
 const scheduler = createScheduler({ now: Date.now(), intervalScale: FAST ? 1 / 30 : 1, frequency: settings.interval });
 
 let mixer = null;
+let audioCtx = null;
 const effects = createEffects(ocean.scene);
 ocean.addUpdater(effects.update);
 // 潜ったクジラの足あと(海面のなめらかな跡)
@@ -259,6 +263,8 @@ const menu = createMenu(document.getElementById('ui'), {
   async onStart() {
     const Ctx = window.AudioContext || window.webkitAudioContext;
     const ctx = new Ctx();
+    audioCtx = ctx;
+    setTimeout(() => showHint(false), 1500);   // はじめての人には「海をタップすると…」
     await ctx.resume();
     // iPhone などでは、電話や通知、ほかのアプリに切りかえたあと、音が止まったままになることがある。
     // 画面をさわったときと、画面にもどってきたときに、音をもう一度動かす
@@ -306,18 +312,41 @@ const menu = createMenu(document.getElementById('ui'), {
   onTimerSet(at) {
     timer = { at };
     saveTimer(safeStorage(), timer);
-    scheduler.setQuiet(true, Date.now());   // タイマーのあいだは、ほかのクジラは自然には出てこない
+    updateQuiet();   // タイマーのあいだは、ほかのクジラは自然には出てこない
     menu.setTimer(at);
-    keepScreenOn(true);
+    refreshScreen();
     menu.showToast(tr({ ja: `${clockText(at)}に、クジラが鳴きながら知らせに来ます`, en: `At ${clockText(at)}, a whale will come calling to let you know` }));
   },
   onTimerCancel() {
     timer = null;
-    scheduler.setQuiet(false, Date.now());
+    updateQuiet();
     saveTimer(safeStorage(), null);
     menu.setTimer(null);
-    keepScreenOn(false);
+    refreshScreen();
   },
+  // おやすみタイマー: 決めた時間をかけて、だんだん小さくして止める
+  onSleepTimer(minutes) {
+    sleepT = sleepTimerFor(minutes, Date.now());
+    mixer?.setFade(1, 1000);
+    menu.setSleepTimer(sleepText());
+    updateQuiet();
+    refreshScreen();
+    menu.showToast(tr({ ja: `${clockText(sleepT.end)}に、波の音が静かに止まります。画面を真っ暗にするボタンもどうぞ`, en: `The waves will fade out and stop at ${clockText(sleepT.end)}. Try the dark-screen button too.` }));
+  },
+  onSleepCancel() {
+    sleepT = null;
+    mixer?.setFade(1, 2000);
+    menu.setSleepTimer(null);
+    updateQuiet();
+    refreshScreen();
+  },
+  onWake() { wakeFromRest(); },
+  // 画面を真っ暗にする(音はそのまま)
+  onDark(on) {
+    menu.setDark(on);
+    ocean.setEco(on || resting);
+  },
+  onMenuShown() { showHint(true); },
   onAlarmStop() {
     stopAlarm();
   },
@@ -406,6 +435,46 @@ function showBook() {
 const nameOf = id => (book[id]?.count > 0 ? displayName(id, book) : tr({ ja: 'まだ図鑑にいないクジラ', en: 'a whale not yet in your Book' }));
 const zukan = createZukan(document.getElementById('ui'), {
   photos,
+  // 図鑑と写真を1つのファイルに書き出す。共有のシートが使えれば「ファイルに保存」などを選べる
+  async onBackup() {
+    const data = makeBackup({ book, photos: (await photos.list()).map(p => ({ ...p, src: photos.url(p) })) });
+    const name = backupFileName();
+    const file = new File([JSON.stringify(data)], name, { type: 'application/json' });
+    try {
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: name });
+        return tr({ ja: '書き出しました。新しい端末では「ファイルから読み込む」でもどせます', en: 'Saved. On a new device, use “Load from a file” to restore.' });
+      }
+    } catch (e) {
+      if (e?.name === 'AbortError') return '';
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file);
+    a.download = name;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+    return tr({ ja: `「${name}」を保存しました。新しい端末では「ファイルから読み込む」でもどせます`, en: `Saved “${name}”. On a new device, use “Load from a file” to restore.` });
+  },
+  // 書き出したファイルを読み込んで、いまの図鑑と合わせる
+  async onRestore(file) {
+    let data;
+    try { data = parseBackup(await file.text()); } catch (e) {
+      return e?.reason === 'notBackup'
+        ? tr({ ja: 'このアプリのバックアップのファイルではないようです', en: 'This doesn\'t look like a Whale Ocean backup file.' })
+        : tr({ ja: 'ファイルを読めませんでした', en: 'Could not read the file.' });
+    }
+    const before = bookEntries(book).length;
+    book = mergeBooks(book, data.book);
+    saveBook(safeStorage(), book);
+    const fresh = newPhotos(await photos.list(), data.photos).sort((x, y) => x.time - y.time);
+    for (const p of fresh) await photos.add(p);
+    showBook();
+    zukan.refresh();
+    const added = bookEntries(book).length - before;
+    return tr({ ja: `読み込みました(図鑑に${added}頭ふえて、写真が${fresh.length}枚ふえました)`, en: `Loaded: ${added} more whale${added === 1 ? '' : 's'} and ${fresh.length} more photo${fresh.length === 1 ? '' : 's'}.` });
+  },
   portrait: portraitOf,
   nameOf,
   onRename(id, name) {
@@ -448,7 +517,22 @@ ocean.start();
 // 一度開いたら電波がなくても動くように、アプリのファイルを端末にとっておく(sw.js)。
 // 動作確認のページと、https でないところでは使わない
 if ('serviceWorker' in navigator && !DEBUG && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-  navigator.serviceWorker.register('sw.js').catch(() => { /* 使えなくても、ふつうに動く */ });
+  // 新しい版がとどいたら「タップで更新」を出す。押したら新しい版に切りかえて、読みなおす
+  let updating = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (updating) location.reload(); });
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    const offer = w => {
+      if (!w || !navigator.serviceWorker.controller) return;   // はじめて開いたときは出さない
+      menu.showUpdate(() => { updating = true; w.postMessage('skipWaiting'); });
+    };
+    if (reg.waiting) offer(reg.waiting);
+    reg.addEventListener('updatefound', () => {
+      const w = reg.installing;
+      w?.addEventListener('statechange', () => { if (w.state === 'installed') offer(w); });
+    });
+    // 開きっぱなしでも、ときどき新しい版がないか見る
+    setInterval(() => reg.update().catch(() => {}), 60 * 60 * 1000);
+  }).catch(() => { /* 使えなくても、ふつうに動く */ });
 }
 
 // 出番係は描画と独立して動かす(画面が隠れていても音のクジラは来る)
@@ -465,7 +549,62 @@ setInterval(updateTime, 10 * 1000);
 let timer = loadTimer(safeStorage());
 let alarmStop = null, alarmTimer = null;
 menu.setTimer(timer?.at ?? null);
-if (timer) scheduler.setQuiet(true, Date.now());
+
+// ---- おやすみタイマー ----
+let sleepT = null;     // { start, end }
+let resting = false;   // 止まって「おやすみなさい」を出しているあいだ
+// 自然にクジラを出さないとき: タイマーのあいだと、おやすみタイマーで小さくなりはじめてから
+function updateQuiet(now = Date.now()) {
+  const p = sleepPhase(now, sleepT);
+  scheduler.setQuiet(!!timer || resting || p === 'fading' || p === 'done', now);
+}
+// 画面をつけたままにしてほしいとき(消えると音が止まるので)
+const screenWanted = () => !!timer || (!!sleepT && !resting);
+const refreshScreen = () => keepScreenOn(screenWanted());
+const sleepText = () => (sleepT ? tr({ ja: `${clockText(sleepT.end)}に止まります(${remainingText(sleepT.end - Date.now())})`, en: `Stops at ${clockText(sleepT.end)} (${remainingText(sleepT.end - Date.now())})` }) : null);
+function finishSleep() {
+  sleepT = null;
+  resting = true;
+  mixer?.setFade(0, 1500);
+  menu.setSleepTimer(null);
+  menu.setDark(false);
+  menu.setResting(true);
+  ocean.setEco(true);
+  updateQuiet();
+  refreshScreen();   // 画面は消えてもよい
+  // 音を止めて、電池を節約する(タイマーの知らせを待っているときは、止めない)
+  setTimeout(() => { if (resting && !timer) audioCtx?.suspend().catch(() => {}); }, 2000);
+}
+function wakeFromRest() {
+  if (!resting) return;
+  resting = false;
+  menu.setResting(false);
+  ocean.setEco(false);
+  audioCtx?.resume().catch(() => {});
+  mixer?.setFade(1, SLEEP_TIMER.wakeFadeMs);
+  updateQuiet();
+  refreshScreen();
+}
+setInterval(() => {
+  if (!sleepT) return;
+  const now = Date.now();
+  if (sleepPhase(now, sleepT) === 'done') { finishSleep(); return; }
+  mixer?.setFade(fadeLevel(now, sleepT), 1100);
+  menu.setSleepTimer(sleepText());
+  updateQuiet(now);
+}, 1000);
+updateQuiet();
+
+// ---- はじめての案内 ----
+const hints = loadHints(safeStorage());
+function showHint(panelOpen) {
+  const step = nextHint(hints, panelOpen);
+  // パネルを開いたら、「海をタップすると…」はもう出さない
+  if (panelOpen) markHint(safeStorage(), hints, 'tap');
+  if (!step || menu.isOpen() !== panelOpen) return;
+  menu.showHint(HINT_TEXT[step](), panelOpen ? 'panel' : 'center', panelOpen ? 12000 : 10000);
+  if (step === 'panel') markHint(safeStorage(), hints, 'panel');
+}
 
 // タイマーのあいだは、画面が消えないようにたのむ(できない端末では何もしない)
 let wakeLock = null;
@@ -482,7 +621,7 @@ async function keepScreenOn(on) {
     wakeLock = null;
   }
 }
-document.addEventListener('visibilitychange', () => { if (!document.hidden && timer) keepScreenOn(true); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && screenWanted()) keepScreenOn(true); });
 if (timer) keepScreenOn(true);
 
 function stopAlarm() {
@@ -494,10 +633,11 @@ function stopAlarm() {
 
 function ringTimer(at) {
   timer = null;
-  scheduler.setQuiet(false, Date.now());
+  wakeFromRest();   // おやすみタイマーで止まっていても、知らせは鳴らす
+  updateQuiet();
   saveTimer(safeStorage(), null);
   menu.setTimer(null);
-  keepScreenOn(false);
+  refreshScreen();
   stopAlarm();
   // 知らせに来るクジラを先に決めて、その子の名前で知らせる
   timerVisitor = forcedVisitor ?? nextVisitor(book);
@@ -518,10 +658,10 @@ setInterval(() => {
   else if (state === 'missed') {
     menu.showToast(tr({ ja: `タイマーの時間(${clockText(timer.at)})を過ぎていました`, en: `The timer (${clockText(timer.at)}) went off while the page was asleep` }));
     timer = null;
-    scheduler.setQuiet(false, now);
+    updateQuiet(now);
     saveTimer(safeStorage(), null);
     menu.setTimer(null);
-    keepScreenOn(false);
+    refreshScreen();
   } else menu.setTimer(timer.at);   // 残り時間の表示を新しくする
 }, 1000);
 

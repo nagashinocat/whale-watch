@@ -89,9 +89,13 @@ export function createMixer(ctx, buffers, { waveAhead = WAVE_LOOP.ahead } = {}) 
   let camera = 'cliff';
   let started = false;
 
+  // おやすみタイマーで全体をだんだん小さくするための出口(タイマーの知らせの音は通さない)
+  const out = ctx.createGain();
+  out.gain.value = 1;
+  out.connect(ctx.destination);
   const waveBus = ctx.createGain();
   waveBus.gain.value = 0;
-  waveBus.connect(ctx.destination);
+  waveBus.connect(out);
 
   // クジラの音は必ずコンプレッサー(リミッター)を通す
   const limiter = ctx.createDynamicsCompressor();
@@ -99,10 +103,15 @@ export function createMixer(ctx, buffers, { waveAhead = WAVE_LOOP.ahead } = {}) 
   limiter.ratio.value = 12;
   limiter.attack.value = 0.003;
   limiter.release.value = 0.25;
-  limiter.connect(ctx.destination);
+  limiter.connect(out);
   const whaleBus = ctx.createGain();
   whaleBus.gain.value = 0;
   whaleBus.connect(limiter);
+  // タイマーの知らせは、おやすみタイマーで小さくした出口を通さない(別のリミッターから直接鳴らす)
+  const alarmLimiter = ctx.createDynamicsCompressor();
+  alarmLimiter.threshold.value = -24;
+  alarmLimiter.ratio.value = 12;
+  alarmLimiter.connect(ctx.destination);
 
   const waveGains = {};
   let listenerAt = [0, 0, 0];
@@ -165,7 +174,7 @@ export function createMixer(ctx, buffers, { waveAhead = WAVE_LOOP.ahead } = {}) 
     if (!buffer) return () => {};
     const bus = ctx.createGain();
     bus.gain.value = Math.max(0.3, waveTargetGain(volume)) * 0.9;
-    bus.connect(limiter);
+    bus.connect(alarmLimiter);
     const now = ctx.currentTime + 0.05;
     const sources = [];
     for (let t = 0; t < ringMs / 1000; t += everyMs / 1000) {
@@ -206,6 +215,11 @@ export function createMixer(ctx, buffers, { waveAhead = WAVE_LOOP.ahead } = {}) 
     setMode(m) {
       mode = m;
       if (started) applyLevels();
+    },
+
+    // 全体の大きさの倍率(0〜1)。ms かけて変える
+    setFade(level, ms = 1000) {
+      rampTo(out.gain, ctx, Math.max(0, Math.min(1, level)), ms);
     },
 
     setVolume(v) {

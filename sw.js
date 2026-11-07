@@ -1,6 +1,6 @@
 // このファイルは tools/build_sw.py で作る(手で書きかえない)
 // 一度開いたら、電波がなくても動くように、アプリのファイルを端末にとっておく
-const VERSION = '0e7f9e35412e';
+const VERSION = '188a5a93190a';
 const APP = `whale-ocean-${VERSION}`;
 const EXTRA = 'whale-ocean-extra';   // 文字の形など、あとから読みこんだもの
 const FILES = [
@@ -15,6 +15,7 @@ const FILES = [
   "assets/guide/en-closed.jpg",
   "assets/guide/en-panel.jpg",
   "assets/guide/en-sleep.jpg",
+  "assets/guide/en-sleeptimer.jpg",
   "assets/guide/en-start.jpg",
   "assets/guide/en-timer.jpg",
   "assets/guide/en-whale.jpg",
@@ -24,12 +25,14 @@ const FILES = [
   "assets/guide/ja-closed.jpg",
   "assets/guide/ja-panel.jpg",
   "assets/guide/ja-sleep.jpg",
+  "assets/guide/ja-sleeptimer.jpg",
   "assets/guide/ja-start.jpg",
   "assets/guide/ja-timer.jpg",
   "assets/guide/ja-whale.jpg",
   "assets/guide/scene.jpg",
   "src/audio/mixer.js",
   "src/logic/astro.js",
+  "src/logic/backup.js",
   "src/logic/behavior.js",
   "src/logic/breach.js",
   "src/logic/breathing.js",
@@ -40,6 +43,7 @@ const FILES = [
   "src/logic/flukeId.js",
   "src/logic/foam.js",
   "src/logic/gains.js",
+  "src/logic/hints.js",
   "src/logic/i18n.js",
   "src/logic/impact.js",
   "src/logic/lighting.js",
@@ -53,6 +57,7 @@ const FILES = [
   "src/logic/sky.js",
   "src/logic/skyPalette.js",
   "src/logic/sleep.js",
+  "src/logic/sleepTimer.js",
   "src/logic/spawn.js",
   "src/logic/splash.js",
   "src/logic/time.js",
@@ -107,8 +112,12 @@ self.addEventListener('install', event => {
     await cache.addAll(FILES);
     // 外のファイルは、読めなくてもアプリの準備は続ける
     await Promise.all(CDN.map(u => cache.add(new Request(u, { mode: 'cors' })).catch(() => {})));
-    await self.skipWaiting();
+    // 新しい版は、使っている人が「更新」を押すまで待つ(使っている途中で中身が入れかわらないように)
   })());
+});
+
+self.addEventListener('message', event => {
+  if (event.data === 'skipWaiting') self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {

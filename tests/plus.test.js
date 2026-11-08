@@ -18,10 +18,10 @@ test('プラス: はじめは使えない。使えるようにしたら、保存
   assert.equal(loadPlus({ getItem() { throw new Error('x'); } }, true).unlocked, false);
 });
 
-test('「よく来る」だけがプラス。プラスでないときに保存されていたら「たくさん来る」にする', () => {
-  assert.deepEqual(Object.keys(INTERVALS).filter(k => intervalLocked(k, false)), ['often']);
+test('来る間隔は、どれもだれでも使える(「よく来る」も無料)', () => {
+  assert.deepEqual(Object.keys(INTERVALS).filter(k => intervalLocked(k, false)), []);
   assert.ok(Object.keys(INTERVALS).every(k => !intervalLocked(k, true)));
-  assert.equal(usableInterval('often', false), 'more');
+  assert.equal(usableInterval('often', false), 'often');
   assert.equal(usableInterval('often', true), 'often');
   assert.equal(usableInterval('normal', false), 'normal');
   assert.ok(INTERVALS[PLUS.fallbackInterval]);

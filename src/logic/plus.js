@@ -7,8 +7,9 @@ export const PLUS = Object.freeze({
   storageKey: 'whale-ocean-plus',
   // 支払いの方法が決まるまでは、プラスの項目を画面に出さない(使える状態にしたときだけ出る)
   offered: false,
-  // プラスでないと選べない「クジラが来る間隔」と、そのとき代わりに使う間隔
-  lockedIntervals: Object.freeze(['often']),
+  // プラスでないと選べない「クジラが来る間隔」と、そのとき代わりに使う間隔。
+  // 「よく来る(5〜15分)」は、だれでも使えるようにした(2026-11-08)。いまはプラス限定の間隔はない
+  lockedIntervals: Object.freeze([]),
   fallbackInterval: 'more',
   // えらんで呼んだクジラが来るまで(ふつうの「呼ぶ」の10〜30秒より早い)
   pickDelayMs: Object.freeze([3000, 6000]),

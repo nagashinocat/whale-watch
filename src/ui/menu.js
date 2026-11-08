@@ -139,7 +139,7 @@ export function createMenu(root, handlers) {
         <div class="interval" role="group" aria-label="${T('クジラが来る間隔', 'How often whales come')}">
           <p class="interval-title">${T('クジラが来る間隔', 'How often whales come')}</p>
           <div class="interval-chips">
-            ${Object.entries(INTERVALS).map(([k, v]) => `<button data-interval="${k}" aria-pressed="false"><b>${tr(v.label)}</b><span>${rangeLabel(v)}</span>${k === 'often' ? `<i class="plus-tag" data-plustag>${T('プラス', 'Plus')}</i>` : ''}</button>`).join('')}
+            ${Object.entries(INTERVALS).map(([k, v]) => `<button data-interval="${k}" aria-pressed="false"><b>${tr(v.label)}</b><span>${rangeLabel(v)}</span></button>`).join('')}
           </div>
           <button class="vol-toggle" data-herald aria-pressed="false">${icon('bell', 18)}<span><b>${T('来る前に知らせる', 'Let me know before')}</b><small>${T('使っていないとき、クジラが来る1分前くらいに知らせます。知らせてから5分さわらないと、はじめのページにもどります', 'When you are away, get a heads-up about a minute before a whale comes. If you do not touch the app for 5 minutes after that, it goes back to the start page')}</small></span></button>
         </div>
@@ -163,7 +163,6 @@ export function createMenu(root, handlers) {
         <ul>
           <li><b>${T('えらんで呼ぶ', 'Choose what to see')}</b>${T('大ジャンプ、バブルネット、目が合う…見たい姿を、すぐに呼べます', 'Call up any of 17 behaviors, from full breaches to bubble-nets, right away')}</li>
           <li><b>${T('来てほしいクジラ', 'Pick the whale')}</b>${T('図鑑にのっている、お気に入りの子を呼べます', 'Bring back a favorite whale from your Book')}</li>
-          <li><b>${T('よく来る(5〜15分)', 'Often (5–15 min)')}</b>${T('クジラがいちばんたくさん来る間隔', 'The most frequent whale visits')}</li>
         </ul>
         <p class="plus-price" data-plusprice></p>
         <button class="plus-buy" data-plusbuy>${T('プラスにする', 'Get Plus')}</button>
@@ -523,7 +522,7 @@ export function createMenu(root, handlers) {
   }));
   sleepCancel.addEventListener('click', () => { handlers.onSleepCancel?.(); closeTimerPop(); });
 
-  // ---- プラス: えらんで呼ぶ・来てほしいクジラ・よく来る ----
+  // ---- プラス: えらんで呼ぶ・来てほしいクジラ ----
   const pickOpen = $('[data-pickopen]');
   const pickPop = $('[data-pickpop]');
   const pickWhale = $('[data-pickwhale]');
@@ -578,7 +577,6 @@ export function createMenu(root, handlers) {
   });
   timerCancel.addEventListener('click', () => { handlers.onTimerCancel?.(); closeTimerPop(); });
   root.querySelectorAll('[data-interval]').forEach(b => b.addEventListener('click', () => {
-    if (!plus && b.dataset.interval === 'often') { openPlus(); return; }
     handlers.onInterval?.(b.dataset.interval);
     scheduleHide();
   }));
@@ -767,7 +765,6 @@ export function createMenu(root, handlers) {
       plus = unlocked;
       const show = unlocked || offered;
       pickOpen.hidden = !show;
-      $('[data-interval="often"]').hidden = !show;
       root.querySelectorAll('[data-plustag]').forEach(t => { t.hidden = unlocked; });
       $('[data-plusprice]').textContent = price;
       $('[data-plusprice]').hidden = !price;

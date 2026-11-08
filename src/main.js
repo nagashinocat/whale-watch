@@ -56,7 +56,7 @@ const FAST = params.has('fast') || location.hash === '#debug-fast';
 const adsOn = ADS.enabled || DEBUG;
 
 const settings = loadSettings(safeStorage());
-// 有料の「プラス」が使えるか。使えないのに「よく来る」が保存されていたら、「たくさん来る」にする
+// 有料の「プラス」が使えるか。使えない間隔が保存されていたら、代わりの間隔にする(いまはプラス限定の間隔はない)
 const plus = loadPlus(safeStorage());
 settings.interval = usableInterval(settings.interval, plus.unlocked);
 // クジラ図鑑(尾びれの模様で見分けたクジラの記録)

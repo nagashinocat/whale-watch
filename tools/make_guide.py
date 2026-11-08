@@ -119,8 +119,8 @@ def page(L):
     <div class="feature-text">
       <span class="badge" aria-hidden="true">{ICON['whale']}</span>
       <h2>{T('クジラたちは、気まぐれにやってくる', 'The whales come when they please')}</h2>
-      <p class="lead">{T('ふつうは30〜90分に1回くらい。どんな姿を見せてくれるかは、そのときのお楽しみ。来る間隔は、時計のボタンで「多め(15〜45分)」から「ときどき(1〜3時間)」まで変えられます。',
-        'Usually about once every 30–90 minutes, and you never know what you will see. Use the clock button to change how often, from “More” (15–45 min) to “Rarely” (1–3 h).')}</p>
+      <p class="lead">{T('ふつうは30〜90分に1回くらい。どんな姿を見せてくれるかは、そのときのお楽しみ。来る間隔は、時計のボタンで「よく来る(5〜15分)」から「ときどき(1〜3時間)」まで変えられます。',
+        'Usually about once every 30–90 minutes, and you never know what you will see. Use the clock button to change how often, from “Often” (5–15 min) to “Rarely” (1–3 h).')}</p>
     </div>
     <ul class="chips">{chips}</ul>
     <p class="note">{T('どの動きも、記録計をつけたクジラの研究や図鑑の数値をもとに作っています。', 'Every move is based on figures from tagging studies and field guides.')}</p>

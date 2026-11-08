@@ -31,7 +31,8 @@ function el(tag, { cls, text, attrs } = {}, children = []) {
 // クジラ図鑑(調査ファイルの見た目)。茶色い紙のフォルダーに、1頭ずつの調査書類が入っている。
 // 上の見出しタブで「ファイル一覧」「写真」や、となりの子に切りかえる。
 // handlers: { onRename(id, name) }、photos: 写真の保存場所、portrait(ind): 全身の姿の絵のアドレス、nameOf(id)
-export function createZukan(root, { onRename, onBackup, onRestore, photos, portrait, nameOf, songs = () => ({}), onPlaySong, storage = null }) {
+// gallery: みんなのギャラリー({ ready, canPost(p), isPosted(p), post(p), pageUrl })。ready でなければボタンは出さない
+export function createZukan(root, { onRename, onBackup, onRestore, photos, portrait, nameOf, songs = () => ({}), onPlaySong, storage = null, gallery = null }) {
   const panel = el('section', { cls: 'zk', attrs: { 'aria-label': T('クジラ図鑑', 'Whale Book') } });
   panel.hidden = true;
   const back = el('button', { cls: 'zk-btn', text: T('← ファイル一覧', '← All files') });
@@ -55,7 +56,23 @@ export function createZukan(root, { onRename, onBackup, onRestore, photos, portr
   const save = el('a', { cls: 'full photo-btn', text: T('保存する', 'Save') });
   const del = el('button', { cls: 'full', text: T('消す', 'Delete') });
   const closeViewer = el('button', { cls: 'full', text: T('閉じる', 'Close') });
-  viewer.append(big, caption, el('div', { cls: 'photo-actions' }, [save, del, closeViewer]));
+  const shareBtn = el('button', { cls: 'full', text: T('シェアする', 'Share') });
+  // みんなのギャラリー(A以上の写真だけ)
+  const galleryBtn = el('button', { cls: 'full photo-gallery', text: T('みんなのギャラリーに載せる', 'Post to the gallery') });
+  const galleryNote = el('p', { cls: 'photo-gallery-note' });
+  const galleryLink = el('a', { cls: 'photo-gallery-link', text: T('ギャラリーを見る →', 'See the gallery →'), attrs: { target: '_blank', rel: 'noopener' } });
+  // シェアするとき「ギャラリーにも載せますか?」と聞く
+  const askYes = el('button', { cls: 'full', text: T('載せる', 'Post it') });
+  const askNo = el('button', { cls: 'full', text: T('載せない', 'No thanks') });
+  const ask = el('div', { cls: 'photo-ask' }, [
+    el('p', { text: T('みんなのギャラリーにも載せますか?(写真・点数・クジラに付けた名前が、ほかの人にも見えるページに載ります)',
+      'Also post it to the shared gallery? (The photo, score and your whale names will be visible to everyone.)') }),
+    el('div', { cls: 'photo-actions' }, [askYes, askNo]),
+  ]);
+  ask.hidden = true;
+  const galleryRow = el('div', { cls: 'photo-gallery-row' }, [galleryBtn, galleryLink]);
+  galleryRow.hidden = true;
+  viewer.append(big, caption, galleryRow, galleryNote, ask, el('div', { cls: 'photo-actions' }, [shareBtn, save, del, closeViewer]));
   root.append(panel, viewer);
 
   let entries = [];
@@ -64,7 +81,71 @@ export function createZukan(root, { onRename, onBackup, onRestore, photos, portr
 
   close.addEventListener('click', () => { panel.hidden = true; });
   back.addEventListener('click', () => go({ tab: 'whales', detail: null }));
-  closeViewer.addEventListener('click', () => { viewer.hidden = true; });
+  closeViewer.addEventListener('click', () => { viewer.hidden = true; ask.hidden = true; });
+
+  // ---- みんなのギャラリー ----
+  const canGallery = p => !!(gallery?.ready && p && gallery.canPost(p));
+  function showGalleryState(p) {
+    galleryRow.hidden = !canGallery(p);
+    galleryNote.textContent = '';
+    if (galleryRow.hidden) return;
+    const done = gallery.isPosted(p);
+    galleryBtn.disabled = done;
+    galleryBtn.textContent = done ? T('ギャラリーに載っています ✓', 'In the gallery ✓') : T('みんなのギャラリーに載せる', 'Post to the gallery');
+    galleryLink.href = gallery.pageUrl;
+  }
+  async function postGallery(p) {
+    galleryBtn.disabled = true;
+    galleryBtn.textContent = T('送っています…', 'Posting…');
+    try {
+      await gallery.post(p);
+      galleryNote.textContent = T('みんなのギャラリーに載せました!', 'Posted to the gallery!');
+    } catch {
+      galleryNote.textContent = T('送れませんでした。電波のよいところで、もう一度どうぞ', 'Could not post. Please try again with a better connection.');
+    }
+    if (shown === p) {
+      const msg = galleryNote.textContent;
+      showGalleryState(p);
+      galleryNote.textContent = msg;
+    }
+  }
+  galleryBtn.addEventListener('click', () => {
+    if (!shown || !canGallery(shown)) return;
+    // 載せる前に、何が載るかを確かめてもらう
+    ask.hidden = false;
+    askMode = 'post';
+  });
+  let askMode = 'share';
+  askYes.addEventListener('click', () => {
+    ask.hidden = true;
+    const p = shown;
+    if (askMode === 'share') sharePhoto(p);   // 押した瞬間に共有の画面を出す(少しでも遅れると、スマホが出させてくれない)
+    postGallery(p);
+  });
+  askNo.addEventListener('click', () => {
+    ask.hidden = true;
+    if (askMode === 'share') sharePhoto(shown);
+  });
+  // 撮った写真そのものをシェアする
+  function sharePhoto(p) {
+    if (!p) return;
+    const names = (p.whales ?? []).map(nameOf).filter(Boolean);
+    const text = [p.score ? T(`${p.score.total}点 ${p.score.rank}ランク!`, `${p.score.total} pts, rank ${p.score.rank}!`) : '',
+      names.length ? T(`${names.join('、')}を撮りました`, `I photographed ${names.join(', ')}`) : T('クジラの見える海', 'A sea where whales keep watch'),
+      T('#クジラが見てる', '#WhaleWatch')].filter(Boolean).join(' ');
+    share(shareBtn, () => new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => { const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight; c.getContext('2d').drawImage(img, 0, 0); resolve(c); };
+      img.onerror = reject;
+      img.src = photos.url(p);
+    }), text, `whale-${p.score ? `${p.score.rank}${p.score.total}-` : ''}${p.time}.jpg`);
+  }
+  shareBtn.addEventListener('click', () => {
+    const p = shown;
+    if (!p) return;
+    if (canGallery(p) && !gallery.isPosted(p)) { askMode = 'share'; ask.hidden = false; return; }
+    sharePhoto(p);
+  });
   del.addEventListener('click', async () => {
     if (!shown) return;
     await photos.remove(shown.id);
@@ -84,6 +165,8 @@ export function createZukan(root, { onRename, onBackup, onRestore, photos, portr
       const result = await shareCanvas(canvas, { text, url: pageUrl(), filename });
       if (result === 'fallback') {
         shown = null;
+        galleryRow.hidden = true;
+        shareBtn.hidden = true;
         big.src = canvas.toDataURL('image/jpeg', 0.92);
         caption.textContent = T(`${text} ${pageUrl()} ・ 画像を長押し(パソコンは「保存する」)して保存し、X や Instagram に投稿できます`,
           `${text} ${pageUrl()} · Long-press the image (or use Save) to keep it, then post it to X or Instagram`);
@@ -115,6 +198,9 @@ export function createZukan(root, { onRename, onBackup, onRestore, photos, portr
     save.href = big.src;
     save.download = `whale-${new Date(p.time).toISOString().slice(0, 19).replace(/[:T]/g, '-')}.jpg`;
     del.hidden = false;
+    shareBtn.hidden = false;
+    ask.hidden = true;
+    showGalleryState(p);
     viewer.hidden = false;
   }
 
@@ -454,6 +540,13 @@ export function createZukan(root, { onRename, onBackup, onRestore, photos, portr
       el('p', { cls: 'zk-note', text: T(`撮った写真 ${list.length}枚(${photos.max}枚まで。こえると古いものから消えます)。パネルのシャッターで撮れます`, `${list.length} photos (up to ${photos.max}; the oldest are removed beyond that). Use the shutter on the panel.`) }),
     );
     out.append(bookShareButton());
+    // みんなのギャラリーへの入り口
+    if (gallery?.ready) {
+      out.append(el('p', { cls: 'zk-note' }, [
+        T('A ランク以上の写真は、写真を開いて「みんなのギャラリーに載せる」で、ほかの人にも見てもらえます。', 'Photos ranked A or higher can be posted to the shared gallery from the photo view. '),
+        el('a', { cls: 'zk-gallery-link', text: T('みんなのギャラリーを見る →', 'See the gallery →'), attrs: { href: gallery.pageUrl, target: '_blank', rel: 'noopener' } }),
+      ]));
+    }
     if (list.length) out.append(polaroids(list, 'large'));
   }
 

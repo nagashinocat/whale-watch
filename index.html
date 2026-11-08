@@ -154,9 +154,17 @@
     .photo-view { position: fixed; inset: 0; z-index: 25; display: grid; place-content: center; gap: 10px; padding: 16px;
       background: rgba(0, 0, 0, 0.86); }
     .photo-view[hidden] { display: none; }
-    .photo-view img { max-width: calc(100vw - 32px); max-height: calc(100vh - 140px); border-radius: 10px; }
+    .photo-view img { max-width: calc(100vw - 32px); max-height: calc(100vh - 220px); border-radius: 10px; justify-self: center; }
     .photo-caption { margin: 0; text-align: center; font-size: 13px; color: var(--text); }
-    .photo-actions { display: flex; gap: 8px; justify-content: center; }
+    .photo-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+    .photo-gallery-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
+    .photo-gallery-row[hidden], .photo-ask[hidden] { display: none; }
+    .photo-gallery { border-color: rgba(240, 190, 90, 0.7); background: rgba(240, 190, 90, 0.16); }
+    .photo-gallery-link { color: #ffd98a; font-size: 12px; }
+    .photo-gallery-note { margin: 0; min-height: 0; text-align: center; font-size: 12px; color: #ffd98a; }
+    .photo-gallery-note:empty { display: none; }
+    .photo-ask { max-width: 420px; justify-self: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--glass); }
+    .photo-ask p { margin: 0 0 8px; font-size: 12px; line-height: 1.6; color: var(--text); text-align: center; }
     .photo-btn { display: inline-flex; align-items: center; color: var(--text); text-decoration: none; border: 1px solid var(--line); border-radius: 10px; }
     .debug select { font: inherit; font-size: 12px; color: var(--text); background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line);
       border-radius: 8px; padding: 6px; max-width: 100%; }
@@ -486,6 +494,7 @@
     .zk-polaroids-large .zk-score { width: 40px; height: 40px; right: -10px; top: -10px; border-width: 2.5px; }
     .zk-polaroids-large .zk-score b { font-size: 17px; }
     .zk-polaroids-large .zk-score small { font-size: 9px; }
+    .zk-gallery-link { color: #8a5a12; font-weight: 700; }
     .zk-score-S { --ink: #d1352b; }
     .zk-score-A { --ink: #2f5fa8; }
     .zk-score-B { --ink: #2e8a5f; }

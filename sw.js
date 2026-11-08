@@ -1,6 +1,6 @@
 // このファイルは tools/build_sw.py で作る(手で書きかえない)
 // 一度開いたら、電波がなくても動くように、アプリのファイルを端末にとっておく
-const VERSION = 'be82b371fdb9';
+const VERSION = '8c2ec69bf515';
 const APP = `whale-ocean-${VERSION}`;
 const EXTRA = 'whale-ocean-extra';   // 文字の形など、あとから読みこんだもの
 const FILES = [
@@ -8,6 +8,7 @@ const FILES = [
   "index.html",
   "about.html",
   "guide.html",
+  "gallery.html",
   "manifest.webmanifest",
   "assets/guide/en-alarm.jpg",
   "assets/guide/en-book.jpg",
@@ -46,6 +47,8 @@ const FILES = [
   "src/logic/flukeId.js",
   "src/logic/foam.js",
   "src/logic/gains.js",
+  "src/logic/gallery.js",
+  "src/logic/galleryConfig.js",
   "src/logic/hints.js",
   "src/logic/i18n.js",
   "src/logic/impact.js",
@@ -89,6 +92,7 @@ const FILES = [
   "src/scene/whales.js",
   "src/scene/whitecaps.js",
   "src/ui/flukeCanvas.js",
+  "src/ui/galleryPage.js",
   "src/ui/menu.js",
   "src/ui/migrationMap.js",
   "src/ui/photoStore.js",
@@ -155,6 +159,8 @@ self.addEventListener('fetch', event => {
   const url = new URL(req.url);
   // 紹介広告(A8.net)の画像は、とっておかない(表示した回数が正しく数えられるように、毎回読みこむ)
   if (/(^|[.])a8[.]net$/.test(url.hostname)) return;
+  // みんなのギャラリー(Supabase)の写真と一覧は、いつも新しいものを読む
+  if (/(^|[.])supabase[.]co$/.test(url.hostname)) return;
   // ページそのものは、電波があれば新しいものを、なければとっておいたものを
   if (req.mode === 'navigate') {
     event.respondWith((async () => {

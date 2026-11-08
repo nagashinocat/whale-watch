@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>みんなのクジラ写真館</title>
+<meta name="description" content="「クジラが見てる」で撮られた、点数の高いクジラの写真が並ぶギャラリー。">
+<meta property="og:image" content="assets/icons/og.png">
+<link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=M+PLUS+1+Code:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-top: #0d2236; --bg-bottom: #06111d;
+    --text: #eef3f7; --muted: rgba(238, 243, 247, 0.62); --line: rgba(255, 255, 255, 0.14);
+    --glass: rgba(10, 18, 28, 0.72); --accent: #ffd98a; --paper: #fbf8f1; --ink-text: #2b2a27;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg-bottom); }
+  body { margin: 0; min-height: 100vh; color: var(--text); font-family: 'Zen Kaku Gothic New', 'Hiragino Sans', system-ui, sans-serif;
+    background: radial-gradient(120% 60% at 50% 0%, #1d4664 0%, transparent 60%), linear-gradient(var(--bg-top), var(--bg-bottom)) fixed; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: max(28px, env(safe-area-inset-top)) 16px 48px; }
+  header { text-align: center; margin-bottom: 22px; }
+  .kicker { font-family: 'M PLUS 1 Code', monospace; font-size: 11px; letter-spacing: 0.24em; color: var(--accent); margin: 0 0 8px; }
+  h1 { margin: 0; font-size: clamp(26px, 6vw, 40px); font-weight: 900; letter-spacing: 0.06em; }
+  .lead { margin: 10px auto 0; max-width: 34em; font-size: 14px; line-height: 1.8; color: var(--muted); }
+  .tabs { display: flex; justify-content: center; gap: 8px; margin: 20px 0 6px; flex-wrap: wrap; }
+  .tabs button { font: inherit; font-size: 14px; font-weight: 700; color: var(--text); padding: 8px 16px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--glass); cursor: pointer; }
+  .tabs button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #2a2110; }
+  .demo { margin: 14px auto 0; max-width: 30em; text-align: center; font-size: 12px; color: var(--accent); border: 1px dashed rgba(255, 217, 138, 0.5); border-radius: 10px; padding: 6px 10px; }
+  .demo[hidden], .status[hidden] { display: none; }
+  .status { text-align: center; color: var(--muted); font-size: 14px; margin: 40px 0; }
+  .wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 34px 26px; padding: 26px 8px 0; }
+  .pola { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 10px 10px 12px; border: 0; background: var(--paper); color: var(--ink-text);
+    font: inherit; text-align: left; cursor: pointer; transform: rotate(var(--rot)); box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35); transition: transform 0.2s ease; }
+  .pola:hover, .pola:focus-visible { transform: rotate(0deg) translateY(-4px) scale(1.02); outline: none; }
+  .pola:focus-visible { box-shadow: 0 0 0 3px var(--accent), 0 10px 24px rgba(0, 0, 0, 0.35); }
+  .pola-img { display: block; aspect-ratio: 16 / 10; overflow: hidden; background: #ccd; }
+  .pola-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .pola-name { margin-top: 6px; font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pola-note { font-size: 12px; color: #77705f; }
+  .stamp { position: absolute; right: -12px; top: -12px; width: 48px; height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border: 3px solid var(--ink); border-radius: 50%; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.9), inset 0 0 0 3.5px var(--ink); background: rgba(255, 255, 255, 0.78);
+    color: var(--ink); transform: rotate(var(--tilt, -12deg)); font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; line-height: 1; --ink: #8a8f96; }
+  .stamp b { font-size: 21px; font-weight: 900; }
+  .stamp small { font-size: 10px; font-weight: 700; margin-top: 1px; }
+  .stamp-S { --ink: #d1352b; } .stamp-A { --ink: #2f5fa8; } .stamp-B { --ink: #2e8a5f; }
+  .medal { position: absolute; left: -12px; top: -12px; z-index: 1; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+    font-family: 'M PLUS 1 Code', monospace; font-weight: 700; font-size: 14px; color: #3a2a00; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35); }
+  .medal-1 { background: linear-gradient(135deg, #ffe48a, #e0a526); } .medal-2 { background: linear-gradient(135deg, #f2f4f7, #a9b2bd); } .medal-3 { background: linear-gradient(135deg, #f4c79a, #b9773e); }
+  .viewer { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 16px; background: rgba(2, 8, 14, 0.82); overflow-y: auto; }
+  .viewer[hidden] { display: none; }
+  .view-card { width: min(640px, 100%); background: var(--paper); color: var(--ink-text); padding: 14px 14px 18px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); }
+  .view-photo { position: relative; }
+  .view-photo img { display: block; width: 100%; height: auto; }
+  .view-photo .stamp { right: -10px; top: -14px; width: 64px; height: 64px; } .view-photo .stamp b { font-size: 28px; } .view-photo .stamp small { font-size: 12px; }
+  .view-card h2 { margin: 14px 0 2px; font-size: 20px; }
+  .view-meta { margin: 0 0 12px; font-size: 12px; color: #77705f; }
+  .bar { display: grid; grid-template-columns: 6.5em 1fr 3.5em; align-items: center; gap: 10px; margin: 6px 0; font-size: 13px; }
+  .bar-track { height: 8px; border-radius: 99px; background: #e7e1d3; overflow: hidden; }
+  .bar-fill { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #3f8fd2, #2fb6a0); }
+  .bar-num { font-family: 'M PLUS 1 Code', monospace; text-align: right; color: #5c5649; }
+  .view-notes { margin: 10px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+  .view-notes li { font-size: 12px; padding: 3px 10px; border-radius: 99px; background: #efe8d6; }
+  .view-close { display: block; margin: 16px auto 0; font: inherit; font-size: 14px; padding: 8px 22px; border-radius: 999px; border: 1px solid #cfc6b2; background: #fff; color: var(--ink-text); cursor: pointer; }
+  footer { margin-top: 48px; text-align: center; font-size: 12px; line-height: 1.9; color: var(--muted); }
+  footer a { color: var(--accent); }
+  .app-link { display: inline-block; margin-bottom: 10px; font-size: 14px; font-weight: 700; color: #2a2110 !important; background: var(--accent); padding: 9px 20px; border-radius: 999px; text-decoration: none; }
+  @media (max-width: 480px) { .wall { grid-template-columns: repeat(2, 1fr); gap: 26px 18px; padding: 20px 4px 0; } .pola { padding: 6px 6px 8px; }
+    .pola-name { font-size: 13px; } .stamp { width: 40px; height: 40px; right: -9px; top: -10px; } .stamp b { font-size: 17px; } .medal { width: 26px; height: 26px; font-size: 12px; left: -9px; top: -10px; } }
+  @media (prefers-reduced-motion: reduce) { .pola { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="kicker">WHALE PHOTO GALLERY</p>
+    <h1 data-ja="みんなのクジラ写真館" data-en="Whale Photo Gallery">みんなのクジラ写真館</h1>
+    <p class="lead" data-ja="「クジラが見てる」で撮られた、A ランク以上の写真です。撮った人がえらんだものだけが載っています。名前は、撮った人がクジラに付けた名前です。"
+       data-en="Rank A and up, taken in Whale Watch and shared by the people who took them. Whale names are the ones each photographer chose.">「クジラが見てる」で撮られた、A ランク以上の写真です。撮った人がえらんだものだけが載っています。名前は、撮った人がクジラに付けた名前です。</p>
+    <nav class="tabs" aria-label="並べ方">
+      <button type="button" data-view="best" aria-pressed="true" data-ja="今週のベスト" data-en="Best this week">今週のベスト</button>
+      <button type="button" data-view="s" aria-pressed="false" data-ja="S ランク" data-en="Rank S">S ランク</button>
+      <button type="button" data-view="new" aria-pressed="false" data-ja="新着" data-en="Newest">新着</button>
+    </nav>
+    <p class="demo" data-demo hidden data-ja="いまは見本の写真です。みんなの写真が届くと、ここに並びます" data-en="These are sample photos. Shared photos will appear here.">いまは見本の写真です。みんなの写真が届くと、ここに並びます</p>
+  </header>
+  <p class="status" data-status aria-live="polite"></p>
+  <main class="wall" data-wall></main>
+  <footer>
+    <a class="app-link" href="./" data-ja="アプリで海を見にいく" data-en="Open the app">アプリで海を見にいく</a><br>
+    <span data-ja="写真はアプリの中の海を写したものです。気になる写真は、運営がいつでも消せます。" data-en="All photos are taken inside the app. We can remove any photo at any time.">写真はアプリの中の海を写したものです。気になる写真は、運営がいつでも消せます。</span>
+  </footer>
+</div>
+<div class="viewer" data-viewer hidden role="dialog" aria-modal="true"></div>
+<script type="module" src="./src/ui/galleryPage.js"></script>
+</body>
+</html>

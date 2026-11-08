@@ -13,7 +13,9 @@ import { createScheduler } from './logic/scheduler.js';
 import { COMING, heraldWay, shouldGoBack } from './logic/comingSoon.js';
 import { AWAY, AWAY_MODES, awayPlan, isPhoneLike, setAudioSession, defaultAwayMode, loadAwayMode, saveAwayMode, logAway, readAwayLog, clearAwayLog } from './logic/away.js';
 import { loadSettings, saveSettings } from './logic/settings.js';
-import { tr, listJoin } from './logic/i18n.js';
+import { tr, listJoin, lang } from './logic/i18n.js';
+import { GALLERY, galleryReady, canPost, galleryEntry, imagePath, postRequests, isPosted, markPosted } from './logic/gallery.js';
+import { GALLERY_CONFIG } from './logic/galleryConfig.js';
 import { hoursFor, blendHours } from './logic/time.js';
 import { realSky } from './logic/places.js';
 import { AUDIO, INTERVALS } from './logic/config.js';
@@ -46,6 +48,8 @@ const params = new URLSearchParams(location.search);
 // 確認用: ?debug=1(&fast=1) か、公開ページではアドレスの最後に #debug(#debug-fast)
 // 動作確認用のページでは window.WHALE_DEBUG = true にしてある
 const DEBUG = window.WHALE_DEBUG === true || params.has('debug') || location.hash.startsWith('#debug');
+// 動作確認用のページでは、ギャラリーの置き場がまだなくても、送ったふりをしてボタンの動きを試せる
+const DEBUG_GALLERY = DEBUG;
 const FAST = params.has('fast') || location.hash === '#debug-fast';
 // 広告を出すか(動作確認のページでは、場所と動画を確かめられるように出す)
 const adsOn = ADS.enabled || DEBUG;
@@ -609,8 +613,40 @@ function showBook() {
 
 // 図鑑(メニューのあとに作る。メニューが画面の部品を作りなおすので)
 const nameOf = id => (book[id]?.count > 0 ? displayName(id, book) : tr({ ja: 'まだ図鑑にいないクジラ', en: 'a whale not yet in your Book' }));
+// みんなのギャラリーに写真を送る: 写真を小さくして置き場に置き、点数とクジラの名前を表に書く
+function shrinkPhoto(src, max = GALLERY.imageMax) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob(b => (b ? resolve(b) : reject(new Error('no image'))), 'image/jpeg', GALLERY.quality);
+    };
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+async function postToGallery(p) {
+  if (isPosted(safeStorage(), p)) return;
+  const image = await shrinkPhoto(photos.url(p));
+  const entry = galleryEntry(p, { nickOf: id => book[id]?.nickname ?? '', lang: lang(), path: imagePath() });
+  for (const r of postRequests(GALLERY_CONFIG, entry)) {
+    const res = await fetch(r.url, { method: r.method, headers: r.headers, body: r.body === 'image' ? image : r.body });
+    if (!res.ok) throw new Error(`gallery ${res.status}`);
+  }
+  markPosted(safeStorage(), p.time);
+}
 const zukan = createZukan(document.getElementById('ui'), {
   photos,
+  gallery: {
+    ready: galleryReady(GALLERY_CONFIG) || DEBUG_GALLERY,
+    canPost,
+    isPosted: p => isPosted(safeStorage(), p),
+    post: p => (DEBUG_GALLERY && !galleryReady(GALLERY_CONFIG) ? new Promise(r => setTimeout(() => { markPosted(safeStorage(), p.time); r(); }, 800)) : postToGallery(p)),
+    pageUrl: new URL('gallery.html', location.href).href,
+  },
   storage: safeStorage(),
   songs: () => songs,
   // 図鑑の歌を試し聞き(おやすみモードでも鳴らす。海に出る前は鳴らせない)

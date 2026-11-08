@@ -5,7 +5,7 @@
 import hashlib, json, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-FILES = ['./', 'index.html', 'about.html', 'guide.html', 'manifest.webmanifest']
+FILES = ['./', 'index.html', 'about.html', 'guide.html', 'gallery.html', 'manifest.webmanifest']
 FILES += sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'assets/guide').glob('*.jpg'))
 FILES += sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'src').rglob('*.js'))
 FILES += sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'assets/audio').glob('*.m4a'))
@@ -67,6 +67,8 @@ self.addEventListener('fetch', event => {{
   const url = new URL(req.url);
   // 紹介広告(A8.net)の画像は、とっておかない(表示した回数が正しく数えられるように、毎回読みこむ)
   if (/(^|[.])a8[.]net$/.test(url.hostname)) return;
+  // みんなのギャラリー(Supabase)の写真と一覧は、いつも新しいものを読む
+  if (/(^|[.])supabase[.]co$/.test(url.hostname)) return;
   // ページそのものは、電波があれば新しいものを、なければとっておいたものを
   if (req.mode === 'navigate') {{
     event.respondWith((async () => {{

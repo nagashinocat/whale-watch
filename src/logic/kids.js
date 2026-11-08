@@ -13,9 +13,11 @@ export const KIDS = Object.freeze({
   offsets: Object.freeze([[0, 0], [-10, -30], [10, -30], [-16, -60], [16, -60], [0, -90]]),
 });
 
-// 子供用モードで出る出方: 姿が見えるもの。鳴き声だけ・呼んだクジラ(長い)・寝ているクジラ(動かない)・
-// 目が合う(カメラのすぐ前に来るので、何頭もいると重なる)は出さない
-const LEFT_OUT = ['summon', 'sleeping', 'eyeContact'];
+// 使い方ガイドで「？？？」(会えたときのお楽しみ)にしている、めったにない4つの出方(tools/make_guide.py)
+export const SURPRISE_PATTERNS = Object.freeze(['groupBreach', 'bubbleNet', 'eyeContact', 'bubbleRing']);
+// 子供用モードで出る出方: 姿が見えるもの。鳴き声だけ・呼んだクジラ(長い)・寝ているクジラ(動かない)と、
+// ガイドで「？？？」の4つ(ふつうのモードで会えたときのお楽しみにとっておく)は出さない
+const LEFT_OUT = ['summon', 'sleeping', ...SURPRISE_PATTERNS];
 export const KIDS_PATTERNS = Object.freeze(Object.keys(PATTERNS).filter(n => PATTERNS[n].needs && !LEFT_OUT.includes(n)));
 
 // ランダムな出方。さっき出た2つは続けて出さない

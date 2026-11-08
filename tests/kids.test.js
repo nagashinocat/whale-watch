@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { KIDS, KIDS_PATTERNS, pickKidsPattern, kidsPosition, whalesToRemove, loadKids, saveKids } from '../src/logic/kids.js';
+import { KIDS, KIDS_PATTERNS, SURPRISE_PATTERNS, pickKidsPattern, kidsPosition, whalesToRemove, loadKids, saveKids } from '../src/logic/kids.js';
 import { PATTERNS } from '../src/logic/patterns.js';
 import { CAMERA_PRESETS } from '../src/scene/cameras.js';
 import { isVisibleFrom } from '../src/logic/view.js';
@@ -14,10 +14,10 @@ test('子供用モードで一度に海にいられるクジラは6頭まで', (
   assert.equal(KIDS.maxWhales, 6);
 });
 
-test('子供用モードで出るのは、姿が見える出方だけ(鳴き声だけ・呼んだクジラ・寝ているクジラ・目が合う は出ない)', () => {
+test('子供用モードで出るのは、姿が見える出方だけ(鳴き声だけ・呼んだクジラ・寝ているクジラと、ガイドで「？？？」の4つは出ない)', () => {
   assert.ok(KIDS_PATTERNS.length >= 10);
   for (const n of KIDS_PATTERNS) assert.ok(PATTERNS[n].needs, `${n} は姿が見えない`);
-  for (const n of ['voice', 'summon', 'sleeping', 'eyeContact']) assert.ok(!KIDS_PATTERNS.includes(n), `${n} が入っている`);
+  for (const n of ['voice', 'summon', 'sleeping', 'groupBreach', 'bubbleNet', 'eyeContact', 'bubbleRing']) assert.ok(!KIDS_PATTERNS.includes(n), `${n} が入っている`);
   assert.ok(KIDS_PATTERNS.includes('bigBreach') && KIDS_PATTERNS.includes('spout'));
 });
 
@@ -68,4 +68,16 @@ test('子供用モードかどうかを覚えておく(読めないときは、�
 
 test('大人がもどすときは、長押し(2秒)', () => {
   assert.equal(KIDS.exitHoldMs, 2000);
+});
+
+test('ガイドで「？？？」の出方は、ガイドで名前を出していない4つと同じ', async () => {
+  const { readFileSync } = await import('node:fs');
+  const guide = readFileSync(new URL('../tools/make_guide.py', import.meta.url), 'utf8');
+  const { PATTERN_LABELS } = await import('../src/logic/patterns.js');
+  assert.equal((guide.match(/\('？？？'/g) || []).length, SURPRISE_PATTERNS.length);
+  // 名前を出していない出方 = ？？？ の出方(ガイドの名前は、アプリの名前の最初の部分と同じ)
+  for (const n of SURPRISE_PATTERNS) {
+    const head = PATTERN_LABELS[n].split('(')[0];
+    assert.ok(!guide.includes(`('${head}'`), `${n}(${head})がガイドに名前で出ている`);
+  }
 });

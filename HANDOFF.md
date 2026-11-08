@@ -32,7 +32,9 @@
 
 | ページ | 中身 | 共有の状態 |
 | --- | --- | --- |
-| [お試し版](https://claude.ai/artifact/Ed9aTFLrs67C2f3aLrZhJ2) | 配れるお試し版アプリ。音は .wav だけ(.m4a は配信できないため) | リンクを知っている人はだれでも |
+| [お試し版](https://claude.ai/artifact/ViRHgBfaMVVjURFVAsJbe8) | 配れるお試し版アプリ。音は .wav だけ(.m4a は配信できないため)。11月8日に新しいアカウントで公開しなおした(sw.js は入れていない) | 自分だけ(配るときは「共有」で変える) |
+| [宣伝素材](https://claude.ai/artifact/NFQQT5JCQasJW9tZ54jTmB) | 宣伝の画像17枚・動画2本・投稿文(日本語・英語)を投稿する順に並べたページ。長押しで保存、投稿文はコピーボタン。元は promo/promo-kit.html | 自分だけ |
+| [お試し版(前のアカウント)](https://claude.ai/artifact/Ed9aTFLrs67C2f3aLrZhJ2) | 前のアカウントのお試し版。更新できない | リンクを知っている人はだれでも |
 | [動作確認用のページ](https://claude.ai/artifact/LhtBQegMBC5AfNLbTuhJTH) | 出方をすぐ出すボタン、出すクジラの指定、図鑑を空にする、最初のクジラの案内、ギャラリーへ送ったふり、プラスの切りかえ、音の止め方の記録など | 自分だけ |
 | [使い方ガイド](https://claude.ai/artifact/HRTeenyoMsXbrknzySDC4J) | アプリの使い方、よくある質問、PR の枠 | 自分だけ |
 | [宣伝のデザイン](https://claude.ai/artifact/TbJ4zkKD4DyGrUw2iY9dbU) | X・Instagram 用のプロフィール画像、リリース前の画像(日本語・英語) | 自分だけ |
@@ -55,6 +57,7 @@
 | assets/ | 音・アイコン・ガイドの画像・広告 |
 | guide.html・about.html・gallery.html | 使い方ガイド・このアプリについて・みんなのギャラリー |
 | pages/ | お試し版(trial.html)と動作確認用のページ(debug.html)の HTML |
+| promo/ | 宣伝用の画像・動画・投稿文(PROMO.md)と元データ。promo-kit.html は宣伝素材のページ |
 | HANDOFF.md | この引き継ぎメモ |
 
 **作業の決まり**
@@ -93,7 +96,7 @@
 | 11月6日 | カメラは崖の上・上空・間近の3つ(船の上と浜辺はやめた)。クジラの 3D は計算で作る | 見やすさと、外の素材に頼らないため |
 | 11月6日 | 「呼ぶ」で来たクジラは図鑑に数えない | 自然に会えた喜びを大事にする |
 
-宣伝: X・Instagram 用の画像と文面(日本語・英語)は用意済み。投稿は、子育て中の人が見る夜21〜23時と昼12〜14時がおすすめ。英語の投稿は、アメリカの夜に届く日本時間の朝9〜12時。
+宣伝: X・Instagram 用の画像17枚、宣伝動画2本(30秒・日本語と英語)、投稿文は promo/ にある(使い方と文面は promo/PROMO.md)。投稿は、子育て中の人が見る夜21〜23時と昼12〜14時がおすすめ。英語の投稿は、アメリカの夜に届く日本時間の朝9〜12時。
 
 ## 新しい会話での続け方
 

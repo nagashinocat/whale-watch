@@ -1,0 +1,236 @@
+<title>クジラが見てる 宣伝素材</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* 夜の海の一枚続き: 上に案内、下へ「投稿の流れ」の順に、素材と投稿文を左右に並べる。アプリと同じ夜の色でそろえる(暗い見た目だけ) */
+  :root {
+    color-scheme: dark;
+    --sea: #071a30;       /* 地の色(夜の海) */
+    --deep: #0b2340;      /* 一段明るい面 */
+    --line: #23415f;      /* 区切り */
+    --cream: #fdf6e3;     /* 文字 */
+    --mist: #9fb6cc;      /* 弱い文字 */
+    --amber: #ffd38a;     /* 「見」の色。強調はここだけ */
+    --wave: #9fd3e6;      /* 波の線 */
+    --display: 'M PLUS Rounded 1c', 'Hiragino Maru Gothic ProN', 'Zen Kaku Gothic New', sans-serif;
+    --body: 'Zen Kaku Gothic New', 'Hiragino Sans', 'Noto Sans JP', system-ui, sans-serif;
+    --mono: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  }
+  body { background: var(--sea); color: var(--cream); font-family: var(--body); font-size: 15px; line-height: 1.75; }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--sea); }
+  .wrap { max-width: 1040px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  a { color: var(--wave); }
+  :focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+  .top { padding-block: 40px 28px; display: grid; gap: 18px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand img { width: 56px; height: 56px; border-radius: 14px; }
+  .brand p { margin: 0; font-size: 12px; letter-spacing: 0.3em; color: var(--mist); }
+  h1 { margin: 0; font-family: var(--display); font-weight: 800; font-size: clamp(28px, 6vw, 44px); line-height: 1.2; text-wrap: balance; }
+  h1 em { font-style: normal; color: var(--amber); }
+  .lead { margin: 0; max-width: 62ch; color: var(--mist); }
+  .tips { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+  .tips li { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; font-size: 13.5px; line-height: 1.65; min-width: 0; }
+  .tips b { display: block; color: var(--amber); font-weight: 700; margin-bottom: 2px; }
+  code { font-family: var(--mono); font-size: 0.92em; color: var(--wave); }
+
+  .bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--sea) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .bar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 10px; flex-wrap: wrap; }
+  .bar span { font-size: 13px; color: var(--mist); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+  .seg button { font: inherit; font-size: 14px; font-weight: 700; color: var(--mist); background: none; border: 0; border-radius: 999px; padding: 6px 16px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--amber); color: var(--sea); }
+
+  .stage { padding-block: 36px 8px; display: grid; gap: 20px; }
+  .stage + .stage { border-top: 1px solid var(--line); }
+  .stage-h { display: flex; gap: 14px; align-items: flex-start; }
+  .step { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-family: var(--display); font-weight: 800; color: var(--sea); background: var(--wave); margin-top: 4px; }
+  .when { margin: 0; font-size: 12.5px; letter-spacing: 0.08em; color: var(--wave); }
+  h2 { margin: 0; font-family: var(--display); font-weight: 800; font-size: 24px; line-height: 1.35; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+  h2 small { font-family: var(--body); font-weight: 500; font-size: 14px; color: var(--mist); }
+
+  .item { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; align-items: start; padding: 18px; background: var(--deep); border-radius: 16px; }
+  .item[hidden] { display: none !important; }
+  .item-media { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; min-width: 0; }
+  .m { margin: 0; flex: 1 1 200px; min-width: 0; display: grid; align-content: start; gap: 6px; }
+  .m img, .m video { display: block; width: 100%; max-height: 520px; object-fit: contain; background: var(--sea); border-radius: 10px; -webkit-touch-callout: default; }
+  .m-video video { max-height: 560px; }
+  figcaption { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 12px; color: var(--mist); }
+  .fn { font-family: var(--mono); color: var(--cream); word-break: break-all; }
+  .item-text { min-width: 0; display: grid; gap: 10px; }
+  .item-text.wide { grid-column: 1 / -1; }
+  h3 { margin: 0; font-size: 16px; font-weight: 700; }
+  .post { position: relative; }
+  pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: var(--body); font-size: 14px; line-height: 1.75; padding: 14px 14px 52px; background: var(--sea); border: 1px solid var(--line); border-radius: 10px; }
+  .copy { position: absolute; right: 10px; bottom: 10px; font: inherit; font-size: 13px; font-weight: 700; color: var(--sea); background: var(--amber); border: 0; border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+  .copy.done { background: var(--wave); }
+  .note { margin: 0; font-size: 13px; color: var(--mist); }
+
+  .foot { padding-block: 36px 48px; color: var(--mist); font-size: 13px; }
+  @media (max-width: 720px) { .item { grid-template-columns: minmax(0, 1fr); padding: 14px; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap top">
+  <div class="brand"><img src="images/whale-watch_profile.png" alt=""><p>WHALE WATCH · PROMO KIT</p></div>
+  <h1>クジラが<em>見</em>てる 宣伝素材</h1>
+  <p class="lead">X・Instagram に投稿する画像・動画・投稿文を、投稿する順に並べました。画像と投稿文は日本語と英語があり、上のボタンで切りかえられます。</p>
+  <ul class="tips">
+    <li><b>画像・動画の保存</b>スマホは長押しして「写真に保存」。パソコンは右クリックで「名前を付けて保存」。</li>
+    <li><b>投稿文</b>「文をコピー」で写せます。<code>{アプリのURL}</code> は、公開したアドレスに置きかえてください。</li>
+    <li><b>投稿の時間</b>日本語は夜21〜23時(いちばんおすすめ)と昼12〜14時。英語は日本時間の朝9〜12時(アメリカの夜)。</li>
+  </ul>
+</div>
+
+<div class="bar"><div class="wrap">
+  <span>投稿の流れ 5ステップ</span>
+  <div class="seg" role="group" aria-label="言語">
+    <button type="button" id="lang-ja" data-l="ja" aria-pressed="true">日本語</button>
+    <button type="button" id="lang-en" data-l="en" aria-pressed="false">English</button>
+  </div>
+</div></div>
+
+<main class="wrap">
+<section class="stage"><header class="stage-h"><span class="step">1</span><div><p class="when">公開の1〜2週間前</p><h2>はじめに<small>アカウントの準備</small></h2></div></header><article class="item" data-lang="ja"><div class="item-media"><figure class="m m-img"><img src="images/whale-watch_profile.png" alt="whale-watch_profile.png" loading="lazy"><figcaption><span class="fn">whale-watch_profile.png</span><span>800×800 · 共通</span></figcaption></figure><figure class="m m-img"><img src="images/whale-watch_x-header_ja.png" alt="whale-watch_x-header_ja.png" loading="lazy"><figcaption><span class="fn">whale-watch_x-header_ja.png</span><span>1500×500 · X ヘッダー</span></figcaption></figure></div>
+<div class="item-text"><h3>プロフィール</h3><div class="post"><pre>波の音と、ときどきクジラ。🐋
+ブラウザで開くだけの、海の定点カメラ「クジラが見てる」の公式アカウントです。
+寝かしつけにも、作業のおともにも。インストール不要・無料。</pre><button type="button" class="copy">文をコピー</button></div></div></article><article class="item" data-lang="en"><div class="item-media"><figure class="m m-img"><img src="images/whale-watch_profile.png" alt="whale-watch_profile.png" loading="lazy"><figcaption><span class="fn">whale-watch_profile.png</span><span>800×800 · 共通</span></figcaption></figure><figure class="m m-img"><img src="images/whale-watch_x-header_en.png" alt="whale-watch_x-header_en.png" loading="lazy"><figcaption><span class="fn">whale-watch_x-header_en.png</span><span>1500×500 · X ヘッダー</span></figcaption></figure></div>
+<div class="item-text"><h3>Profile</h3><div class="post"><pre>Ocean waves, and now and then, a whale. 🐋
+The official account of Whale Watch, a calm sea camera that runs in your browser.
+For bedtime, focus, or just a quiet moment. Free, no install.</pre><button type="button" class="copy">文をコピー</button></div></div></article></section><section class="stage"><header class="stage-h"><span class="step">2</span><div><p class="when">公開の1〜2週間前</p><h2>リリース前<small>もうすぐ公開を知らせる</small></h2></div></header><article class="item" data-lang="ja"><div class="item-media"><figure class="m m-img"><img src="images/whale-watch_coming-soon_x-post_ja.png" alt="whale-watch_coming-soon_x-post_ja.png" loading="lazy"><figcaption><span class="fn">whale-watch_coming-soon_x-post_ja.png</span><span>1600×900</span></figcaption></figure></div>
+<div class="item-text"><h3>X の投稿</h3><div class="post"><pre>もうすぐ、クジラが目をさます。🐋
+
+波の音を流しっぱなしにできる、海の定点カメラ「クジラが見てる」を作っています。
+ときどき、クジラがやってきます。いつ、どんな姿で来るかはお楽しみ。
+
+近日公開。ブラウザで開くだけ、無料です。
+#クジラが見てる</pre><button type="button" class="copy">文をコピー</button></div></div></article><article class="item" data-lang="en"><div class="item-media"><figure class="m m-img"><img src="images/whale-watch_coming-soon_x-post_en.png" alt="whale-watch_coming-soon_x-post_en.png" loading="lazy"><figcaption><span class="fn">whale-watch_coming-soon_x-post_en.png</span><span>1600×900</span></figcaption></figure></div>
+<div class="item-text"><h3>X post</h3><div class="post"><pre>Soon, the whale will wake up. 🐋
+
+We&#x27;re making Whale Watch: a calm sea camera you can leave on, with the sound of the waves.
+Now and then, a whale drops by. When, and how? That&#x27;s the surprise.
+
+Coming soon. Free, right in your browser.
+#WhaleWatchApp</pre><button type="button" class="copy">文をコピー</button></div></div></article><article class="item" data-lang="ja"><div class="item-media"><figure class="m m-img"><img src="images/whale-watch_coming-soon_instagram-post_ja.png" alt="whale-watch_coming-soon_instagram-post_ja.png" loading="lazy"><figcaption><span class="fn">whale-watch_coming-soon_instagram-post_ja.png</span><span>1080×1350</span></figcaption></figure></div>
+<div class="item-text"><h3>Instagram の投稿</h3><div class="post"><pre>もうすぐ、クジラが目をさます。🐋
+
+「クジラが見てる」は、波の音を流しっぱなしにできる、海の定点カメラ。
+ときどき、クジラがやってきます。
+潮ふき、ジャンプ、親子のクジラ……いつ、どんな姿で来るかはお楽しみ。
+
+赤ちゃんの寝かしつけにも、作業のおともにも。
+近日公開です。お知らせはこのアカウントで。
+
+#クジラが見てる #クジラ #ザトウクジラ #寝かしつけ #ねんね #子育て #作業用BGM #環境音 #波の音 #癒し</pre><button type="button" class="copy">文をコピー</button></div></div></article><article class="item" data-lang="en"><div class="item-media"><figure class="m m-img"><img src="images/whale-watch_coming-soon_instagram-post_en.png" alt="whale-watch_coming-soon_instagram-post_en.png" loading="lazy"><figcaption><span class="fn">whale-watch_coming-soon_instagram-post_en.png</span><span>1080×1350</span></figcaption></figure></div>
+<div class="item-text"><h3>Instagram post</h3><div class="post"><pre>Soon, the whale will wake up. 🐋
+
+Whale Watch is a calm sea camera you can leave on, with the sound of the waves.
+Now and then, a whale drops by: a blow, a leap, a mother and calf…
+When, and how? That&#x27;s the surprise.
+
+For bedtime, focus, or just a quiet moment.
+Coming soon. Follow along for the launch.
+
+#WhaleWatchApp #whales #humpbackwhale #oceansounds #wavesounds #sleepsounds #babysleep #whitenoise #ambientsound #relaxing</pre><button type="button" class="copy">文をコピー</button></div></div></article><article class="item" data-lang="ja"><div class="item-media"><figure class="m m-img"><img src="images/whale-watch_coming-soon_instagram-story_ja.png" alt="whale-watch_coming-soon_instagram-story_ja.png" loading="lazy"><figcaption><span class="fn">whale-watch_coming-soon_instagram-story_ja.png</span><span>1080×1920</span></figcaption></figure></div>
+<div class="item-text"><h3>Instagram ストーリーズ</h3><div class="post"><pre>もうすぐ、クジラが目をさます。
+近日公開 🐋</pre><button type="button" class="copy">文をコピー</button></div><p class="note">「お知らせを受け取る」のスタンプや、カウントダウンのスタンプを付けると良い</p></div></article><article class="item" data-lang="en"><div class="item-media"><figure class="m m-img"><img src="images/whale-watch_coming-soon_instagram-story_en.png" alt="whale-watch_coming-soon_instagram-story_en.png" loading="lazy"><figcaption><span class="fn">whale-watch_coming-soon_instagram-story_en.png</span><span>1080×1920</span></figcaption></figure></div>
+<div class="item-text"><h3>Instagram story</h3><div class="post"><pre>Soon, the whale will wake up.
+Coming soon 🐋</pre><button type="button" class="copy">文をコピー</button></div></div></article></section><section class="stage"><header class="stage-h"><span class="step">3</span><div><p class="when">公開の3日前ごろ</p><h2>動画<small>動画で先に見せる</small></h2></div></header><article class="item" data-lang="ja"><div class="item-media"><figure class="m m-video"><video src="video/whale-watch-promo.mp4" controls playsinline preload="metadata"></video><figcaption><span class="fn">whale-watch-promo.mp4</span><span>1080×1920 · 30秒 · リール・ストーリーズ・X・TikTok</span></figcaption></figure></div>
+<div class="item-text"><h3>宣伝動画(30秒・音つき)</h3><div class="post"><pre>波の音を、流しっぱなし。
+ときどき、クジラがやってくる。🐋
+
+写真を撮って図鑑をうめたり、おやすみタイマーで寝かしつけたり。
+「クジラが見てる」、もうすぐ公開です。
+
+#クジラが見てる #寝かしつけ #作業用BGM #波の音 #クジラ</pre><button type="button" class="copy">文をコピー</button></div></div></article><article class="item" data-lang="en"><div class="item-media"><figure class="m m-video"><video src="video/whale-watch-promo-en.mp4" controls playsinline preload="metadata"></video><figcaption><span class="fn">whale-watch-promo-en.mp4</span><span>1080×1920 · 30秒 · リール・ストーリーズ・X・TikTok</span></figcaption></figure></div>
+<div class="item-text"><h3>Promo video</h3><div class="post"><pre>Ocean waves, on and on.
+And now and then, a whale drops by. 🐋
+
+Snap a photo and fill your whale book, or let the sleep timer fade the waves out gently.
+Whale Watch is coming soon.
+
+#WhaleWatchApp #oceansounds #sleepsounds #whales</pre><button type="button" class="copy">文をコピー</button></div></div></article></section><section class="stage"><header class="stage-h"><span class="step">4</span><div><p class="when">公開日</p><h2>公開日<small>公開を知らせる(アドレス入り)</small></h2></div></header><article class="item" data-lang="ja"><div class="item-media"><figure class="m m-img"><img src="images/whale-watch_x-post_ja.png" alt="whale-watch_x-post_ja.png" loading="lazy"><figcaption><span class="fn">whale-watch_x-post_ja.png</span><span>1600×900</span></figcaption></figure></div>
+<div class="item-text"><h3>X の投稿</h3><div class="post"><pre>「クジラが見てる」を公開しました!🐋
+
+ブラウザで開くだけの、海の定点カメラ。
+波の音を流しっぱなしにしていると、ときどきクジラがやってきます。
+
+・写真を撮ると点数がつく
+・尾びれの模様で見分けた24頭の図鑑
+・おやすみタイマーで、波の音が静かに止まる
+
+インストール不要・無料 👇
+{アプリのURL}
+#クジラが見てる</pre><button type="button" class="copy">文をコピー</button></div></div></article><article class="item" data-lang="en"><div class="item-media"><figure class="m m-img"><img src="images/whale-watch_x-post_en.png" alt="whale-watch_x-post_en.png" loading="lazy"><figcaption><span class="fn">whale-watch_x-post_en.png</span><span>1600×900</span></figcaption></figure></div>
+<div class="item-text"><h3>X post</h3><div class="post"><pre>Whale Watch is live! 🐋
+
+A calm sea camera that runs in your browser.
+Leave the waves on, and now and then a whale drops by.
+
+・Every photo gets a score
+・A book of 24 whales, each told apart by its fluke
+・A sleep timer that fades the waves out gently
+
+Free, no install 👇
+{アプリのURL}
+#WhaleWatchApp</pre><button type="button" class="copy">文をコピー</button></div></div></article><article class="item" data-lang="ja"><div class="item-media"><figure class="m m-img"><img src="images/whale-watch_instagram-post_ja.png" alt="whale-watch_instagram-post_ja.png" loading="lazy"><figcaption><span class="fn">whale-watch_instagram-post_ja.png</span><span>1枚目 · 1080×1350</span></figcaption></figure><figure class="m m-img"><img src="images/whale-watch_instagram-features_ja.png" alt="whale-watch_instagram-features_ja.png" loading="lazy"><figcaption><span class="fn">whale-watch_instagram-features_ja.png</span><span>2枚目 · 1080×1350</span></figcaption></figure></div>
+<div class="item-text"><h3>Instagram の投稿</h3><div class="post"><pre>「クジラが見てる」を公開しました!🐋
+
+海のむこうから、クジラたちが見守っています。
+ブラウザで開くだけの、海の定点カメラです。
+
+🌊 タップするだけで、波の音を流しっぱなし
+🐋 ときどきクジラがやってくる(いつ、どんな姿かはお楽しみ)
+📸 写真を撮って、個性ゆたかな24頭の図鑑をうめよう
+🌙 おやすみタイマーで、波の音が静かに止まる
+
+インストール不要・無料。プロフィールのリンクからどうぞ。
+
+#クジラが見てる #クジラ #ザトウクジラ #寝かしつけ #ねんね #子育て #赤ちゃんのいる生活 #作業用BGM #環境音 #波の音</pre><button type="button" class="copy">文をコピー</button></div></div></article><article class="item" data-lang="en"><div class="item-media"><figure class="m m-img"><img src="images/whale-watch_instagram-post_en.png" alt="whale-watch_instagram-post_en.png" loading="lazy"><figcaption><span class="fn">whale-watch_instagram-post_en.png</span><span>1枚目 · 1080×1350</span></figcaption></figure><figure class="m m-img"><img src="images/whale-watch_instagram-features_en.png" alt="whale-watch_instagram-features_en.png" loading="lazy"><figcaption><span class="fn">whale-watch_instagram-features_en.png</span><span>2枚目 · 1080×1350</span></figcaption></figure></div>
+<div class="item-text"><h3>Instagram post</h3><div class="post"><pre>Whale Watch is live! 🐋
+
+From across the sea, the whales are watching over you.
+A calm sea camera that runs right in your browser.
+
+🌊 Just tap, and the waves play on and on
+🐋 Now and then, a whale drops by (when, and how? That&#x27;s the surprise)
+📸 Snap photos and collect 24 unique whales
+🌙 The sleep timer fades the waves out gently
+
+Free, no install. Link in bio.
+
+#WhaleWatchApp #whales #humpbackwhale #oceansounds #wavesounds #sleepsounds #babysleep #bedtimeroutine #whitenoise #relaxing</pre><button type="button" class="copy">文をコピー</button></div></div></article><article class="item" data-lang="ja"><div class="item-media"><figure class="m m-img"><img src="images/whale-watch_instagram-story_ja.png" alt="whale-watch_instagram-story_ja.png" loading="lazy"><figcaption><span class="fn">whale-watch_instagram-story_ja.png</span><span>1080×1920 · リンクのスタンプを付ける</span></figcaption></figure></div>
+<div class="item-text"><h3>Instagram ストーリーズ</h3><div class="post"><pre>公開しました!🐋
+ブラウザで、すぐに。</pre><button type="button" class="copy">文をコピー</button></div><p class="note">リンクのスタンプでアプリのアドレスを付ける</p></div></article><article class="item" data-lang="en"><div class="item-media"><figure class="m m-img"><img src="images/whale-watch_instagram-story_en.png" alt="whale-watch_instagram-story_en.png" loading="lazy"><figcaption><span class="fn">whale-watch_instagram-story_en.png</span><span>1080×1920 · リンクのスタンプを付ける</span></figcaption></figure></div>
+<div class="item-text"><h3>Instagram story</h3><div class="post"><pre>Whale Watch is live! 🐋
+Right in your browser.</pre><button type="button" class="copy">文をコピー</button></div></div></article></section><section class="stage"><header class="stage-h"><span class="step">5</span><div><p class="when">公開のあと</p><h2>話題を少しずつ<small>アプリで撮った写真と一緒に</small></h2></div></header>
+<article class="item" data-lang="ja"><div class="item-text wide"><h3>投稿の例</h3><div class="post"><pre>今日のクジラ、94点のSランクでした📸
+写真は「写り方」と「めずらしさ」で100点まん点。
+Aランク以上は、みんなのギャラリーに載せられます。
+#クジラが見てる</pre><button type="button" class="copy">文をコピー</button></div><div class="post"><pre>はじめて開くと、なじみの子「シロ」がジャンプして、写真の撮り方を教えてくれます🐋
+#クジラが見てる</pre><button type="button" class="copy">文をコピー</button></div></div></article>
+<article class="item" data-lang="en"><div class="item-text wide"><p class="note">英語の「公開のあと」の文はまだありません。</p></div></article></section>
+</main>
+<p class="wrap foot">ハッシュタグ: #クジラが見てる / #WhaleWatchApp。投稿したら、最初の1時間は返信できるようにしておくと広がりやすくなります。</p>
+
+<script>
+  const setLang = l => {
+    document.querySelectorAll('.item').forEach(el => { el.hidden = el.dataset.lang !== l; });
+    document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.l === l)));
+    document.querySelectorAll('video').forEach(v => { if (v.closest('[hidden]')) v.pause(); });
+    try { localStorage.setItem('promo-lang', l); } catch (e) {}
+  };
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.l)));
+  let saved = 'ja';
+  try { saved = localStorage.getItem('promo-lang') || 'ja'; } catch (e) {}
+  setLang(saved === 'en' ? 'en' : 'ja');
+
+  document.querySelectorAll('.copy').forEach(btn => btn.addEventListener('click', () => {
+    const pre = btn.parentElement.querySelector('pre');
+    const done = () => { btn.textContent = 'コピーしました'; btn.classList.add('done'); setTimeout(() => { btn.textContent = '文をコピー'; btn.classList.remove('done'); }, 1800); };
+    const fallback = () => { const r = document.createRange(); r.selectNodeContents(pre); const s = getSelection(); s.removeAllRanges(); s.addRange(r); btn.textContent = '選びました。コピーしてください'; };
+    try { navigator.clipboard.writeText(pre.textContent).then(done, fallback); } catch (e) { fallback(); }
+  }));
+</script>

@@ -33,6 +33,7 @@ import { patternLabel } from './logic/patterns.js';
 import { SLEEP_TIMER, sleepTimerFor, sleepPhase, fadeLevel } from './logic/sleepTimer.js';
 import { loadHints, markHint, nextHint, HINT_TEXT } from './logic/hints.js';
 import { tourSteps, tourText, loadTourDone, markTourDone } from './logic/tour.js';
+import { FIRST_WHALE, firstWhaleText, needsFirstWhale, markFirstWhaleDone, nextStage } from './logic/firstWhale.js';
 import { makeBackup, parseBackup, mergeBooks, newPhotos, backupFileName } from './logic/backup.js';
 import { ADS, shouldPlayAd } from './logic/ads.js';
 import { songVersion, seasonKey, loadSongs, recordSong } from './logic/songs.js';
@@ -129,6 +130,8 @@ const whalesReady = createWhales(ocean.scene, {
   visitor(taken = [], { solo = false } = {}) {
     // 動作確認のページで「出すクジラ」を選んでいたら、その子を出す
     if (forcedVisitor && !taken.includes(forcedVisitor)) return forcedVisitor;
+    // 最初のクジラの案内では、なじみの子(シロ)が来る
+    if (firstVisitor && !taken.includes(firstVisitor)) return firstVisitor;
     // プラスで「来てほしいクジラ」を選んで呼んだときは、その子が来る
     if (eventWhale && !taken.includes(eventWhale)) return eventWhale;
     // タイマーで知らせに来るクジラは、先に決めてある(お知らせに名前を出すため)
@@ -244,7 +247,7 @@ async function handleEvent(event) {
   } finally {
     // 動作確認とタイマーは、出番係の順番とは別に出す
     if (event.kind === 'pick') eventWhale = null;
-    if (event.kind !== 'debug' && event.kind !== 'timer') scheduler.endEvent(Date.now());
+    if (event.kind !== 'debug' && event.kind !== 'timer' && event.kind !== 'first') scheduler.endEvent(Date.now());
     refreshSummonButton();
   }
 }
@@ -287,6 +290,12 @@ if (DEBUG) {
     status.textContent = forcedVisitor ? `つぎに出るおとなのザトウクジラは「${pick.selectedOptions[0].text}」です` : 'クジラはおまかせで出ます';
   });
   panel.append(pick);
+  // 最初のクジラ(シロ)の案内を、もう一度ためす
+  const first = document.createElement('button');
+  first.textContent = '最初のクジラの案内';
+  first.addEventListener('pointerdown', e => e.stopPropagation());
+  first.addEventListener('click', () => { startFirstWhale(true); status.textContent = 'シロが来て、ジャンプします'; });
+  panel.append(first);
   // 図鑑を空にする(はじめて見るときのお知らせを、もう一度ためすため)
   const clear = document.createElement('button');
   clear.textContent = '図鑑を空にする';
@@ -561,7 +570,7 @@ const menu = createMenu(document.getElementById('ui'), {
     }
   },
   // 図鑑のクジラに名前を付ける
-  onZukan() { zukan.open(); },
+  onZukan() { zukan.open(); firstEvent('zukan'); },
   onPhoto() { takePhoto(); },
   // パネルを閉じても残る写真のボタンの場所
   // 言語を選びなおしたら、保存してページを読みなおす(画面の文を全部その言語で作りなおすため)
@@ -729,6 +738,7 @@ async function takePhoto() {
       en: `Photo taken${names.length ? ` (with ${listJoin(names)})` : ''}. ${unlocked.length ? `Full-body portrait of ${listJoin(unlocked)} added to your Book. ` : ''}See it under Photos in your Book${saved ? '' : ' (this device can\'t save it, so it will be gone when you close the page)'}`,
     }));
     zukan.refresh();
+    firstEvent('photo', { score });
   } catch {
     menu.showToast(tr({ ja: '写真を撮れませんでした', en: 'Could not take the photo' }));
   }
@@ -890,6 +900,8 @@ const hints = loadHints(safeStorage());
 function startTour() {
   const steps = tourSteps().map(st => ({ ...st, label: tourText(st) }));
   menu.startTour(steps, () => {
+    // ボタンの紹介のあとは、なじみの子(シロ)が来て、写真と図鑑を案内する(はじめての人だけ)
+    startFirstWhale();
     markTourDone(safeStorage());
     markHint(safeStorage(), hints, 'tap');
     markHint(safeStorage(), hints, 'panel');
@@ -898,7 +910,59 @@ function startTour() {
 // はじめてスタートを押したとき: まだ見ていなければチュートリアル、見たことがあれば(前からの人)吹き出しの案内
 function firstGuide() {
   if (!loadTourDone(safeStorage()) && hints.size === 0) startTour();
+  else if (needsFirstWhale(safeStorage(), book)) startFirstWhale();
   else showHint(false);
+}
+
+// ---- 最初のクジラの案内 ----
+// なじみの子(シロ)がすぐに来てジャンプする。吹き出し(画面をふさがない)で、写真の撮り方 → 点数 → 図鑑とタグを案内する
+let firstWhale = null;     // { stage, jumps, score }
+let firstVisitor = null;   // いま来てもらっているシロの番号(visitor で使う)
+function startFirstWhale(force = false) {
+  if (firstWhale || (!force && !needsFirstWhale(safeStorage(), book))) return;
+  firstWhale = { stage: 'arrive', jumps: 0, score: null };
+  showFirst('arrive');
+  setTimeout(firstJump, FIRST_WHALE.startDelayMs);
+}
+function firstJump() {
+  if (!firstWhale) return;
+  const me = firstWhale;
+  me.jumps++;
+  firstVisitor = FIRST_WHALE.id;
+  const ready = setTimeout(() => { if (firstWhale === me) firstEvent('ready'); }, FIRST_WHALE.readyAtMs);
+  handleEvent({ kind: 'first', pattern: FIRST_WHALE.pattern }).finally(() => {
+    clearTimeout(ready);
+    firstVisitor = null;
+    if (firstWhale === me) firstEvent('actEnd');
+  });
+}
+function firstEvent(ev, { score = null } = {}) {
+  if (!firstWhale) return;
+  if (ev === 'photo') firstWhale.score = score;
+  const next = nextStage(firstWhale.stage, ev, { jumps: firstWhale.jumps });
+  if (next === firstWhale.stage) return;
+  firstWhale.stage = next;
+  showFirst(next);
+  if (next === 'again') setTimeout(firstJump, 2500);
+}
+function showFirst(stage) {
+  const name = displayName(FIRST_WHALE.id, book) || 'シロ';
+  const base = { text: firstWhaleText(stage, { name, score: firstWhale?.score }), onSkip: endFirstWhale };
+  const nextBtn = (ja, en) => ({ next: tr({ ja, en }), low: true, onNext: () => firstEvent('next') });
+  if (stage === 'ready') menu.coach({ ...base, target: 'shutter' });
+  else if (stage === 'shot' || stage === 'missed') menu.coach({ ...base, ...nextBtn('つぎへ', 'Next') });
+  else if (stage === 'book') menu.coach({ ...base, target: 'zukan-open' });
+  else if (stage === 'page') {
+    // シロに会えていれば、シロのページを開く(会えていなければ一覧)
+    if (book[FIRST_WHALE.id]?.count > 0) zukan.showWhale(FIRST_WHALE.id); else zukan.open();
+    menu.coach({ ...base, ...nextBtn('つぎへ', 'Next') });
+  } else if (stage === 'done') menu.coach({ ...base, next: tr({ ja: '海にもどる', en: 'Back to the sea' }), onNext: () => { zukan.close(); endFirstWhale(); } });
+  else menu.coach(base);
+}
+function endFirstWhale() {
+  firstWhale = null;
+  markFirstWhaleDone(safeStorage());
+  menu.coach(null);
 }
 function showHint(panelOpen) {
   const step = nextHint(hints, panelOpen);

@@ -23,6 +23,9 @@ export const FLUKE_ID = Object.freeze({
   // 段階の出やすさ(北太平洋は黒っぽいほうが多い)
   categoryWeights: Object.freeze([0.1, 0.15, 0.25, 0.25, 0.25]),
   returnChance: 0.45,
+  // この海のなじみの子(シロ)。いちばんよく来て、はじめての人に写真と図鑑の案内をしてくれる
+  guideId: 11,
+  guideFavor: 0.3,      // 来るクジラを決めるとき、まずこの割合でなじみの子にする
   whiteId: 17,          // 真っ白なクジラの番号   // 図鑑にのっているクジラが、もう一度来る割合
   calvesNamed: false,
 });
@@ -174,6 +177,8 @@ export function nextVisitor(book, rng = Math.random, { solo = false } = {}) {
   // とくべつな子は、図鑑にのったあとも、ふつうの「また来る」では来ない
   const all = population().filter(i => !i.special).map(i => i.id);
   const seen = Object.keys(book ?? {}).map(Number).filter(id => all.includes(id) && book[id]?.count > 0);   // 写真だけのクジラは、まだ会っていない
+  // なじみの子(シロ)は、ほかの子よりよく来る
+  if (all.includes(FLUKE_ID.guideId) && rng() < FLUKE_ID.guideFavor) return FLUKE_ID.guideId;
   if (seen.length && rng() < FLUKE_ID.returnChance) return seen[Math.floor(rng() * seen.length)];
   const fresh = all.filter(id => !seen.includes(id));
   const pool = fresh.length ? fresh : all;

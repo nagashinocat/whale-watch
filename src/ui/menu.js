@@ -230,6 +230,17 @@ export function createMenu(root, handlers) {
         </div>
       </div>
     </div>
+    <div class="coach" data-coach hidden>
+      <div class="coach-ring" data-coachring hidden aria-hidden="true"></div>
+      <div class="coach-card" role="status" aria-live="polite">
+        <span class="coach-whale" aria-hidden="true">🐋</span>
+        <p class="coach-text" data-coachtext></p>
+        <div class="coach-row">
+          <button class="coach-skip" data-coachskip>${T('案内をとばす', 'Skip')}</button>
+          <button class="coach-next" data-coachnext hidden></button>
+        </div>
+      </div>
+    </div>
     <button class="float-shutter" data-floatshutter hidden aria-label="${T('写真を撮る', 'Take a photo')}">${icon('camera', 26)}</button>
     <span class="timer-mark" data-timermark hidden>${icon('clock', 16)}<span data-timermarktext></span></span>
     <div class="alarm" data-alarm hidden role="alert">
@@ -432,6 +443,57 @@ export function createMenu(root, handlers) {
     tourAt++; placeTour(); tourNext.focus();
   });
   tourSkip.addEventListener('click', () => endTour(false));
+
+  // ---- 最初のクジラの案内(コーチ): 画面をふさがない吹き出し。ボタンを光る輪で示す ----
+  const coachBox = $('[data-coach]'), coachRing = $('[data-coachring]'), coachCard = coachBox.querySelector('.coach-card');
+  const coachText = $('[data-coachtext]'), coachNext = $('[data-coachnext]'), coachSkip = $('[data-coachskip]');
+  let coachNow = null, coachTimer = null;
+  // target: 'shutter'(シャッター。パネルを閉じても残るボタンがあればそれ、なければパネルを開いて)・'zukan-open'・null
+  function coachTarget(name) {
+    if (!name) return null;
+    if (name === 'shutter') {
+      if (tourTarget('floatshutter')) return tourTarget('floatshutter');
+      openForCoach();
+      return tourTarget('photo');
+    }
+    openForCoach();
+    return tourTarget(name);
+  }
+  // パネルを開くのは、吹き出しを出したときの1回だけ(自分で閉じたら、また開いたりしない)
+  function openForCoach() {
+    if (coachNow.opened) return;
+    coachNow.opened = true;
+    if (menu.hidden) { menu.hidden = false; showSleepMark(); }
+  }
+  function placeCoach() {
+    if (!coachNow) return;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const cw = Math.min(360, vw - 32);
+    coachCard.style.width = cw + 'px';
+    const el = coachNow.target ? coachTarget(coachNow.target) : null;
+    const ch = coachCard.offsetHeight || 120;
+    if (!el) {
+      coachRing.hidden = true;
+      coachCard.style.left = (vw - cw) / 2 + 'px';
+      coachCard.style.top = (coachNow.low ? vh - ch - Math.max(24, vh * 0.08) : Math.max(100, vh * 0.14)) + 'px';
+      return;
+    }
+    const r = el.getBoundingClientRect(), pad = 6;
+    Object.assign(coachRing.style, { left: r.left - pad + 'px', top: r.top - pad + 'px', width: r.width + pad * 2 + 'px', height: r.height + pad * 2 + 'px',
+      borderRadius: Math.min((parseFloat(getComputedStyle(el).borderTopLeftRadius) || 12) + pad, (r.height + pad * 2) / 2) + 'px' });
+    coachRing.hidden = false;
+    coachCard.style.left = Math.min(Math.max(16, r.left + r.width / 2 - cw / 2), vw - cw - 16) + 'px';
+    const below = r.bottom + pad + 14, above = r.top - pad - 14 - ch;
+    coachCard.style.top = (r.top + r.height / 2 < vh / 2 || above < 16 ? Math.min(below, vh - ch - 16) : above) + 'px';
+  }
+  function hideCoach() {
+    coachNow = null;
+    coachBox.hidden = true;
+    clearInterval(coachTimer);
+    window.removeEventListener('resize', placeCoach);
+  }
+  coachNext.addEventListener('click', () => { const c = coachNow; c?.onNext?.(); });
+  coachSkip.addEventListener('click', () => { const c = coachNow; hideCoach(); c?.onSkip?.(); });
   tour.addEventListener('keydown', e => { if (e.key === 'Escape') endTour(false); });
   $('[data-help]').addEventListener('click', () => handlers.onHelp?.());
   // パネルを閉じて海にもどる(画面が低くて、海をタップする場所がないときも閉じられる)
@@ -609,6 +671,22 @@ export function createMenu(root, handlers) {
       tourNext.focus();
     },
     hasTarget: name => !!tourTarget(name),
+    // 最初のクジラの案内の吹き出し。{ text, target, next(ボタンの文字), low(下に出す), onNext, onSkip }。null で消す
+    coach(c) {
+      if (!c) { hideCoach(); return; }
+      coachNow = c;
+      coachText.textContent = c.text;
+      coachNext.hidden = !c.next;
+      coachNext.textContent = c.next ?? '';
+      coachBox.hidden = false;
+      coachBox.classList.toggle('pulse', !!c.target);
+      placeCoach();
+      // ボタンの位置は、パネルを開いたり閉じたりで動くので、ときどき置きなおす
+      clearInterval(coachTimer);
+      coachTimer = setInterval(placeCoach, 400);
+      window.addEventListener('resize', placeCoach);
+      if (c.next) coachNext.focus({ preventScroll: true });
+    },
     setValues({ mode, camera, volume: v, time, hours = 12, interval = 'normal', shutter = 'center', lang: langChoice = 'auto', whisper = true, hydrophone = false, herald = false }) {
       heraldBtn.setAttribute('aria-pressed', String(herald));
       heraldBtn.classList.toggle('on', herald);

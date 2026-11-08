@@ -584,6 +584,9 @@ export function createZukan(root, { onRename, onBackup, onRestore, photos, portr
   return {
     contains: target => panel.contains(target) || viewer.contains(target),
     open() { panel.hidden = false; render(); },
+    // その子のページを開く(最初のクジラの案内で使う)
+    showWhale(id) { panel.hidden = false; go({ tab: 'whales', detail: id }); },
+    isOpen: () => !panel.hidden,
     // 見たことのあるクジラ(最後に見た順)
     setEntries(list) {
       entries = list;

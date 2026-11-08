@@ -54,13 +54,15 @@
 | tools/ | sw.js やガイドを作る道具、音の加工、ギャラリーのデータ置き場の設定文(gallery_setup.sql) |
 | assets/ | 音・アイコン・ガイドの画像・広告 |
 | guide.html・about.html・gallery.html | 使い方ガイド・このアプリについて・みんなのギャラリー |
+| pages/ | お試し版(trial.html)と動作確認用のページ(debug.html)の HTML |
+| HANDOFF.md | この引き継ぎメモ |
 
 **作業の決まり**
 
 - アプリのファイルを変えたら `python3 tools/build_sw.py` で sw.js(電波がなくても動くためのファイル一覧)を作りなおす。忘れるとテストが失敗する
 - テストは `npm test`。決まりを変えるときは、先にテストを書く
 - ガイドを変えたら `python3 tools/make_guide.py` で guide.html を作りなおす
-- 画面の見た目(CSS)を変えるときは、index.html と、お試し版・動作確認用のページの HTML の3か所をそろえる(お試し版と動作確認用の HTML はアプリのフォルダの外にあった。新しく作るときは index.html の `<style>` をもとにする)
+- 画面の見た目(CSS)を変えるときは、index.html と、お試し版・動作確認用のページの HTML の3か所をそろえる(お試し版と動作確認用のページの HTML は pages/trial.html・pages/debug.html。公開するときはフォルダのいちばん上に置いた形で、`src/` などと一緒に公開する)
 - 元のフォルダは作業用パソコンのホームフォルダも兼ねていたので、.gitignore は「記録してよいファイルだけを書く」形にしている。`git add -A` は使わず、ファイルを名前で追加する
 - 返事はすべて日本語で、専門用語にはひとこと説明を添える(CLAUDE.md にも書いてある)
 

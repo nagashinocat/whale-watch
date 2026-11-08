@@ -957,6 +957,8 @@ function showFirst(stage) {
     if (book[FIRST_WHALE.id]?.count > 0) zukan.showWhale(FIRST_WHALE.id); else zukan.open();
     menu.coach({ ...base, ...nextBtn('つぎへ', 'Next') });
   } else if (stage === 'done') menu.coach({ ...base, next: tr({ ja: '海にもどる', en: 'Back to the sea' }), onNext: () => { zukan.close(); endFirstWhale(); } });
+  // 「やって来ます!」は、すぐにクジラが来るので「案内をとばす」は出さない
+  else if (stage === 'arrive') menu.coach({ ...base, skip: false });
   else menu.coach(base);
 }
 function endFirstWhale() {

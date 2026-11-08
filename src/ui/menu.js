@@ -680,13 +680,14 @@ export function createMenu(root, handlers) {
       tourNext.focus();
     },
     hasTarget: name => !!tourTarget(name),
-    // 最初のクジラの案内の吹き出し。{ text, target, next(ボタンの文字), low(下に出す), onNext, onSkip }。null で消す
+    // 最初のクジラの案内の吹き出し。{ text, target, next(ボタンの文字), low(下に出す), skip(false で「とばす」なし), onNext, onSkip }。null で消す
     coach(c) {
       if (!c) { hideCoach(); return; }
       coachNow = c;
       coachLast = '';
       coachText.textContent = c.text;
       coachNext.hidden = !c.next;
+      coachSkip.hidden = c.skip === false;   // skip: false で「案内をとばす」を出さない
       coachNext.textContent = c.next ?? '';
       coachBox.hidden = false;
       coachBox.classList.toggle('pulse', !!c.target);

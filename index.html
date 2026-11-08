@@ -205,7 +205,8 @@
     .tour-next:focus-visible, .tour-skip:focus-visible { outline: 3px solid #ffd28a; outline-offset: 2px; }
     @media (prefers-reduced-motion: reduce) { .tour-spot, .tour-card { transition: none; } }
     .coach { position: fixed; inset: 0; z-index: 45; pointer-events: none; }
-    .coach[hidden], .coach-ring[hidden], .coach-next[hidden] { display: none; }
+    .coach[hidden], .coach-ring[hidden], .coach-next[hidden], .coach-skip[hidden] { display: none; }
+    .coach-row:not(:has(button:not([hidden]))) { display: none; }
     .coach-ring { position: fixed; box-shadow: 0 0 0 3px #ffd28a, 0 0 18px 6px rgba(255, 210, 138, 0.55); animation: coach-pulse 1.1s ease-in-out infinite; transition: all .25s ease; }
     @keyframes coach-pulse { 50% { box-shadow: 0 0 0 5px #ffd28a, 0 0 30px 12px rgba(255, 210, 138, 0.75); } }
     .coach-card { position: fixed; box-sizing: border-box; display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; padding: 14px 14px 10px;

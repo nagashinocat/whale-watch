@@ -32,7 +32,7 @@ import { PLUS, loadPlus, savePlus, usableInterval, pickableWhales } from './logi
 import { patternLabel } from './logic/patterns.js';
 import { SLEEP_TIMER, sleepTimerFor, sleepPhase, fadeLevel } from './logic/sleepTimer.js';
 import { loadHints, markHint, nextHint, HINT_TEXT } from './logic/hints.js';
-import { tourSteps, tourText, loadTourDone, markTourDone } from './logic/tour.js';
+import { INTRO_STEPS, tourSteps, tourText, tourNextLabel, loadTourDone, markTourDone } from './logic/tour.js';
 import { FIRST_WHALE, firstWhaleText, needsFirstWhale, markFirstWhaleDone, nextStage } from './logic/firstWhale.js';
 import { makeBackup, parseBackup, mergeBooks, newPhotos, backupFileName } from './logic/backup.js';
 import { ADS, shouldPlayAd } from './logic/ads.js';
@@ -910,22 +910,38 @@ if (settings.hydrophone) scheduleDistantSong();
 
 // ---- はじめての案内 ----
 const hints = loadHints(safeStorage());
-// チュートリアル(ボタンの紹介)。見終わったら(とばしても)、もう出さない。前からある吹き出しの案内も、もう出さない
+// はじめての案内は3つ: あいさつ(1枚)→ 最初のクジラ(シロ)→ 便利なボタンの紹介。
+// 見終わったら(とばしても)、もう出さない。前からある吹き出しの案内も、もう出さない
+const stepsFor = list => list.map(st => ({ ...st, label: tourText(st, { interval: settings.interval }), nextLabel: tourNextLabel(st) }));
+function startIntro() {
+  markHint(safeStorage(), hints, 'tap');
+  markHint(safeStorage(), hints, 'panel');
+  menu.startTour(stepsFor(INTRO_STEPS), finished => {
+    if (finished) startFirstWhale();
+    else skipGuide();
+  });
+}
+// ボタンの紹介(パネルの「使い方」からも見られる)
 function startTour() {
-  const steps = tourSteps().map(st => ({ ...st, label: tourText(st) }));
-  menu.startTour(steps, () => {
-    // ボタンの紹介のあとは、なじみの子(シロ)が来て、写真と図鑑を案内する(はじめての人だけ)
-    startFirstWhale();
+  menu.startTour(stepsFor(tourSteps()), () => {
     markTourDone(safeStorage());
     markHint(safeStorage(), hints, 'tap');
     markHint(safeStorage(), hints, 'panel');
   });
 }
-// はじめてスタートを押したとき: まだ見ていなければチュートリアル、見たことがあれば(前からの人)吹き出しの案内
+// 案内をとばしたとき: もう出さない。「使い方」から見られることだけ伝える
+function skipGuide() {
+  markTourDone(safeStorage());
+  markFirstWhaleDone(safeStorage());
+  menu.showToast(tr({ ja: '案内は、パネルの「使い方」からいつでも見られます', en: 'You can see the guide anytime from “How to use” in the panel.' }));
+}
+// はじめてスタートを押したとき: まだ見ていなければ案内、見たことがあれば(前からの人)吹き出しの案内
 function firstGuide() {
   if (kids) return;   // 子供用モードでは、案内は出さない
-  if (!loadTourDone(safeStorage()) && hints.size === 0) startTour();
-  else if (needsFirstWhale(safeStorage(), book)) startFirstWhale();
+  if (!loadTourDone(safeStorage()) && hints.size === 0) {
+    if (needsFirstWhale(safeStorage(), book)) startIntro();
+    else startTour();
+  } else if (needsFirstWhale(safeStorage(), book)) startFirstWhale();
   else showHint(false);
 }
 
@@ -972,15 +988,19 @@ function showFirst(stage) {
     // シロに会えていれば、シロのページを開く(会えていなければ一覧)
     if (book[FIRST_WHALE.id]?.count > 0) zukan.showWhale(FIRST_WHALE.id); else zukan.open();
     menu.coach({ ...base, ...nextBtn('つぎへ', 'Next') });
-  } else if (stage === 'done') menu.coach({ ...base, next: tr({ ja: '海にもどる', en: 'Back to the sea' }), onNext: () => { zukan.close(); endFirstWhale(); } });
+  } else if (stage === 'done') menu.coach({ ...base, next: tr({ ja: 'つぎへ', en: 'Next' }), onNext: () => { zukan.close(); endFirstWhale(true); } });
   // 「やって来ます!」は、すぐにクジラが来るので「案内をとばす」は出さない
   else if (stage === 'arrive') menu.coach({ ...base, skip: false });
   else menu.coach(base);
 }
-function endFirstWhale() {
+// finished: 最後まで見た(このあと、ボタンの紹介に進む)。とばしたときは、ボタンの紹介も出さない
+function endFirstWhale(finished = false) {
   firstWhale = null;
   markFirstWhaleDone(safeStorage());
   menu.coach(null);
+  if (loadTourDone(safeStorage())) return;
+  if (finished === true && !kids) setTimeout(startTour, 700);
+  else markTourDone(safeStorage());
 }
 function showHint(panelOpen) {
   if (kids) return;

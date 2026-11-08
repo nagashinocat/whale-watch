@@ -1,37 +1,55 @@
-// はじめて使う人への、ボタンの紹介(チュートリアル)。画面を暗くして、ボタンを1つずつ明るく照らして説明する。
-// はじめてスタートを押したときに1回だけ出す。パネルの「使い方」から、いつでも見返せる。three.js も画面も使わない(テストからも使う)
-import { tr } from './i18n.js';
+// はじめて使う人への案内(チュートリアル)。three.js も画面も使わない(テストからも使う)
+//   1. あいさつ(INTRO_STEPS): 1枚だけ。「まずはクジラに会ってみましょう」
+//   2. 最初のクジラ(firstWhale.js): なじみの子(シロ)が来てジャンプ。写真 → 点数 → 図鑑とタグを吹き出しで案内
+//   3. ボタンの紹介(TOUR_STEPS): 画面を暗くして、便利なボタンを1つずつ照らす。写真と図鑑は2で見せたので入れない
+// 見終わったら(とばしても)、もう出さない。パネルの「使い方」から、3をいつでも見返せる
+import { tr, lang } from './i18n.js';
+import { INTERVALS, DEFAULTS } from './config.js';
 
 export const TOUR = Object.freeze({ storageKey: 'whale-ocean-tour' });
 
+// 来る間隔の名前と長さ(例: 「よく来る(5〜15分)」)
+function intervalText(name, l) {
+  const v = INTERVALS[name] ?? INTERVALS[DEFAULTS.interval];
+  const hours = v.min % 60 === 0 && v.max % 60 === 0;
+  if (l === 'en') return `“${v.label.en}” (${hours ? `${v.min / 60}–${v.max / 60} h` : `${v.min}–${v.max} min`})`;
+  return `「${v.label.ja}」(${hours ? `${v.min / 60}〜${v.max / 60}時間` : `${v.min}〜${v.max}分`})`;
+}
+
 // target: 照らすボタン(data 属性の名前)。null なら、まん中に説明だけ出す
-// panel: このステップのとき、操作パネルを開いておく
-export const TOUR_STEPS = Object.freeze([
+// panel: このステップのとき、操作パネルを開いておく / next: 「つぎへ」のかわりのボタンの文字
+export const INTRO_STEPS = Object.freeze([
   { id: 'hello', target: null, panel: false,
-    text: { ja: 'ようこそ!ここは、クジラが見守る海です。海をタップすると、操作パネルが出たり消えたりします。ボタンをかんたんに紹介しますね', en: 'Welcome to a sea where whales keep watch. Tap the sea to show or hide the control panel. Here is a quick look at the buttons.' } },
-  { id: 'sky', target: 'skybar', panel: true,
-    text: { ja: '空の時間。太陽を指でなぞると、好きな時刻の空になります。ちょんと押すと朝・昼・夕方・夜に。「自動」は、いまの本物の空です', en: 'Time of day. Drag the sun for any time, or tap for morning, day, evening or night. “Auto” follows the real sky.' } },
-  { id: 'cams', target: 'cams', panel: true,
-    text: { ja: '見る場所。崖の上・上空・間近の3つのカメラから選べます', en: 'Where to watch from: the cliff, the sky, or close up.' } },
-  { id: 'book', target: 'zukan-open', panel: true,
-    text: { ja: '図鑑。会えたクジラが、尾びれの模様で1頭ずつ記録されます。歌や、研究者ごっこもここに', en: 'Your Whale Book. Each whale you meet is recorded by its fluke pattern. Songs and the research game are here too.' } },
-  { id: 'photo', target: 'photo', panel: true,
-    text: { ja: '写真を撮るボタン。写り方とめずらしさで100点まん点の点数がつき、クジラが写ると図鑑にのります', en: 'Take a photo. It gets a score out of 100 for framing and rarity, and whales in it go into your Book.' } },
-  { id: 'summon', target: 'summon', panel: true,
-    text: { ja: 'クジラは30〜90分に1回くらい来ます。待てないときは「呼ぶ」を押してね', en: 'Whales come about once every 30–90 minutes. Can’t wait? Tap “Call”.' } },
-  { id: 'timer', target: 'timer', panel: true,
-    text: { ja: 'タイマーと、クジラが来る間隔。寝かしつけの「おやすみタイマー」もここです', en: 'Timers and how often whales come, including the sleep timer for bedtime.' } },
-  { id: 'sound', target: 'sound', panel: true,
-    text: { ja: '音量。水中マイクや、親子のささやきも、ここで切りかえます', en: 'Volume. Turn the hydrophone and mother–calf whispers on or off here.' } },
-  { id: 'dark', target: 'dark', panel: true,
-    text: { ja: '真っ暗画面。音はそのままで、画面だけ暗くします', en: 'Dark screen. The sound keeps playing while the screen goes dark.' } },
-  { id: 'sleep', target: 'sleep', panel: true,
-    text: { ja: 'おやすみモード。クジラの大きな声を止めて、波の音だけにします', en: 'Sleep mode. Loud whale calls stop and only the waves remain.' } },
-  { id: 'help', target: 'help', panel: true, guide: true,
-    text: { ja: 'この「使い方」から、いつでもこの説明を見返せます。くわしいガイドもどうぞ', en: 'Tap “How to use” anytime to see this again, or open the full guide.' } },
+    next: { ja: 'クジラに会う', en: 'Meet a whale' },
+    text: { ja: 'ようこそ!ここは、ときどきクジラがやって来る海です。まずは1頭、会ってみましょう', en: 'Welcome! Whales visit this sea now and then. Let’s go meet one.' } },
 ]);
 
-export const tourText = step => tr(step.text);
+export const TOUR_STEPS = Object.freeze([
+  { id: 'more', target: null, panel: false,
+    text: { ja: 'あと少しだけ、便利なボタンを紹介します。ボタンは、海をタップすると出たり消えたりします', en: 'A few handy buttons next. Tap the sea anytime to show or hide them.' } },
+  { id: 'summon', target: 'summon', panel: true,
+    text: { ja: '待ちきれないときは「呼ぶ」。30秒ほどでクジラが来てくれます', en: 'Can’t wait? Tap “Call” and a whale arrives in about 30 seconds.' } },
+  { id: 'timer', target: 'timer', panel: true,
+    text: { ja: ({ interval, l }) => `クジラが来る間隔は、いま${intervalText(interval, l)}。間隔を長くするほど、めずらしい動きに会いやすくなります`,
+            en: ({ interval, l }) => `Whales now come ${intervalText(interval, l)}. Longer gaps bring rarer moves.` } },
+  { id: 'cams', target: 'cams', panel: true,
+    text: { ja: '見る場所は3つ。崖の上・上空・間近から選べます', en: 'Watch from three spots: the cliff, the sky, or close up.' } },
+  { id: 'sky', target: 'skybar', panel: true,
+    text: { ja: '太陽を指でなぞると、夕方や夜の海にもできます', en: 'Drag the sun to see the sea at sunset or at night.' } },
+  { id: 'sleep', target: 'sleep', panel: true,
+    text: { ja: '寝かしつけには「おやすみモード」。クジラの大きな声を止めて、波の音だけにします', en: 'For bedtime, “Sleep mode” keeps just the waves and quiets loud calls.' } },
+  { id: 'help', target: 'help', panel: true, guide: true,
+    text: { ja: 'わからなくなったら「使い方」。この説明を、いつでも見返せます', en: 'Lost? Tap “How to use” to see this again anytime.' } },
+]);
+
+// ステップの文。vars: { interval(いまの来る間隔), lang(言語をはっきり決めるとき) }
+export function tourText(step, vars = {}) {
+  const l = vars.lang ?? lang();
+  const v = step.text[l] ?? step.text.ja;
+  return typeof v === 'function' ? v({ interval: vars.interval ?? DEFAULTS.interval, l }) : v;
+}
+// ボタンの文字(決まっていなければ null)
+export const tourNextLabel = step => (step.next ? tr(step.next) : null);
 
 export function loadTourDone(storage) {
   try { return storage.getItem(TOUR.storageKey) === 'done'; } catch { return false; }
@@ -41,6 +59,6 @@ export function markTourDone(storage) {
 }
 
 // 照らすボタンが見つからない(かくれている)ステップはとばす
-export function tourSteps(isAvailable = () => true) {
-  return TOUR_STEPS.filter(s => s.target === null || isAvailable(s.target));
+export function tourSteps(isAvailable = () => true, steps = TOUR_STEPS) {
+  return steps.filter(s => s.target === null || isAvailable(s.target));
 }

@@ -119,8 +119,8 @@ def page(L):
     <div class="feature-text">
       <span class="badge" aria-hidden="true">{ICON['whale']}</span>
       <h2>{T('クジラたちは、気まぐれにやってくる', 'The whales come when they please')}</h2>
-      <p class="lead">{T('ふつうは30〜90分に1回くらい。どんな姿を見せてくれるかは、そのときのお楽しみ。来る間隔は、時計のボタンで「よく来る(5〜15分)」から「ときどき(1〜3時間)」まで変えられます。',
-        'Usually about once every 30–90 minutes, and you never know what you will see. Use the clock button to change how often, from “Often” (5–15 min) to “Rarely” (1–3 h).')}</p>
+      <p class="lead">{T('はじめは「よく来る」で、5〜15分に1回くらい。どんな姿を見せてくれるかは、そのときのお楽しみ。来る間隔は、時計のボタンで「ときどき(1〜3時間)」まで変えられます。間隔を長くするほど、めずらしい動きに会いやすくなります。',
+        'At first they come “Often”, about once every 5–15 minutes, and you never know what you will see. Use the clock button to change how often, up to “Rarely” (1–3 h). The longer the gap, the rarer the moves you may see.')}</p>
     </div>
     <ul class="chips">{chips}</ul>
     <p class="note">{T('どの動きも、記録計をつけたクジラの研究や図鑑の数値をもとに作っています。', 'Every move is based on figures from tagging studies and field guides.')}</p>
@@ -183,7 +183,7 @@ def page(L):
         (T('ボタンの意味を忘れた', 'I forgot what the buttons do'), T('パネルの左上の「使い方」を押すと、ボタンの紹介をもう一度見られます。', 'Tap “How to use” at the top left of the panel to see the button tour again.')),
         (T('音が出ない', 'No sound'), T('マナーモードを切って、音量を上げてみてね。おやすみモードのときは、クジラの大きな声は鳴りません。', 'Turn off silent mode and turn up the volume. In sleep mode, loud whale calls do not play.')),
         (T('しばらくすると止まる', 'It stops after a while'), T('画面が消えると止まります。おやすみタイマーを決めているあいだは、画面がつけたままになります(できる端末のみ)。画面の光が気になるときは「真っ暗画面」を使ってね。', 'It pauses when the screen sleeps. While a sleep timer is set, the screen stays on (on supported devices). If the light bothers you, use the dark screen.')),
-        (T('クジラが来ない', 'No whales come'), T('30〜90分に1回くらいです。待てないときは「呼ぶ」か、時計のボタンで「多め」に。', 'They come about once every 30–90 minutes. Tap “Call”, or choose “More” under the clock button.')),
+        (T('クジラが来ない', 'No whales come'), T('時計のボタンで選んだ間隔で来ます(はじめは5〜15分に1回くらい)。待てないときは「呼ぶ」を押してね。', 'They come at the pace set with the clock button (about every 5–15 minutes at first). Can’t wait? Tap “Call”.')),
         (T('図鑑や写真は、どこにあるの?', 'Where are my Book and photos?'), T('このスマホのブラウザの中だけに保存されています。どこにも送っていません。', 'Only in this browser on this device. Nothing is sent anywhere.')),
     ]
     faq_html = ''.join(f'<details><summary>{q}</summary><p>{a}</p></details>' for q, a in faq)

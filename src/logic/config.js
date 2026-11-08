@@ -20,7 +20,7 @@ export const TIME_PRESETS = Object.freeze({
 });
 
 
-export const DEFAULTS = Object.freeze({ mode: 'normal', camera: 'cliff', volume: 0.5, time: 'auto', hours: 12, interval: 'normal', shutter: 'center', lang: 'auto', whisper: true, hydrophone: false, herald: false });
+export const DEFAULTS = Object.freeze({ mode: 'normal', camera: 'cliff', volume: 0.5, time: 'auto', hours: 12, interval: 'often', shutter: 'center', lang: 'auto', whisper: true, hydrophone: false, herald: false });
 
 // 操作パネルを閉じても画面に残る、写真のボタンの場所(off は出さない)
 export const SHUTTER_SPOTS = Object.freeze({
@@ -34,6 +34,16 @@ export const INTERVALS = Object.freeze({
   normal: Object.freeze({ label: { ja: 'ふつう', en: 'Normal' }, min: 30, max: 90 }),
   rare: Object.freeze({ label: { ja: 'ときどき', en: 'Rarely' }, min: 60, max: 180 }),
 });
+
+// 出方のめずらしさ(1 よくある・2 ときどき・3 めったにない)。使い方ガイドの ★ と同じ(tools/make_guide.py)
+export const RARITY = Object.freeze({
+  voice: 1, spout: 1, fluke: 1, breach: 1,
+  motherCalf: 2, sleeping: 2, pod: 2, bigBreach: 2, calfBreach: 2, spyhop: 2, pecSlap: 2, lobtail: 2,
+  groupBreach: 3, groupSpyhop: 3, feeding: 3, bubbleNet: 3, eyeContact: 3, bubbleRing: 3,
+});
+// 待つ時間が長いほど、めずらしい出方が出やすくなる。fromMin 分まではいつもどおり、toMin 分で最大
+// (★★ は tier2 倍、★★★ は tier3 倍)。その間は少しずつ増える
+export const RARE_BOOST = Object.freeze({ fromMin: 10, toMin: 120, tier2: 2, tier3: 5 });
 
 export const SCHEDULE = Object.freeze({
   minIntervalMs: 30 * 60 * 1000,

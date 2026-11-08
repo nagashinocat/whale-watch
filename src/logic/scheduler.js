@@ -1,4 +1,4 @@
-import { SCHEDULE, SUMMON, INTERVALS } from './config.js';
+import { SCHEDULE, SUMMON, INTERVALS, RARITY, RARE_BOOST } from './config.js';
 
 const between = (rng, min, max) => min + rng() * (max - min);
 
@@ -16,6 +16,15 @@ export function pickPattern(prev, rng, weights = SCHEDULE.weights) {
   return entries[entries.length - 1][0];
 }
 
+// 待った時間(分)に合わせて、めずらしい出方の重みを増やす。短い待ち時間ではいつもどおり
+export function weightsForWait(weights, waitMin) {
+  const f = Math.min(1, Math.max(0, (waitMin - RARE_BOOST.fromMin) / (RARE_BOOST.toMin - RARE_BOOST.fromMin)));
+  const times = { 1: 1, 2: 1 + (RARE_BOOST.tier2 - 1) * f, 3: 1 + (RARE_BOOST.tier3 - 1) * f };
+  const out = {};
+  for (const [k, w] of Object.entries(weights)) out[k] = w * (times[RARITY[k] ?? 1]);
+  return out;
+}
+
 // 来る間隔(ミリ秒の [最短, 最長])
 function rangeOf(name) {
   const r = INTERVALS[name];
@@ -27,7 +36,12 @@ function rangeOf(name) {
 export function createScheduler({ now, rng = Math.random, intervalScale = 1, frequency = null }) {
   const weights = SCHEDULE.weights;
   let range = rangeOf(frequency);
-  const nextInterval = () => between(rng, range[0], range[1]) * intervalScale;
+  let waitMin = 0;   // つぎのクジラまでに待つ時間(分。動作確認で早くしていても、もとの長さ)
+  const nextInterval = () => {
+    const ms = between(rng, range[0], range[1]);
+    waitMin = ms / 60000;
+    return ms * intervalScale;
+  };
 
   let busy = null;          // 'natural' | 'summon' | null
   let summonAt = null;      // 呼んだクジラの到着予定
@@ -51,7 +65,7 @@ export function createScheduler({ now, rng = Math.random, intervalScale = 1, fre
       }
       if (summonAt === null && !quiet && t >= s.nextAt) {
         busy = 'natural';
-        prevPattern = pickPattern(prevPattern, rng, weights);
+        prevPattern = pickPattern(prevPattern, rng, weightsForWait(weights, waitMin));
         return { kind: 'natural', pattern: prevPattern };
       }
       return null;

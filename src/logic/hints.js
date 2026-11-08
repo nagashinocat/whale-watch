@@ -5,7 +5,7 @@ export const HINTS = Object.freeze({ storageKey: 'whale-ocean-hints', steps: Obj
 
 export const HINT_TEXT = Object.freeze({
   tap: () => tr({ ja: '海をタップすると、操作パネルが出るよ', en: 'Tap the sea to open the control panel' }),
-  panel: () => tr({ ja: 'クジラは30〜90分に1回くらい来るよ。待てないときは「呼ぶ」を押してね。もう一度海をタップすると、パネルは閉じます', en: 'Whales come about once every 30–90 minutes. Can\'t wait? Tap “Call”. Tap the sea again to close the panel.' }),
+  panel: () => tr({ ja: 'クジラは時計のボタンで選んだ間隔で来るよ。待てないときは「呼ぶ」を押してね。もう一度海をタップすると、パネルは閉じます', en: 'Whales come at the pace set with the clock button. Can\'t wait? Tap “Call”. Tap the sea again to close the panel.' }),
 });
 
 export function loadHints(storage) {

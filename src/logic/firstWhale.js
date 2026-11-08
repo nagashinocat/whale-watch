@@ -16,18 +16,19 @@ export const FIRST_WHALE = Object.freeze({
 
 // 案内の文。name はクジラの名前、score は撮った写真の点数
 export const FIRST_WHALE_TEXT = Object.freeze({
-  arrive: ({ name }) => ({ ja: `クジラがやって来ます!この子は「${name}」。この海にいちばんよく来る、なじみの子です`, en: `A whale is coming! This is ${name}, the regular of this sea who visits most often.` }),
-  ready: () => ({ ja: 'もうすぐジャンプします!光っているシャッターを押して、写真を撮ってみよう', en: 'It is about to jump! Tap the glowing shutter to take a photo.' }),
+  arrive: ({ name }) => ({ ja: `クジラがやって来ます!🐋 この子は「${name}」。この海にいちばんよく来る、なじみの子です。そのまま海を見ていてね`,
+    en: `A whale is coming! 🐋 This is ${name}, the regular who visits this sea most often. Keep watching the sea.` }),
+  ready: () => ({ ja: 'もうすぐジャンプ!光っている丸いボタン(シャッター)を押すと、写真が撮れます', en: 'It’s about to jump! Tap the glowing round button (the shutter) to take a photo.' }),
   shot: ({ score }) => (score
-    ? { ja: `撮れました!${score.total}点・${score.rank}ランク。写真には「写り方」と「めずらしさ」で100点まん点の点数がつきます。Aランク以上は、みんなのギャラリーにも載せられます`,
-      en: `Got it! ${score.total} points, rank ${score.rank}. Photos are scored out of 100 for framing and rarity. Rank A and up can go in the shared gallery.` }
-    : { ja: '撮れました!写真には「写り方」と「めずらしさ」で100点まん点の点数がつきます', en: 'Got it! Photos are scored out of 100 for framing and rarity.' }),
-  again: () => ({ ja: 'おしい!もう一回跳ぶので、シャッターの準備を', en: 'So close! It will jump again — get ready.' }),
-  missed: () => ({ ja: 'だいじょうぶ。クジラはまた来ます。来たらシャッターを押してね', en: 'No worries — whales come back. Tap the shutter when you see one.' }),
-  book: () => ({ ja: 'つぎは図鑑。光っているボタンを押してみよう', en: 'Next, your Whale Book. Tap the glowing button.' }),
-  page: ({ name }) => ({ ja: `会えたクジラは、尾びれの模様で1頭ずつ記録されます。${name}のページには、撮った写真と「回遊のタグ」がつきました。タグで、${name}がいまどこを旅しているかがわかります`,
-    en: `Each whale you meet is recorded by its fluke pattern. ${name}'s page now has your photo and a migration tag, so you can follow where ${name} is travelling.` }),
-  done: () => ({ ja: 'これで案内はおしまい。のんびり海をながめてね', en: 'That’s the tour. Enjoy the sea!' }),
+    ? { ja: `撮れました!${score.total}点・${score.rank}ランク。写真には、写り方とめずらしさで100点まん点の点数がつきます`,
+      en: `Got it! ${score.total} points, rank ${score.rank}. Every photo is scored out of 100 for framing and rarity.` }
+    : { ja: '撮れました!写真には、写り方とめずらしさで100点まん点の点数がつきます', en: 'Got it! Every photo is scored out of 100 for framing and rarity.' }),
+  again: () => ({ ja: 'おしい!もう一回跳ぶので、光っているシャッターを押してね', en: 'So close! It will jump again — tap the glowing shutter.' }),
+  missed: () => ({ ja: 'だいじょうぶ。クジラはまた来ます。来たら、シャッターを押して撮ってね', en: 'No worries — whales come back. Tap the shutter when you see one.' }),
+  book: () => ({ ja: '会えたクジラは図鑑に入ります。光っている本のボタンを押してみよう', en: 'Whales you meet go into your Whale Book. Tap the glowing book button.' }),
+  page: ({ name }) => ({ ja: `クジラは、尾びれの模様で1頭ずつ見分けて記録されます。${name}のページには、撮った写真と「回遊のタグ」がつきました。タグを見ると、${name}がいまどこを旅しているかがわかります`,
+    en: `Each whale is told apart by its fluke pattern. ${name}'s page now has your photo and a migration tag, so you can follow where ${name} is travelling.` }),
+  done: ({ name }) => ({ ja: `これで${name}との出会いはおしまい。さいごに、便利なボタンを少しだけ紹介しますね`, en: `That’s your first meeting with ${name}! Last, a quick look at a few handy buttons.` }),
 });
 export const firstWhaleText = (key, vars = {}) => tr(FIRST_WHALE_TEXT[key](vars));
 

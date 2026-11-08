@@ -115,3 +115,45 @@ test('来る間隔は自分で選べる。選びなおすと、次に来るま�
   // よく来るほど、間隔は短い
   assert.ok(INTERVALS.often.max <= INTERVALS.more.min * 1 + INTERVALS.more.max && INTERVALS.often.max < INTERVALS.normal.max && INTERVALS.normal.max < INTERVALS.rare.max);
 });
+
+test('待つ時間が長いほど、めずらしい出方が出やすくなる(よく来る=いつもどおり、長いほど ★★★ が最大5倍)', async () => {
+  const { weightsForWait } = await import('../src/logic/scheduler.js');
+  const { RARITY, RARE_BOOST } = await import('../src/logic/config.js');
+  const w = SCHEDULE.weights;
+  // どの出方にも、めずらしさ(1〜3)がついている
+  for (const k of Object.keys(w)) assert.ok([1, 2, 3].includes(RARITY[k]), k);
+  // 待ち時間が短いと(よく来るの平均ぐらいまで)いつもどおり
+  assert.deepEqual(weightsForWait(w, 5), { ...w });
+  assert.deepEqual(weightsForWait(w, RARE_BOOST.fromMin), { ...w });
+  // 長く待つと、★★ と ★★★ が増える。★ は変わらない
+  const long = weightsForWait(w, RARE_BOOST.toMin);
+  for (const [k, v] of Object.entries(w)) {
+    const times = long[k] / v;
+    if (RARITY[k] === 1) assert.equal(times, 1, k);
+    if (RARITY[k] === 2) assert.ok(Math.abs(times - RARE_BOOST.tier2) < 1e-9, k);
+    if (RARITY[k] === 3) assert.ok(Math.abs(times - RARE_BOOST.tier3) < 1e-9, k);
+  }
+  // それより長く待っても、ふえすぎない
+  assert.deepEqual(weightsForWait(w, 600), long);
+  // 待つほど、めずらしい出方の割合が少しずつ上がる
+  const share = m => { const x = weightsForWait(w, m); const all = Object.values(x).reduce((a, b) => a + b, 0); return Object.entries(x).filter(([k]) => RARITY[k] === 3).reduce((a, [, v]) => a + v, 0) / all; };
+  assert.ok(share(10) < share(45) && share(45) < share(90) && share(90) < share(120));
+});
+
+test('「ときどき」にすると、「よく来る」よりめずらしい出方によく会える', () => {
+  const rare = new Set(['groupBreach', 'groupSpyhop', 'feeding', 'bubbleNet', 'eyeContact', 'bubbleRing']);
+  const count = frequency => {
+    let seed = 7;
+    const rng = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    const s = createScheduler({ now: 0, rng, frequency });
+    let t = 0, n = 0;
+    for (let i = 0; i < 3000; i++) {
+      t = s.nextAt;
+      const ev = s.tick(t);
+      if (rare.has(ev.pattern)) n++;
+      s.endEvent(t);
+    }
+    return n;
+  };
+  assert.ok(count('rare') > count('often') * 2.5, `${count('rare')} / ${count('often')}`);
+});

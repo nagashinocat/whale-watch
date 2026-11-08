@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { TOUR_STEPS, tourSteps, loadTourDone, markTourDone } from '../src/logic/tour.js';
+import { INTRO_STEPS, TOUR_STEPS, tourSteps, tourText, loadTourDone, markTourDone } from '../src/logic/tour.js';
 
 const mem = () => { const m = {}; return { getItem: k => m[k] ?? null, setItem: (k, v) => { m[k] = v; } }; };
 
@@ -17,11 +17,32 @@ test('保存できない端末でも止まらない', () => {
   assert.doesNotThrow(() => markTourDone(bad));
 });
 
-test('最初はあいさつ、最後は「使い方」ボタン。かくれているボタンのステップはとばす', () => {
+test('はじめは、あいさつ1枚だけ。ボタンの説明より先に、まずクジラに会ってもらう', () => {
+  assert.equal(INTRO_STEPS.length, 1);
+  assert.equal(INTRO_STEPS[0].target, null);
+  assert.ok(INTRO_STEPS[0].next.ja.includes('クジラ'));
+  assert.ok(tourText(INTRO_STEPS[0]).length < 90, '長すぎる');
+});
+
+test('ボタンの紹介は、写真と図鑑(シロの案内で見せる)を入れずに、短く。最後は「使い方」', () => {
   assert.equal(TOUR_STEPS[0].target, null);
   assert.equal(TOUR_STEPS.at(-1).target, 'help');
-  assert.ok(TOUR_STEPS.every(s => s.text.ja && s.text.en));
-  const steps = tourSteps(t => t !== 'dark');
+  assert.ok(TOUR_STEPS.length <= 8);
+  assert.ok(!TOUR_STEPS.some(s => s.target === 'photo' || s.target === 'zukan-open'));
+  for (const s of TOUR_STEPS) {
+    const ja = tourText(s, { lang: 'ja', interval: 'often' });
+    assert.ok(ja && ja.length <= 70, `${s.id} が長い(${ja.length}文字)`);
+  }
+  const steps = tourSteps(t => t !== 'sleep');
   assert.equal(steps.length, TOUR_STEPS.length - 1);
-  assert.ok(!steps.some(s => s.target === 'dark'));
+  assert.ok(!steps.some(s => s.target === 'sleep'));
+});
+
+test('来る間隔のステップは、いま選んでいる間隔を言う。長くするとめずらしい動きに会いやすいことも伝える', () => {
+  const step = TOUR_STEPS.find(s => s.id === 'timer');
+  const often = tourText(step, { lang: 'ja', interval: 'often' });
+  assert.ok(often.includes('よく来る') && often.includes('5〜15分'), often);
+  assert.ok(tourText(step, { lang: 'ja', interval: 'rare' }).includes('ときどき'));
+  assert.ok(often.includes('めずらしい'));
+  assert.ok(tourText(step, { lang: 'en', interval: 'often' }).includes('Often'));
 });

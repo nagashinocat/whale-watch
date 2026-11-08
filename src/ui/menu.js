@@ -225,6 +225,7 @@ export function createMenu(root, handlers) {
         <a class="tour-guide" data-tourguide href="guide.html" hidden>${icon('help', 16)}${T('くわしい使い方ガイド', 'Full guide')}</a>
         <div class="tour-row">
           <span class="tour-count" data-tourcount></span>
+          <button class="tour-back" data-tourback hidden>${T('もどる', 'Back')}</button>
           <button class="tour-skip" data-tourskip>${T('とばす', 'Skip')}</button>
           <button class="tour-next" data-tournext></button>
         </div>
@@ -394,7 +395,7 @@ export function createMenu(root, handlers) {
 
   // ---- チュートリアル: 画面を暗くして、ボタンを1つずつ照らして説明する ----
   const tour = $('[data-tour]'), tourSpot = $('[data-tourspot]'), tourCard = tour.querySelector('.tour-card');
-  const tourText = $('[data-tourtext]'), tourCount = $('[data-tourcount]'), tourNext = $('[data-tournext]'), tourSkip = $('[data-tourskip]'), tourGuide = $('[data-tourguide]');
+  const tourText = $('[data-tourtext]'), tourCount = $('[data-tourcount]'), tourNext = $('[data-tournext]'), tourSkip = $('[data-tourskip]'), tourGuide = $('[data-tourguide]'), tourBack = $('[data-tourback]');
   let tourSteps = [], tourAt = 0, tourDone = null;
   const tourTarget = name => {
     const el = name === 'cams' ? $('.cams') : $(`[data-${name}]`);
@@ -408,11 +409,13 @@ export function createMenu(root, handlers) {
     if (step.panel && menu.hidden) { menu.hidden = false; showSleepMark(); }
     if (!step.panel && !menu.hidden) hideMenu();
     tourText.textContent = step.label;
-    tourCount.textContent = `${tourAt + 1} / ${tourSteps.length}`;
+    // 1枚だけのときは「1 / 1」を出さない
+    tourCount.textContent = tourSteps.length > 1 ? `${tourAt + 1} / ${tourSteps.length}` : '';
     const last = tourAt === tourSteps.length - 1;
-    tourNext.textContent = last ? T('はじめる', 'Start') : T('つぎへ', 'Next');
+    tourNext.textContent = step.nextLabel ?? (last ? T('海を見る', 'Watch the sea') : T('つぎへ', 'Next'));
     tourGuide.hidden = !step.guide;
-    tourSkip.hidden = last;
+    tourSkip.hidden = last && tourSteps.length > 1;
+    tourBack.hidden = tourAt === 0;
     const el = step.target ? tourTarget(step.target) : null;
     const vw = window.innerWidth, vh = window.innerHeight;
     const cw = Math.min(340, vw - 32);
@@ -446,6 +449,7 @@ export function createMenu(root, handlers) {
     tourAt++; placeTour(); tourNext.focus();
   });
   tourSkip.addEventListener('click', () => endTour(false));
+  tourBack.addEventListener('click', () => { if (tourAt > 0) { tourAt--; placeTour(); tourNext.focus(); } });
 
   // ---- 最初のクジラの案内(コーチ): 画面をふさがない吹き出し。ボタンを光る輪で示す ----
   const coachBox = $('[data-coach]'), coachRing = $('[data-coachring]'), coachCard = coachBox.querySelector('.coach-card');

@@ -30,12 +30,12 @@ test('壊れたJSONなら初期設定', () => {
 
 test('不正な項目だけ初期値に戻す', () => {
   const s = mem({ 'whale-ocean-settings': JSON.stringify({ mode: 'party', camera: 'near', volume: 7 }) });
-  assert.deepEqual(loadSettings(s), { mode: 'normal', camera: 'near', volume: 0.5, time: 'auto', hours: 12, interval: 'normal', shutter: 'center', lang: 'auto', whisper: true, hydrophone: false, herald: false });
+  assert.deepEqual(loadSettings(s), { mode: 'normal', camera: 'near', volume: 0.5, time: 'auto', hours: 12, interval: 'often', shutter: 'center', lang: 'auto', whisper: true, hydrophone: false, herald: false });
 });
 
 test('来る間隔は最初は「ふつう」、知らない値なら「ふつう」に戻す', () => {
-  assert.equal(loadSettings(mem()).interval, 'normal');
-  assert.equal(loadSettings(mem({ 'whale-ocean-settings': JSON.stringify({ interval: 'always' }) })).interval, 'normal');
+  assert.equal(loadSettings(mem()).interval, 'often');   // はじめは「よく来る」から
+  assert.equal(loadSettings(mem({ 'whale-ocean-settings': JSON.stringify({ interval: 'always' }) })).interval, 'often');
 });
 
 test('storageが例外を投げても止まらない', () => {

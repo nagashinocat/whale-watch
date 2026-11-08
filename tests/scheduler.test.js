@@ -111,7 +111,7 @@ test('来る間隔は自分で選べる。選びなおすと、次に来るま�
   }
   const s = createScheduler({ now: 0, rng: seeded(3), frequency: 'rare' });
   s.setFrequency('often', 1000);
-  assert.ok(s.nextAt >= 1000 + 5 * 60000 && s.nextAt <= 1000 + 15 * 60000);
+  assert.ok(s.nextAt >= 1000 + 3 * 60000 && s.nextAt <= 1000 + 5 * 60000);   // よく来るは3〜5分
   // よく来るほど、間隔は短い
   assert.ok(INTERVALS.often.max <= INTERVALS.more.min * 1 + INTERVALS.more.max && INTERVALS.often.max < INTERVALS.normal.max && INTERVALS.normal.max < INTERVALS.rare.max);
 });

@@ -41,7 +41,7 @@ test('ボタンの紹介は、写真と図鑑(シロの案内で見せる)を入
 test('来る間隔のステップは、いま選んでいる間隔を言う。長くするとめずらしい動きに会いやすいことも伝える', () => {
   const step = TOUR_STEPS.find(s => s.id === 'timer');
   const often = tourText(step, { lang: 'ja', interval: 'often' });
-  assert.ok(often.includes('よく来る') && often.includes('5〜15分'), often);
+  assert.ok(often.includes('よく来る') && often.includes('3〜5分'), often);
   assert.ok(tourText(step, { lang: 'ja', interval: 'rare' }).includes('ときどき'));
   assert.ok(often.includes('めずらしい'));
   assert.ok(tourText(step, { lang: 'en', interval: 'often' }).includes('Often'));

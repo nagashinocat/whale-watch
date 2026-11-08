@@ -40,7 +40,7 @@ export function nearestTime(fraction) {
   return best;
 }
 
-// 来る間隔のことば(「5〜15分」「1〜3時間」)
+// 来る間隔のことば(「3〜5分」「1〜3時間」)
 export const rangeLabel = ({ min, max }) => (min % 60 === 0 && max % 60 === 0
   ? T(`${min / 60}〜${max / 60}時間`, `${min / 60}–${max / 60} h`) : T(`${min}〜${max}分`, `${min}–${max} min`));
 
@@ -88,7 +88,7 @@ export function createMenu(root, handlers) {
           <h2 id="landing-guide-title">${T('かんたんガイド', 'Quick guide')}</h2>
           <ol>
             <li>${icon('panel', 22)}<div><b>${T('海をタップ', 'Tap the sea')}</b><span>${T('操作パネルが出ます。もう一度タップで閉じます', 'to open the control panel. Tap again to close it')}</span></div></li>
-            <li>${icon('whale', 22)}<div><b>${T('ときどきクジラが来る', 'Whales drop by')}</b><span>${T('はじめは5〜15分に1回くらい。待てないときは「呼ぶ」', 'about every 5–15 minutes at first. Can\'t wait? Tap “Call”')}</span></div></li>
+            <li>${icon('whale', 22)}<div><b>${T('ときどきクジラが来る', 'Whales drop by')}</b><span>${T('はじめは3〜5分に1回くらい。待てないときは「呼ぶ」', 'about every 3–5 minutes at first. Can\'t wait? Tap “Call”')}</span></div></li>
             <li>${icon('book', 22)}<div><b>${T('写真を撮って図鑑に', 'Snap and collect')}</b><span>${T('尾びれの模様で1頭ずつ見分けて、回遊の旅も追えます', 'Tell whales apart by their flukes and follow their migrations')}</span></div></li>
             <li>${icon('moon', 22)}<div><b>${T('寝かしつけにも', 'For bedtime')}</b><span>${T('おやすみタイマーで、波の音が静かに止まります', 'The sleep timer fades the waves out gently')}</span></div></li>
           </ol>

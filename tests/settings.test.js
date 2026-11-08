@@ -54,7 +54,7 @@ test('なくしたカメラ(船の上・浜辺・水面)が保存されていた
 test('来る間隔のことば', async () => {
   const { rangeLabel } = await import('../src/ui/menu.js');
   const { INTERVALS } = await import('../src/logic/config.js');
-  assert.equal(rangeLabel(INTERVALS.often), '5〜15分');
+  assert.equal(rangeLabel(INTERVALS.often), '3〜5分');
   assert.equal(rangeLabel(INTERVALS.rare), '1〜3時間');
 });
 

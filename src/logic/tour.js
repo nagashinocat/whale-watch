@@ -8,7 +8,7 @@ import { INTERVALS, DEFAULTS } from './config.js';
 
 export const TOUR = Object.freeze({ storageKey: 'whale-ocean-tour' });
 
-// 来る間隔の名前と長さ(例: 「よく来る(5〜15分)」)
+// 来る間隔の名前と長さ(例: 「よく来る(3〜5分)」)
 function intervalText(name, l) {
   const v = INTERVALS[name] ?? INTERVALS[DEFAULTS.interval];
   const hours = v.min % 60 === 0 && v.max % 60 === 0;

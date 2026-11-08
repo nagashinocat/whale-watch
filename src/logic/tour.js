@@ -16,7 +16,7 @@ export const TOUR_STEPS = Object.freeze([
   { id: 'book', target: 'zukan-open', panel: true,
     text: { ja: '図鑑。会えたクジラが、尾びれの模様で1頭ずつ記録されます。歌や、研究者ごっこもここに', en: 'Your Whale Book. Each whale you meet is recorded by its fluke pattern. Songs and the research game are here too.' } },
   { id: 'photo', target: 'photo', panel: true,
-    text: { ja: '写真を撮るボタン。クジラが写ると、図鑑にのります', en: 'Take a photo. If a whale is in it, it goes into your Book.' } },
+    text: { ja: '写真を撮るボタン。写り方とめずらしさで100点まん点の点数がつき、クジラが写ると図鑑にのります', en: 'Take a photo. It gets a score out of 100 for framing and rarity, and whales in it go into your Book.' } },
   { id: 'summon', target: 'summon', panel: true,
     text: { ja: 'クジラは30〜90分に1回くらい来ます。待てないときは「呼ぶ」を押してね', en: 'Whales come about once every 30–90 minutes. Can’t wait? Tap “Call”.' } },
   { id: 'timer', target: 'timer', panel: true,

@@ -870,6 +870,7 @@ export async function createWhales(scene, fx) {
     const start = [position[0] - f[0] * back, 0, position[2] - f[2] * back];
     const motion = MOTIONS[name]({ start, yaw });
     const act = {
+      name,
       whales: (() => {
         // おとなのザトウクジラには、この海に来るクジラのだれかを割りあてる(同じ出方の中では重ならない)
         const taken = [];
@@ -990,5 +991,33 @@ export async function createWhales(scene, fx) {
     return ids;
   }
 
-  return { models, play, update, visibleIndividuals };
+  // 写真の採点に使う、いま写っているクジラの写り方。1頭ずつ、頭から尾までの体の点が画面のどこに来たか
+  // (x・y は画面のはしが -1・1)と、ジャンプで体ぜんぶが空中にあるか。くわしくは logic/photoScore.js
+  const ALONG = [0.5, 0.38, 0.25, 0.12, 0, -0.12, -0.25, -0.38, -0.5];
+  function photoSubjects(camera) {
+    camera.updateMatrixWorld();
+    const out = [];
+    for (const act of acts) {
+      for (const w of act.whales) {
+        const world = ALONG.map(a => new THREE.Vector3(...bodyPoint(w, a)));
+        const points = world.map(p => {
+          const above = p.y > -0.4;
+          const q = p.clone().project(camera);
+          const inFrame = q.z > -1 && q.z < 1 && Math.abs(q.x) <= 1 && Math.abs(q.y) <= 1;
+          return { x: q.x, y: q.y, inFrame, above };
+        });
+        out.push({
+          id: w.individual?.id ?? null,
+          special: !!w.individual?.special,
+          kind: w.kind,
+          pattern: act.name,
+          points,
+          airborne: world.every(p => p.y > 0.3),
+        });
+      }
+    }
+    return out;
+  }
+
+  return { models, play, update, visibleIndividuals, photoSubjects };
 }

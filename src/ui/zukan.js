@@ -5,6 +5,7 @@ import { bookTotal, NAME_MAX } from '../logic/flukeId.js';
 import { traitsText } from '../logic/traits.js';
 import { zukanInfo, ZUKAN_LEVELS } from '../logic/zukan.js';
 import { photosOf, photoCaption } from '../logic/photos.js';
+import { scoreLine } from '../logic/photoScore.js';
 import { whereNow, tripSummary, ROUTES, TIME_SCALE, pathUntil } from '../logic/migration.js';
 const pathUntilNow = w => pathUntil(w.route, w.k);
 import { drawMigrationMap, MAP_ASPECT } from './migrationMap.js';
@@ -110,7 +111,7 @@ export function createZukan(root, { onRename, onBackup, onRestore, photos, portr
   function openPhoto(p) {
     shown = p;
     big.src = photos.url(p);
-    caption.textContent = photoCaption(p, nameOf);
+    caption.textContent = [scoreLine(p.score), photoCaption(p, nameOf)].filter(Boolean).join(T(' ・ ', ' · '));
     save.href = big.src;
     save.download = `whale-${new Date(p.time).toISOString().slice(0, 19).replace(/[:T]/g, '-')}.jpg`;
     del.hidden = false;
@@ -123,6 +124,8 @@ export function createZukan(root, { onRename, onBackup, onRestore, photos, portr
     list.forEach((p, i) => {
       const b = el('button', { cls: 'zk-polaroid', attrs: { 'aria-label': photoCaption(p, nameOf), style: `transform: rotate(${[-4, 3, -2, 4, -3][i % 5]}deg)` } },
         [el('img', { attrs: { src: photos.url(p), alt: '' } })]);
+      // 採点した写真には、点数のバッジ(前に撮った、点数のない写真には付けない)
+      if (p.score) b.append(el('span', { cls: `zk-score zk-score-${p.score.rank}`, text: `${p.score.rank} ${p.score.total}`, attrs: { 'aria-hidden': 'true' } }));
       // 画像を出せなかったときは、そのことを書いておく(まっ白なままにしない)
       b.querySelector('img').addEventListener('error', e => e.currentTarget.replaceWith(el('span', { cls: 'zk-photo-broken', text: T('写真を表示できませんでした', 'Could not show this photo') })), { once: true });
       b.addEventListener('click', () => openPhoto(p));

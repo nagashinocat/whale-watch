@@ -17,6 +17,7 @@ import { tr, listJoin } from './logic/i18n.js';
 import { hoursFor, blendHours } from './logic/time.js';
 import { realSky } from './logic/places.js';
 import { AUDIO, INTERVALS } from './logic/config.js';
+import { scorePhoto, lightOf, scoreLine } from './logic/photoScore.js';
 import { loadBook, saveBook, nextVisitor, recordSighting, recordPhoto, bookEntries, setNickname, displayName, population, bookTotal } from './logic/flukeId.js';
 import { traitsText } from './logic/traits.js';
 import { sightingMessage, countsForZukan } from './logic/zukan.js';
@@ -674,9 +675,12 @@ async function takePhoto() {
   try {
     const whales = await whalesReady;
     const ids = whales.visibleIndividuals(ocean.camera);
+    // 写り方とめずらしさで採点する(写した瞬間のクジラの位置で決める)
+    let score = null;
+    try { score = scorePhoto({ subjects: whales.photoSubjects(ocean.camera), light: lightOf(skyHours ?? new Date().getHours()) }); } catch { /* 採点できなくても写真は撮る */ }
     const blob = await ocean.snapshot(PHOTOS);
     if (!blob) throw new Error('no image');
-    const { saved } = await photos.add({ time: Date.now(), whales: ids, camera: settings.camera, blob });
+    const { saved } = await photos.add({ time: Date.now(), whales: ids, camera: settings.camera, score, blob });
     const names = ids.map(nameOf);
     // 写ったクジラは、図鑑に全身の姿がのる
     const r = recordPhoto(book, ids, Date.now());
@@ -684,7 +688,7 @@ async function takePhoto() {
     saveBook(safeStorage(), book);
     showBook();
     const unlocked = r.newly.map(nameOf);
-    menu.showToast(tr({
+    menu.showToast((score ? `📸 ${scoreLine(score)}　` : '') + tr({
       ja: `写真を撮りました${names.length ? `(${listJoin(names)}が写っています)` : ''}。${unlocked.length ? `図鑑に${listJoin(unlocked)}の全身の姿がのりました。` : ''}図鑑の「写真」で見られます${saved ? '' : '(この端末に保存できないので、ページを閉じると消えます)'}`,
       en: `Photo taken${names.length ? ` (with ${listJoin(names)})` : ''}. ${unlocked.length ? `Full-body portrait of ${listJoin(unlocked)} added to your Book. ` : ''}See it under Photos in your Book${saved ? '' : ' (this device can\'t save it, so it will be gone when you close the page)'}`,
     }));

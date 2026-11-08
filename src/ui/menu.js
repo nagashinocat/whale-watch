@@ -848,6 +848,9 @@ export function createMenu(root, handlers) {
     // 画面の上に、しばらくお知らせを出す
     showToast(text) {
       toast.textContent = text;
+      // 案内の吹き出しが画面の上半分に出ているときは、重ならないように、お知らせを吹き出しのすぐ下に出す
+      const r = coachNow && !coachBox.hidden ? coachCard.getBoundingClientRect() : null;
+      toast.style.top = r && r.top < window.innerHeight / 2 ? `${Math.round(r.bottom + 12)}px` : '';
       toast.hidden = false;
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => { toast.hidden = true; }, 7000);

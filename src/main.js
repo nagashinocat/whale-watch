@@ -160,7 +160,8 @@ const whalesReady = createWhales(ocean.scene, {
     pendingSightings.push({ name: displayName(w.individual.id, book), first: r.first, count: r.count });
     clearTimeout(sightingTimer);
     sightingTimer = setTimeout(() => {
-      menu.showToast(sightingMessage(pendingSightings));
+      // 最初のクジラの案内のあいだは、吹き出しが説明するので、上のお知らせは出さない(吹き出しと重なるため)
+      if (!firstWhale) menu.showToast(sightingMessage(pendingSightings));
       pendingSightings = [];
     }, 1500);
   },
@@ -746,6 +747,9 @@ async function takePhoto() {
     saveBook(safeStorage(), book);
     showBook();
     const unlocked = r.newly.map(nameOf);
+    // 最初のクジラの案内のあいだは、吹き出しが点数を伝えるので、上のお知らせは出さない(吹き出しと重なるため)。
+    // ただし、この端末に保存できないことは伝える
+    if (firstWhale && saved) { zukan.refresh(); firstEvent('photo', { score }); return; }
     menu.showToast((score ? `📸 ${scoreLine(score)}　` : '') + tr({
       ja: `写真を撮りました${names.length ? `(${listJoin(names)}が写っています)` : ''}。${unlocked.length ? `図鑑に${listJoin(unlocked)}の全身の姿がのりました。` : ''}図鑑の「写真」で見られます${saved ? '' : '(この端末に保存できないので、ページを閉じると消えます)'}`,
       en: `Photo taken${names.length ? ` (with ${listJoin(names)})` : ''}. ${unlocked.length ? `Full-body portrait of ${listJoin(unlocked)} added to your Book. ` : ''}See it under Photos in your Book${saved ? '' : ' (this device can\'t save it, so it will be gone when you close the page)'}`,

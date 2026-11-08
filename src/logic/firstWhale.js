@@ -16,8 +16,8 @@ export const FIRST_WHALE = Object.freeze({
 
 // 案内の文。name はクジラの名前、score は撮った写真の点数
 export const FIRST_WHALE_TEXT = Object.freeze({
-  arrive: ({ name }) => ({ ja: `クジラがやって来ます!🐋 この子は「${name}」。この海にいちばんよく来る、なじみの子です。そのまま海を見ていてね`,
-    en: `A whale is coming! 🐋 This is ${name}, the regular who visits this sea most often. Keep watching the sea.` }),
+  arrive: ({ name }) => ({ ja: `クジラがやって来ます!この子は「${name}」。この海にいちばんよく来る、なじみの子です。そのまま海を見ていてね`,
+    en: `A whale is coming! This is ${name}, the regular who visits this sea most often. Keep watching the sea.` }),
   ready: () => ({ ja: 'もうすぐジャンプ!光っている丸いボタン(シャッター)を押すと、写真が撮れます', en: 'It’s about to jump! Tap the glowing round button (the shutter) to take a photo.' }),
   shot: ({ score }) => (score
     ? { ja: `撮れました!${score.total}点・${score.rank}ランク。写真には、写り方とめずらしさで100点まん点の点数がつきます`,

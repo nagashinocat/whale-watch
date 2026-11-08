@@ -29,11 +29,13 @@
 
 ## 公開しているページ
 
-どれも claude.ai 上のページ(アーティファクト)。更新できるのは持ち主だけなので、引き継いだ人は、このフォルダのファイルから自分のページとして公開しなおす。
+**本番: https://nagashinocat.github.io/whale-watch/**(GitHub Pages。リポジトリ nagashinocat/whale-watch の main を、そのまま配っている。2026年11月9日に公開。main に入れると1〜2分で反映される)
+
+ここから下は claude.ai 上のページ(アーティファクト)。更新できるのは持ち主だけなので、引き継いだ人は、このフォルダのファイルから自分のページとして公開しなおす。
 
 | ページ | 中身 | 共有の状態 |
 | --- | --- | --- |
-| [お試し版](https://claude.ai/artifact/ViRHgBfaMVVjURFVAsJbe8) | 配れるお試し版アプリ。音は .wav だけ(.m4a は配信できないため)。11月8日に新しいアカウントで公開しなおした(sw.js は入れていない) | 自分だけ(配るときは「共有」で変える) |
+| [お試し版](https://claude.ai/artifact/ViRHgBfaMVVjURFVAsJbe8) | 配れるお試し版アプリ。音は .wav だけ(.m4a は配信できないため)。11月8日に新しいアカウントで公開しなおした(sw.js は入れていない) | リンクを知っている人はだれでも |
 | [宣伝素材](https://claude.ai/artifact/NFQQT5JCQasJW9tZ54jTmB) | 宣伝の画像17枚・動画2本・投稿文(日本語・英語)を投稿する順に並べたページ。長押しで保存、投稿文はコピーボタン。元は promo/promo-kit.html | 自分だけ |
 | [お試し版(前のアカウント)](https://claude.ai/artifact/Ed9aTFLrs67C2f3aLrZhJ2) | 前のアカウントのお試し版。更新できない | リンクを知っている人はだれでも |
 | [動作確認用のページ](https://claude.ai/artifact/LhtBQegMBC5AfNLbTuhJTH) | 出方をすぐ出すボタン、出すクジラの指定、図鑑を空にする、最初のクジラの案内、ギャラリーへ送ったふり、プラスの切りかえ、音の止め方の記録など | 自分だけ |
@@ -41,7 +43,7 @@
 | [宣伝のデザイン](https://claude.ai/artifact/TbJ4zkKD4DyGrUw2iY9dbU) | X・Instagram 用のプロフィール画像、リリース前の画像(日本語・英語) | 自分だけ |
 | [宣伝画像のダウンロード](https://claude.ai/artifact/BUEkYxUE5VKC42cGHZvxqF) | 宣伝画像を1枚の PNG で保存するページ | 自分だけ |
 
-みんなのギャラリー(gallery.html)は、動作確認用のページの中にだけ入っている。本番は GitHub Pages で公開するときにアプリと一緒に置く。
+みんなのギャラリー(gallery.html)は、本番(GitHub Pages)ではアプリと同じ場所にある。データ置き場(Supabase)を作るまでは見本で表示。
 
 ## ファイルの構成と作業の決まり
 
@@ -73,7 +75,7 @@
 ## まだ残っていること
 
 - [ ] **みんなのギャラリーのデータ置き場を作る:** Supabase(無料で使えるデータ置き場)でプロジェクトを作り、SQL Editor に tools/gallery_setup.sql を貼って Run。Project URL と anon(公開してよい)鍵を src/logic/galleryConfig.js に入れる。service_role や secret の鍵は使わない。入れたあと、本当に写真が載るか確かめる
-- [ ] **GitHub Pages で公開する:** 置き場所(アカウント名とリポジトリ名)を決める。公開すると、ギャラリーもアプリと同じ場所で開ける
+- [x] **GitHub Pages で公開する:** 11月9日に公開した(https://nagashinocat.github.io/whale-watch/)。リポジトリは Public なので、動作確認用のページ(pages/debug.html)と宣伝素材(promo/)もアドレスを知っていれば見られる
 - [ ] **有料の「プラス」の支払い方法:** 後回し。決まったら src/logic/plus.js の offered を true にし、支払いがすんだときに「使える」にするだけ
 - [ ] **使い方ガイドのアフィリエイトのリンク:** 載せたい商品のリンクをもらったら、tools/make_guide.py の AFFILIATE に入れる
 - [ ] **お試し版の空の広告枠:** PR と A8 の空の枠をお試し版では隠すかどうか、まだ答えをもらっていない

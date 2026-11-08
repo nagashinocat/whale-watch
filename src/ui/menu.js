@@ -365,6 +365,8 @@ export function createMenu(root, handlers) {
   document.addEventListener('pointerdown', e => {
     if (!started) return;
     if (!tour.hidden) return;   // チュートリアルのあいだは、パネルを出したり消したりしない
+    // 案内の吹き出しを押したときは、海をタップしたことにしない(パネルが動いて、ボタンの位置がずれないように)
+    if (coachCard.contains(e.target)) return;
     // 真っ暗な画面と「おやすみなさい」は、タップ(click)でもどす。ここではパネルを出さない
     if (blackout.contains(e.target) || rest.contains(e.target) || update.contains(e.target) || adOn) return;
     if (!hint.hidden) hideHint();
@@ -465,13 +467,20 @@ export function createMenu(root, handlers) {
     coachNow.opened = true;
     if (menu.hidden) { menu.hidden = false; showSleepMark(); }
   }
+  let coachLast = '';
   function placeCoach() {
     if (!coachNow) return;
+    // 指で押しているあいだは動かさない
+    if (coachCard.matches(':active')) return;
     const vw = window.innerWidth, vh = window.innerHeight;
     const cw = Math.min(360, vw - 32);
     coachCard.style.width = cw + 'px';
     const el = coachNow.target ? coachTarget(coachNow.target) : null;
     const ch = coachCard.offsetHeight || 120;
+    // 置く場所が前と同じなら、さわらない(少しずつ動いて、押しにくくならないように)
+    const key = el ? JSON.stringify(el.getBoundingClientRect()) : `${vw}x${vh}:${coachNow.low}:${ch}`;
+    if (key === coachLast) return;
+    coachLast = key;
     if (!el) {
       coachRing.hidden = true;
       coachCard.style.left = (vw - cw) / 2 + 'px';
@@ -675,6 +684,7 @@ export function createMenu(root, handlers) {
     coach(c) {
       if (!c) { hideCoach(); return; }
       coachNow = c;
+      coachLast = '';
       coachText.textContent = c.text;
       coachNext.hidden = !c.next;
       coachNext.textContent = c.next ?? '';

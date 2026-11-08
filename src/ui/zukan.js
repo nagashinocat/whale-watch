@@ -125,7 +125,9 @@ export function createZukan(root, { onRename, onBackup, onRestore, photos, portr
       const b = el('button', { cls: 'zk-polaroid', attrs: { 'aria-label': photoCaption(p, nameOf), style: `transform: rotate(${[-4, 3, -2, 4, -3][i % 5]}deg)` } },
         [el('img', { attrs: { src: photos.url(p), alt: '' } })]);
       // 採点した写真には、点数のバッジ(前に撮った、点数のない写真には付けない)
-      if (p.score) b.append(el('span', { cls: `zk-score zk-score-${p.score.rank}`, text: `${p.score.rank} ${p.score.total}`, attrs: { 'aria-hidden': 'true' } }));
+      // はんこを押したような丸い印。大きくランク、下に小さく点数。写真ごとに少しずつ傾きを変える
+      if (p.score) b.append(el('span', { cls: `zk-score zk-score-${p.score.rank}`, attrs: { 'aria-hidden': 'true', style: `--tilt: ${[-14, 9, -6, 12, -10][i % 5]}deg` } },
+        [el('b', { text: p.score.rank }), el('small', { text: String(p.score.total) })]));
       // 画像を出せなかったときは、そのことを書いておく(まっ白なままにしない)
       b.querySelector('img').addEventListener('error', e => e.currentTarget.replaceWith(el('span', { cls: 'zk-photo-broken', text: T('写真を表示できませんでした', 'Could not show this photo') })), { once: true });
       b.addEventListener('click', () => openPhoto(p));

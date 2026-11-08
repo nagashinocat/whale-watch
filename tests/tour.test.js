@@ -46,3 +46,12 @@ test('来る間隔のステップは、いま選んでいる間隔を言う。�
   assert.ok(often.includes('めずらしい'));
   assert.ok(tourText(step, { lang: 'en', interval: 'often' }).includes('Often'));
 });
+
+test('はじめは「よく来る」なので、画面や説明に「30〜90分に1回」と書かない', async () => {
+  const { readFileSync } = await import('node:fs');
+  const files = ['src/ui/menu.js', 'src/main.js', 'src/logic/hints.js', 'src/logic/tour.js', 'src/logic/firstWhale.js', 'about.html', 'guide.html', 'index.html', 'pages/trial.html'];
+  for (const f of files) {
+    const text = readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+    assert.ok(!/30〜90分に1回|every 30–90 minutes/.test(text), `${f} に「30〜90分に1回」が残っている`);
+  }
+});

@@ -30,7 +30,7 @@ export const SHUTTER_SPOTS = Object.freeze({
 // クジラが自然に来る間隔(分)。自分で選べる。前のクジラが帰ってから、min〜max 分のどこかで次が来る
 export const INTERVALS = Object.freeze({
   often: Object.freeze({ label: { ja: 'よく来る', en: 'Often' }, min: 3, max: 5 }),
-  more: Object.freeze({ label: { ja: '多め', en: 'More' }, min: 15, max: 45 }),
+  more: Object.freeze({ label: { ja: '多め', en: 'More' }, min: 10, max: 30 }),
   normal: Object.freeze({ label: { ja: 'ふつう', en: 'Normal' }, min: 30, max: 90 }),
   rare: Object.freeze({ label: { ja: 'ときどき', en: 'Rarely' }, min: 60, max: 180 }),
 });

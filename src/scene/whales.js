@@ -18,6 +18,8 @@ const D2R = THREE.MathUtils.degToRad;
 const clamp01 = x => Math.min(1, Math.max(0, x));
 const ease = x => { const t = clamp01(x); return t * t * (3 - 2 * t); };
 const lerp = (a, b, t) => a + (b - a) * t;
+// 途中で潜っていなくなるまでの秒数(子供用モードで、6頭をこえて呼んだとき)
+const LEAVE_SEC = 1.6;
 
 // クジラを1頭作る。外側の Group を動かせば位置と向きが変わる。頭は -Z 方向。
 // swim: 0 で体をしならせない(寝ているクジラ)、1 でふつうに泳ぐ
@@ -893,13 +895,40 @@ export async function createWhales(scene, fx) {
     };
     for (const w of act.whales) scene.add(w.group);
     motion.each(act.whales, 0, act.D);
+    act.order = ++order;
+    act.leaving = null;   // 途中で潜っていなくなるとき、潜りはじめてからの秒数
     acts.add(act);
 
-    return new Promise(r => setTimeout(() => {
-      for (const w of act.whales) scene.remove(w.group);
-      acts.delete(act);
-      r();
-    }, durationMs));
+    return new Promise(r => {
+      act.finish = () => {
+        if (!acts.has(act)) return;
+        for (const w of act.whales) scene.remove(w.group);
+        acts.delete(act);
+        r();
+      };
+      setTimeout(act.finish, durationMs);
+    });
+  }
+  let order = 0;
+
+  // いま海にいるクジラの頭数(潜っていなくなる途中のものは数えない)
+  function activeWhales() {
+    let n = 0;
+    for (const act of acts) if (act.leaving === null) n += act.whales.length;
+    return n;
+  }
+  // その出方で来るクジラの頭数
+  function count(name) {
+    if (!PATTERNS[name]?.needs || !MOTIONS[name]) return 0;
+    return MOTIONS[name]({ start: [0, 0, 0], yaw: 0 }).whales.length;
+  }
+  // いちばん前に来たクジラ(の出方)に、潜っていなくなってもらう。潜らせた頭数を返す
+  function dismissOldest() {
+    let oldest = null;
+    for (const act of acts) if (act.leaving === null && (!oldest || act.order < oldest.order)) oldest = act;
+    if (!oldest) return 0;
+    oldest.leaving = 0;
+    return oldest.whales.length;
   }
 
   function update(dt) {
@@ -922,6 +951,14 @@ export async function createWhales(scene, fx) {
           w.group.position.copy(w.smooth.pos);
           w.group.quaternion.copy(w.smooth.quat);
         }
+      }
+      // 途中で潜っていなくなるクジラ: 深く沈めて、沈みきったら海から消す(音や水しぶきは、もう出さない)
+      if (act.leaving !== null) {
+        act.leaving += dt;
+        const sink = 18 * ease(act.leaving / LEAVE_SEC);
+        for (const w of act.whales) { w.group.position.y -= sink; w.mixer.update(dt); }
+        if (act.leaving >= LEAVE_SEC) act.finish();
+        continue;
       }
       act.motion.cues.forEach((c, i) => {
         if (act.t >= c.at && !act.fired.has(i)) {
@@ -1019,5 +1056,5 @@ export async function createWhales(scene, fx) {
     return out;
   }
 
-  return { models, play, update, visibleIndividuals, photoSubjects };
+  return { models, play, update, visibleIndividuals, photoSubjects, activeWhales, count, dismissOldest };
 }

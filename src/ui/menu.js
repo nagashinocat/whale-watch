@@ -70,7 +70,7 @@ const ICON = {
   lock: '<rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path>',
   clock: '<circle cx="12" cy="13" r="7.5"></circle><path d="M12 9v4l2.5 2M9.5 3h5"></path>',
 };
-const icon = (name, size = 22) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[name]}</svg>`;
+export const icon = (name, size = 22) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[name]}</svg>`;
 
 export function createMenu(root, handlers) {
   root.innerHTML = `
@@ -209,6 +209,7 @@ export function createMenu(root, handlers) {
         </div>
         <p class="notice" data-notice hidden></p>
         <small class="credits" data-credits></small>
+        <button class="vol-toggle kids-open" data-kidsopen>${icon('whale', 18)}<span><b>${T('子供用モード', 'Kids mode')}</b><small>${T('ボタンで何頭でもクジラを呼べて、写真も撮れます。図鑑と点数はお休み。もどるときはボタンを長押し', 'Call as many whales as you like and take photos. The Book and scores take a break. Press and hold to exit')}</small></span></button>
         <div class="shutter-spot lang-pick" role="group" aria-label="言語 / Language">
           <span>言語 / Language</span>
           ${Object.entries(LANG_LABELS).map(([k, v]) => `<button data-lang="${k}" aria-pressed="false">${v}</button>`).join('')}
@@ -363,6 +364,7 @@ export function createMenu(root, handlers) {
   // 海をタップするとパネルが出て、もう一度タップすると消える
   document.addEventListener('pointerdown', e => {
     if (!started) return;
+    if (handlers.isKids?.()) return;   // 子供用モードのあいだは、パネルを出さない
     if (!tour.hidden) return;   // チュートリアルのあいだは、パネルを出したり消したりしない
     // 案内の吹き出しを押したときは、海をタップしたことにしない(パネルが動いて、ボタンの位置がずれないように)
     if (coachCard.contains(e.target)) return;
@@ -510,6 +512,7 @@ export function createMenu(root, handlers) {
   let hintTimer = null;
   function hideHint() { hint.hidden = true; clearTimeout(hintTimer); }
   $('[data-dark]').addEventListener('click', () => handlers.onDark?.(true));
+  $('[data-kidsopen]').addEventListener('click', () => { hideMenu(); handlers.onKids?.(true); });
   blackout.addEventListener('click', () => handlers.onDark?.(false));
   rest.addEventListener('click', () => handlers.onWake?.());
   // おやすみタイマー

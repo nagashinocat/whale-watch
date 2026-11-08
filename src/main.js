@@ -37,6 +37,8 @@ import { FIRST_WHALE, firstWhaleText, needsFirstWhale, markFirstWhaleDone, nextS
 import { makeBackup, parseBackup, mergeBooks, newPhotos, backupFileName } from './logic/backup.js';
 import { ADS, shouldPlayAd } from './logic/ads.js';
 import { songVersion, seasonKey, loadSongs, recordSong } from './logic/songs.js';
+import { KIDS, pickKidsPattern, kidsPosition, whalesToRemove, loadKids, saveKids } from './logic/kids.js';
+import { createKidsScreen } from './ui/kids.js';
 import { whisperBout, nextWhisperSec, nextDistantSongSec, HYDROPHONE } from './logic/whisper.js';
 
 // メニューに表示する素材のクレジット(assets/CREDITS.md と合わせる)
@@ -64,6 +66,7 @@ let book = loadBook(safeStorage());
 let forcedVisitor = null;
 let timerVisitor = null;
 let pickedWhale = null, eventWhale = null;   // プラスの「来てほしいクジラ」(呼んだときに決め、来たときに使う)   // タイマーで知らせに来るクジラの番号
+let kids = loadKids(safeStorage()).on;   // 子供用モード(ボタンで何頭でも呼べる。図鑑・点数・実績はお休み)
 let countingSightings = true;   // いまの出方を図鑑に数えるか(「呼ぶ」で来たクジラは数えない)
 let pendingSightings = [], sightingTimer = null;   // まとめて出すお知らせ   // 動作確認用: 出すクジラの番号
 // 撮った写真(この端末のブラウザに保存する)
@@ -130,6 +133,12 @@ const whalesReady = createWhales(ocean.scene, {
   visitor(taken = [], { solo = false } = {}) {
     // 動作確認のページで「出すクジラ」を選んでいたら、その子を出す
     if (forcedVisitor && !taken.includes(forcedVisitor)) return forcedVisitor;
+    // 子供用モード: とくべつな子(ひみつ)は来ない。図鑑にも記録しない
+    if (kids) {
+      let k = nextVisitor(book, Math.random, { solo: false });
+      for (let i = 0; i < 20 && taken.includes(k); i++) k = nextVisitor(book);
+      return k;
+    }
     // 最初のクジラの案内では、なじみの子(シロ)が来る
     if (firstVisitor && !taken.includes(firstVisitor)) return firstVisitor;
     // プラスで「来てほしいクジラ」を選んで呼んだときは、その子が来る
@@ -143,7 +152,7 @@ const whalesReady = createWhales(ocean.scene, {
   // 姿を見せたら(鳴き声だけのときと、「呼ぶ」で来たときは数えない)、図鑑に記録してお知らせする。
   // 群れで何頭も来たときは、少し待ってからお知らせを1つにまとめる
   sighted(w) {
-    if (!w.individual || !countingSightings) return;
+    if (!w.individual || !countingSightings || kids) return;
     const r = recordSighting(book, w.individual.id, Date.now());
     book = r.book;
     saveBook(safeStorage(), book);
@@ -225,7 +234,7 @@ function refreshSummonButton() {
 async function handleEvent(event) {
   if (event.kind === 'summon' || event.kind === 'pick') menu.setSummonStatus(null);
   if (event.kind === 'pick') { eventWhale = pickedWhale; pickedWhale = null; }
-  countingSightings = countsForZukan(event);
+  countingSightings = event.kind === 'kids' ? false : countsForZukan(event);
   try {
     const whales = await whalesReady;
     // 「目が合う」は間近のカメラのすぐ前で起きるので、崖の上からは見えない(崖の真下になる)。かわりにスパイホップ
@@ -241,13 +250,13 @@ async function handleEvent(event) {
     if (voice) playWhaleSound(voice, { maxMs: durationMs, position: [...SPOT], wait: true });
     // 画面が隠れて描画が止まっていても、必ず決まった時間で終わらせる
     await Promise.race([
-      whales.play(name, spawnPosition(Math.random)),
+      whales.play(name, event.position ?? spawnPosition(Math.random)),
       new Promise(r => setTimeout(r, durationMs + 1000)),
     ]);
   } finally {
     // 動作確認とタイマーは、出番係の順番とは別に出す
     if (event.kind === 'pick') eventWhale = null;
-    if (event.kind !== 'debug' && event.kind !== 'timer' && event.kind !== 'first') scheduler.endEvent(Date.now());
+    if (event.kind !== 'debug' && event.kind !== 'timer' && event.kind !== 'first' && event.kind !== 'kids') scheduler.endEvent(Date.now());
     refreshSummonButton();
   }
 }
@@ -383,6 +392,7 @@ const menu = createMenu(document.getElementById('ui'), {
     onLanding = false;
     lastTouch = Date.now();
     updateQuiet();
+    kidsScreen.show(kids);
     // はじめのページにもどったあと、もう一度スタートを押したとき: 音をもう一度大きくする
     if (audioCtx) {
       audioCtx.resume().catch(() => {});
@@ -527,6 +537,9 @@ const menu = createMenu(document.getElementById('ui'), {
   },
   onWake() { wakeFromRest(); },
   // 画面を真っ暗にする(音はそのまま)
+  // 子供用モードにする(パネルのボタンから。もどるときは子供用の画面で長押し)
+  onKids(on) { setKids(on); },
+  isKids: () => kids,
   onDark(on) {
     dark = on;
     menu.setDark(on);
@@ -798,13 +811,14 @@ function goBackToStart() {
   adPlayed = false;   // つぎにスタートを押したら、また広告動画を流す
   onLanding = true;
   updateQuiet();
+  kidsScreen.show(false);
   mixer?.setFade(0, 2000);
   zukan.close();
   menu.showLanding();
 }
 setInterval(() => {
   const now = Date.now();
-  const blocked = onLanding || adPlaying || !mixer || dark || settings.mode === 'sleep' || !!timer || !!sleepT || resting;
+  const blocked = onLanding || kids || adPlaying || !mixer || dark || settings.mode === 'sleep' || !!timer || !!sleepT || resting;
   const nextAt = scheduler.upcoming();
   const way = heraldWay({ enabled: settings.herald, blocked, now, nextAt, lastFor: heraldFor, hidden: document.hidden, lastTouch });
   if (way) {
@@ -832,7 +846,7 @@ let resting = false;   // 止まって「おやすみなさい」を出してい
 // 自然にクジラを出さないとき: タイマーのあいだと、おやすみタイマーで小さくなりはじめてから
 function updateQuiet(now = Date.now()) {
   const p = sleepPhase(now, sleepT);
-  scheduler.setQuiet(onLanding || !!timer || resting || p === 'fading' || p === 'done', now);
+  scheduler.setQuiet(onLanding || kids || !!timer || resting || p === 'fading' || p === 'done', now);
 }
 // 画面をつけたままにしてほしいとき(消えると音が止まるので)
 const screenWanted = () => !!timer || (!!sleepT && !resting);
@@ -909,6 +923,7 @@ function startTour() {
 }
 // はじめてスタートを押したとき: まだ見ていなければチュートリアル、見たことがあれば(前からの人)吹き出しの案内
 function firstGuide() {
+  if (kids) return;   // 子供用モードでは、案内は出さない
   if (!loadTourDone(safeStorage()) && hints.size === 0) startTour();
   else if (needsFirstWhale(safeStorage(), book)) startFirstWhale();
   else showHint(false);
@@ -919,6 +934,7 @@ function firstGuide() {
 let firstWhale = null;     // { stage, jumps, score }
 let firstVisitor = null;   // いま来てもらっているシロの番号(visitor で使う)
 function startFirstWhale(force = false) {
+  if (kids) return;
   if (firstWhale || (!force && !needsFirstWhale(safeStorage(), book))) return;
   firstWhale = { stage: 'arrive', jumps: 0, score: null };
   showFirst('arrive');
@@ -967,6 +983,7 @@ function endFirstWhale() {
   menu.coach(null);
 }
 function showHint(panelOpen) {
+  if (kids) return;
   const step = nextHint(hints, panelOpen);
   // パネルを開いたら、「海をタップすると…」はもう出さない
   if (panelOpen) markHint(safeStorage(), hints, 'tap');
@@ -1086,5 +1103,67 @@ document.addEventListener('visibilitychange', () => {
     ocean.start();
   }
 });
+
+// ---- 子供用モード ----
+// ボタンで何頭でもクジラを呼べる(海にいるのは6頭まで。こえたら古いクジラから潜っていなくなる)。
+// 出方はランダム。図鑑・点数・実績はお休みで、写真だけ撮れる(撮った写真は、ふつうのモードの「写真」で見られる)
+const kidsScreen = createKidsScreen(document.getElementById('ui'), {
+  onCall: callForKids,
+  onPhoto: takeKidsPhoto,
+  onExit: () => setKids(false),
+});
+let kidsCalls = 0;
+const kidsRecent = [];
+function setKids(on) {
+  kids = on;
+  saveKids(safeStorage(), { on });
+  if (on) {
+    if (firstWhale) endFirstWhale();
+    menu.coach(null);
+    menu.hideHint();
+    zukan.close();
+  }
+  kidsScreen.show(on && !onLanding);
+  updateQuiet();
+  refreshKidsCount();
+  menu.showToast(on
+    ? tr({ ja: '子供用モードにしました。もどるときは、右上のボタンを長押ししてください', en: 'Kids mode is on. To exit, press and hold the button at the top right' })
+    : tr({ ja: 'ふつうのモードにもどりました', en: 'Back to normal mode' }));
+}
+async function refreshKidsCount() {
+  const whales = await whalesReady;
+  kidsScreen.setCount(whales.activeWhales());
+}
+async function callForKids() {
+  if (!kids) return;
+  const whales = await whalesReady;
+  const name = pickKidsPattern(Math.random, kidsRecent);
+  kidsRecent.push(name);
+  if (kidsRecent.length > 4) kidsRecent.shift();
+  // 6頭をこえる分だけ、前に来たクジラから潜っていなくなる
+  let extra = whalesToRemove(whales.activeWhales(), whales.count(name));
+  while (extra > 0) {
+    const gone = whales.dismissOldest();
+    if (!gone) break;
+    extra -= gone;
+  }
+  const position = kidsPosition(kidsCalls++);
+  const done = handleEvent({ kind: 'kids', pattern: name, position });
+  refreshKidsCount();
+  setTimeout(refreshKidsCount, (KIDS.sinkSec + 0.2) * 1000);
+  done.finally(refreshKidsCount);
+}
+// 写真だけ撮る(点数・図鑑・実績はなし)
+async function takeKidsPhoto() {
+  menu.flash();
+  try {
+    const blob = await ocean.snapshot(PHOTOS);
+    if (!blob) throw new Error('no image');
+    await photos.add({ time: Date.now(), whales: [], camera: settings.camera, score: null, blob });
+    kidsScreen.say(tr({ ja: '📸 とれたよ!', en: '📸 Got it!' }));
+  } catch {
+    kidsScreen.say(tr({ ja: 'とれなかったよ', en: 'Could not take it' }));
+  }
+}
 
 export { ocean, scheduler, handleEvent, DEBUG };

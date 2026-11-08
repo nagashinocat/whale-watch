@@ -983,7 +983,9 @@ function firstEvent(ev, { score = null } = {}) {
 }
 function showFirst(stage) {
   const name = displayName(FIRST_WHALE.id, book) || 'シロ';
-  const base = { text: firstWhaleText(stage, { name, score: firstWhale?.score }), onSkip: endFirstWhale };
+  // クジラが来て跳ぶまで(arrive・ready・again)は、パネルを閉じて海を広く見せ、シャッターだけを残す
+  const clearView = stage === 'arrive' || stage === 'ready' || stage === 'again';
+  const base = { text: firstWhaleText(stage, { name, score: firstWhale?.score }), onSkip: endFirstWhale, clearView };
   const nextBtn = (ja, en) => ({ next: tr({ ja, en }), low: true, onNext: () => firstEvent('next') });
   if (stage === 'ready') menu.coach({ ...base, target: 'shutter' });
   else if (stage === 'shot' || stage === 'missed') menu.coach({ ...base, ...nextBtn('つぎへ', 'Next') });

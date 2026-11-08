@@ -282,6 +282,7 @@ export function createMenu(root, handlers) {
   const alarm = $('[data-alarm]');
   let timerAt = null;
   const floatShutter = $('[data-floatshutter]');
+  let clearView = false;   // 最初のクジラの案内で、パネルを閉じてシャッターだけ残しているあいだ
   let shutterSpot = 'center';
   const sleepMark = $('[data-sleepmark]');
   let started = false;
@@ -306,8 +307,9 @@ export function createMenu(root, handlers) {
     timerMark.hidden = !(started && timerAt != null && menu.hidden);
     // パネルを閉じているあいだだけ出す(開いているときはパネルの中のシャッターを使う)
     // 真っ暗な画面と「おやすみなさい」のときは出さない
-    floatShutter.hidden = !(started && menu.hidden && shutterSpot !== 'off' && blackout.hidden && rest.hidden);
-    floatShutter.dataset.at = shutterSpot;
+    // 最初のクジラの案内(clearView)のあいだは、シャッターを消す設定でも、まん中に出す
+    floatShutter.hidden = !(started && menu.hidden && (shutterSpot !== 'off' || clearView) && blackout.hidden && rest.hidden);
+    floatShutter.dataset.at = clearView && shutterSpot === 'off' ? 'center' : shutterSpot;
     floatShutter.classList.toggle('dim', current.mode === 'sleep');   // おやすみモードでは暗めに
   }
 
@@ -369,6 +371,8 @@ export function createMenu(root, handlers) {
     if (!tour.hidden) return;   // チュートリアルのあいだは、パネルを出したり消したりしない
     // 案内の吹き出しを押したときは、海をタップしたことにしない(パネルが動いて、ボタンの位置がずれないように)
     if (coachCard.contains(e.target)) return;
+    // 最初のクジラが来ているあいだは、パネルを出さない(海を広く見て、写真を撮れるように)
+    if (clearView) return;
     // 真っ暗な画面と「おやすみなさい」は、タップ(click)でもどす。ここではパネルを出さない
     if (blackout.contains(e.target) || rest.contains(e.target) || update.contains(e.target) || adOn) return;
     if (!hint.hidden) hideHint();
@@ -503,6 +507,7 @@ export function createMenu(root, handlers) {
   function hideCoach() {
     coachNow = null;
     coachBox.hidden = true;
+    if (clearView) { clearView = false; showSleepMark(); }
     clearInterval(coachTimer);
     window.removeEventListener('resize', placeCoach);
   }
@@ -690,6 +695,9 @@ export function createMenu(root, handlers) {
       if (!c) { hideCoach(); return; }
       coachNow = c;
       coachLast = '';
+      // clearView: パネルを閉じて海を広く見せ、シャッターだけを残す(最初のクジラが来るとき)
+      clearView = !!c.clearView;
+      if (clearView) hideMenu(); else showSleepMark();
       coachText.textContent = c.text;
       coachNext.hidden = !c.next;
       coachSkip.hidden = c.skip === false;   // skip: false で「案内をとばす」を出さない

@@ -10,7 +10,7 @@
 // モデルは tools/build_whale_model.py で、頭が -z、体長 1、まん中が原点になるように作ってある。
 
 import { skinColor, jawWeights } from './whaleShape.js';
-import { traitBodyColor, traitFinColor } from './traits.js';
+import { traitBodyColor, traitFinColor, flukeBite } from './traits.js';
 import { flukeWhiteness } from './flukeId.js';
 
 export const MODEL = Object.freeze({
@@ -189,4 +189,78 @@ export function modelJaw(L) {
     out.set(jawWeights('humpback', Math.max(0, L.u[i]), L.theta[i]), i * 4);
   }
   return out;
+}
+
+// ---- 形の個性(背びれのこぶ・かぎ形・欠け、尾びれのうしろのふちの欠け) ----
+// 背びれ: 背中の線(背びれの前と後ろの背中の高さを結んだ線)より上に出ている、まん中の頂点。
+// その高さ h を変えて形を作る。形を変えない子は null
+export const DORSAL = Object.freeze({ from: 0.58, to: 0.735, halfWidth: 0.02 });
+export function shapeForIndividual(pos, L, ind) {
+  const t = ind?.traits ?? {};
+  const dorsal = t.dorsal && t.dorsal !== 'normal' ? t.dorsal : null;
+  const bite = t.fluke === 'bite';
+  if (!dorsal && !bite) return null;
+  const out = Float32Array.from(pos);
+  const n = pos.length / 3;
+  if (dorsal) {
+    // 背びれのない前と後ろの背中の高さから、背びれの下の背中の線を2次式でなめらかにつなぐ
+    const pts = [];
+    for (const u0 of [0.48, 0.51, 0.54, 0.57, 0.745, 0.765, 0.785, 0.805]) {
+      let y = -Infinity;
+      for (let i = 0; i < n; i++) if (Math.abs(pos[i * 3]) < 0.01 && Math.abs(pos[i * 3 + 2] + 0.5 - u0) < 0.006) y = Math.max(y, pos[i * 3 + 1]);
+      if (Number.isFinite(y)) pts.push([u0, y]);
+    }
+    const [a, b, c] = fitQuadratic(pts);
+    const base = u => a * u * u + b * u + c;
+    let hMax = 0;
+    const fin = [];
+    for (let i = 0; i < n; i++) {
+      const u = pos[i * 3 + 2] + 0.5;
+      if (u <= DORSAL.from || u >= DORSAL.to || Math.abs(pos[i * 3]) > DORSAL.halfWidth || pos[i * 3 + 1] < 0) continue;
+      const h = pos[i * 3 + 1] - base(u);
+      if (h <= 0.002) continue;
+      fin.push([i, h]); hMax = Math.max(hMax, h);
+    }
+    for (const [i, h] of fin) {
+      const k = h / (hMax || 1);   // 0 が背中、1 が背びれの先
+      if (dorsal === 'knob') out[i * 3 + 1] -= h * 0.65;                         // 小さなこぶ
+      else if (dorsal === 'hook') { out[i * 3 + 2] += hMax * 0.9 * k * k; out[i * 3 + 1] += hMax * 0.15 * k; }   // 先がうしろへ曲がる
+      else if (dorsal === 'nick') {
+        // 上が平らに切れ、まん中にV字の切れこみ
+        const cut = hMax * 0.45;
+        if (h > cut) out[i * 3 + 1] -= h - cut;
+        const u = pos[i * 3 + 2] + 0.5, mid = (DORSAL.from + DORSAL.to) / 2 + 0.02;
+        if (h > cut * 0.6) out[i * 3 + 1] -= hMax * 0.22 * Math.max(0, 1 - Math.abs(u - mid) / 0.015);
+      }
+    }
+  }
+  if (bite) {
+    for (let i = 0; i < n; i++) {
+      if (L.part[i] !== PART.fluke) continue;
+      const d = flukeBite(ind, L.s[i]);
+      if (d <= 0.0005) continue;
+      // うしろのふちに近いほど、前へ引く(前のふちはそのまま)
+      out[i * 3 + 2] -= d * L.c[i] * L.c[i];
+    }
+  }
+  return out;
+}
+
+// 最小二乗で y = a u² + b u + c
+function fitQuadratic(pts) {
+  let s0 = 0, s1 = 0, s2 = 0, s3 = 0, s4 = 0, t0 = 0, t1 = 0, t2 = 0;
+  for (const [u, y] of pts) { const u2 = u * u; s0++; s1 += u; s2 += u2; s3 += u2 * u; s4 += u2 * u2; t0 += y; t1 += u * y; t2 += u2 * y; }
+  // [s4 s3 s2; s3 s2 s1; s2 s1 s0] [a b c] = [t2 t1 t0]
+  const M = [[s4, s3, s2, t2], [s3, s2, s1, t1], [s2, s1, s0, t0]];
+  for (let i = 0; i < 3; i++) {
+    let p = i;
+    for (let r = i + 1; r < 3; r++) if (Math.abs(M[r][i]) > Math.abs(M[p][i])) p = r;
+    [M[i], M[p]] = [M[p], M[i]];
+    for (let r = 0; r < 3; r++) {
+      if (r === i) continue;
+      const f = M[r][i] / M[i][i];
+      for (let k = i; k < 4; k++) M[r][k] -= f * M[i][k];
+    }
+  }
+  return [M[0][3] / M[0][0], M[1][3] / M[1][1], M[2][3] / M[2][2]];
 }

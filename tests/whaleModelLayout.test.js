@@ -138,3 +138,34 @@ test('目の場所: 左右それぞれ、頭の横の肌の上の点と、外向
     assert.ok(Math.abs(Math.hypot(...e.normal) - 1) < 1e-6);
   }
 });
+
+test('背びれと尾びれの形の個性: こぶは低く、かぎ形は先がうしろへ、欠けは先が平らに。尾びれの欠けは、うしろのふちが前へ', async () => {
+  const { shapeForIndividual } = await import('../src/logic/whaleModelLayout.js');
+  const { pos, nrm } = toyWhale();
+  // 背びれ: u = 0.62〜0.70 の背中に、三角の板
+  const fin = [];
+  for (let k = 0; k <= 8; k++) for (let h = 0; h <= 4; h++) {
+    const u = 0.62 + 0.08 * (k / 8), top = 0.1 * Math.sin(Math.PI * Math.min(0.98, u * 0.95 + 0.02));
+    const height = 0.02 * Math.min(k / 6, 1) * (1 - Math.max(0, (k - 6) / 2)) * (h / 4);
+    fin.push(0, top + height, u - 0.5);
+  }
+  const P = new Float32Array([...pos, ...fin]);
+  const N = new Float32Array([...nrm, ...fin.map((_, i) => (i % 3 === 1 ? 1 : 0))]);
+  const L = modelLayout(P, N);
+  const n = P.length / 3, start = pos.length / 3;
+  const finTop = p => Math.max(...[...Array(n - start).keys()].map(k => p[(start + k) * 3 + 1]));
+  const tipZ = p => { let best = start; for (let i = start; i < n; i++) if (p[i * 3 + 1] > p[best * 3 + 1]) best = i; return p[best * 3 + 2]; };
+  const withTraits = t => ({ id: 99, traits: { dorsal: 'normal', fluke: 'normal', bitePlace: 0.5, ...t } });
+  assert.equal(shapeForIndividual(P, L, withTraits({})), null, 'ふつうの子は形を変えない');
+  const knob = shapeForIndividual(P, L, withTraits({ dorsal: 'knob' }));
+  assert.ok(finTop(knob) < finTop(P) - 0.008);
+  const hook = shapeForIndividual(P, L, withTraits({ dorsal: 'hook' }));
+  assert.ok(tipZ(hook) > tipZ(P) + 0.005, 'かぎ形の先は、うしろ(尾のほう)へ');
+  const nick = shapeForIndividual(P, L, withTraits({ dorsal: 'nick' }));
+  assert.ok(finTop(nick) < finTop(P) - 0.003 && finTop(nick) > finTop(knob));
+  const bite = shapeForIndividual(P, L, withTraits({ fluke: 'bite', bitePlace: 0.5 }));
+  const back = [...Array(start).keys()].filter(i => L.part[i] === PART.fluke && Math.abs(L.s[i] - 0.5) < 0.06 && L.c[i] > 0.9);
+  assert.ok(back.length && back.every(i => bite[i * 3 + 2] < P[i * 3 + 2] - 0.005), '欠けたところは、うしろのふちが前へ');
+  const far = [...Array(start).keys()].filter(i => L.part[i] === PART.fluke && L.s[i] < -0.4);
+  assert.ok(far.every(i => bite[i * 3 + 2] === P[i * 3 + 2]), '欠けていない側はそのまま');
+});

@@ -5,7 +5,7 @@ import { specialMotif } from '../logic/specialCoats.js';
 import { buildFeatures } from '../logic/features3d.js';
 import { eyePatch, applyLid, eyeballPlacement, blinkOpen, EYE } from '../logic/eyeShape.js';
 import { flukeWhiteness } from '../logic/flukeId.js';
-import { MODEL, modelLayout, individualColors, specialAssets, eyeSpots, modelJaw, toLinear as modelLinear } from '../logic/whaleModelLayout.js';
+import { MODEL, modelLayout, individualColors, specialAssets, eyeSpots, modelJaw, shapeForIndividual, toLinear as modelLinear } from '../logic/whaleModelLayout.js';
 
 // 目の玉に映る空と海の色(時刻で変わる。setEyeLight で変える)
 const eyeUniforms = {
@@ -426,6 +426,9 @@ function modelGeometryFor(ind) {
   const g = new THREE.BufferGeometry();
   for (const name of ['position', 'normal', 'uv']) g.setAttribute(name, model.geo.attributes[name]);
   g.setIndex(model.geo.index);
+  // 背びれ・尾びれの形の個性があれば、その子だけ形を変える(向き=法線はそのまま使う。変わる量が小さいので)
+  const shaped = ind ? shapeForIndividual(model.geo.attributes.position.array, model.layout, ind) : null;
+  if (shaped) g.setAttribute('position', new THREE.BufferAttribute(shaped, 3));
   g.setAttribute('aJaw', model.jaw);
   const n = model.geo.attributes.position.count;
   let color, mix, base;

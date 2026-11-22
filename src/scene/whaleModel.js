@@ -5,7 +5,7 @@ import { specialMotif } from '../logic/specialCoats.js';
 import { buildFeatures } from '../logic/features3d.js';
 import { eyePatch, applyLid, eyeballPlacement, blinkOpen, EYE } from '../logic/eyeShape.js';
 import { flukeWhiteness } from '../logic/flukeId.js';
-import { MODEL, modelLayout, individualColors, specialAssets, eyeSpots, toLinear as modelLinear } from '../logic/whaleModelLayout.js';
+import { MODEL, modelLayout, individualColors, specialAssets, eyeSpots, modelJaw, toLinear as modelLinear } from '../logic/whaleModelLayout.js';
 
 // 目の玉に映る空と海の色(時刻で変わる。setEyeLight で変える)
 const eyeUniforms = {
@@ -300,7 +300,7 @@ export function loadWhaleModel() {
     model = {
       geo, layout, eyes,
       maps: { map: m.map, normalMap: m.normalMap, roughnessMap: m.roughnessMap },
-      jaw: new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 4), 4),
+      jaw: new THREE.BufferAttribute(modelJaw(layout), 4),
       specials: {},
     };
     return model;

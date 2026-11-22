@@ -9,7 +9,7 @@
 //
 // モデルは tools/build_whale_model.py で、頭が -z、体長 1、まん中が原点になるように作ってある。
 
-import { skinColor } from './whaleShape.js';
+import { skinColor, jawWeights } from './whaleShape.js';
 import { traitBodyColor, traitFinColor } from './traits.js';
 import { flukeWhiteness } from './flukeId.js';
 
@@ -178,4 +178,15 @@ export function individualColors(ind, L) {
     }
   }
   return { color, mix, base };
+}
+
+// 口の動き(あご・のど)の重み。計算で作ったクジラと同じ決め方を、モデルの頂点の場所(u, θ)で使う。
+// [下あご, 上あご, のどのふくらみ, 口の線より下か] のならび(シェーダーの aJaw)
+export function modelJaw(L) {
+  const n = L.part.length, out = new Float32Array(n * 4);
+  for (let i = 0; i < n; i++) {
+    if (L.part[i] !== PART.body || L.u[i] > 0.6) continue;
+    out.set(jawWeights('humpback', Math.max(0, L.u[i]), L.theta[i]), i * 4);
+  }
+  return out;
 }

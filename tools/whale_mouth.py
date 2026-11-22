@@ -14,7 +14,7 @@ GAPE_SIDE = [(0.04, 0.028), (0.08, 0.034), (0.12, 0.039), (0.16, 0.043), (0.2, 0
 UPPER_FADE = (0.16, 0.25)   # 上あご(頭)が持ち上がる重みが、ここで 1 → 0
 LOWER_FADE = (0.22, 0.29)   # 下あごの重みが、ここで 1 → 0(口の端のうしろは、のどの皮がのびてつながる)
 EYE = dict(y=0.032, z=-0.212, open=0.0047, lid=0.011)   # 目のまん中、目の開きの半径、まぶたの肌の広さ
-BALEEN = 0.028   # ひげ板のいちばん長いところ(体長1)
+BALEEN = 0.04    # ひげ板のいちばん長いところ(体長1。14mで約0.55m)
 FLOOR = 0.034    # 口の底の深さ(口の線から)
 
 
@@ -132,14 +132,15 @@ def body_jaw(pos, lower, corner):
 def mouth_inside(right):
     """口の中の網目。right は口の線の右半分(口先 → 右の口の端)。
     戻り値: 位置、色(計算用の色)、あごの重み、三角"""
-    P, C, J, I = [], [], [], []
+    P, C, J, I, M = [], [], [], [], []
 
-    def grid(rows, cols, fn):
+    def grid(rows, cols, fn, region):
         base = len(P)
         for r in range(rows):
             for c in range(cols):
-                p, col, jaw = fn(r / (rows - 1), c / (cols - 1))
-                P.append(p); C.append(col); J.append(jaw)
+                s_, t_ = r / (rows - 1), c / (cols - 1)
+                p, col, jaw = fn(s_, t_)
+                P.append(p); C.append(col); J.append(jaw); M.append([region, s_, t_])   # 場所の種類と、その中の場所(模様を描くため)
         for r in range(rows - 1):
             for c in range(cols - 1):
                 a = base + r * cols + c
@@ -162,34 +163,34 @@ def mouth_inside(right):
     def palate(s, t):
         p = at(s); x = (2 * t - 1) * lx(s)
         return [x, p[1] + 0.004 * (1 - (2 * t - 1) ** 2) * tp(s), p[2] + 0.002], PALATE, [0, uw(s), 0, 0]
-    grid(24, 9, palate)
+    grid(24, 9, palate, 1)
     # ひげ板(左右): 上あごのふちから下がる黒い幕。内側のはしは、ふさで茶色っぽい
     for sgn in (1, -1):
         def baleen(s, t, sgn=sgn):
             p = at(s); top = np.array([sgn * lx(s), p[1] - 0.0008, p[2] + 0.002])
             L = BALEEN * tp(s)
-            bot = np.array([sgn * lx(s) * 0.86, p[1] - L, p[2] + 0.002])
+            bot = np.array([sgn * lx(s) * 0.72, p[1] - L, p[2] + 0.002])   # 内側へたれさがる(口の中の左右をうめる、毛のかたまり)
             q = top + (bot - top) * t
             # 1枚ずつの板の筋(前後に細かく、明るさをかえる)。内側のはしは、ふさで茶色っぽい
             stripe = 0.55 + 0.45 * np.sin(s * 160) ** 2
             col = list((np.array([0.012, 0.011, 0.01]) * (1 - t) + np.array([0.06, 0.045, 0.032]) * t) * stripe)
             return list(q), col, [0, uw(s), 0, 0]
-        grid(90, 6, baleen)
+        grid(90, 8, baleen, 2)
     # 口の底(下あごの内側の歯ぐきと舌): 左右の下くちびるのふちから、まん中の深いところへ
     def floor(s, t):
         p = at(s); k = 2 * t - 1
         y = p[1] - 0.0015 - FLOOR * tp(s) * (1 - abs(k) ** 3)
         col = list(np.array(GUM) + (np.array(TONGUE) - np.array(GUM)) * (1 - abs(k) ** 2))
         return [k * lx(s) * 0.98, y, p[2] + 0.003], col, [lw(s), 0, 0, lw(s)]
-    grid(24, 13, floor)
+    grid(30, 17, floor, 3)
     # のどの奥の壁: 口の端で、天井と口の底をつなぐ暗い幕(口を開けると、のびて奥をふさぐ)
     def throat(s, t):
         p = right[-3]; k = 2 * t - 1; x = k * lip_x[-3]
         top = p[1] + 0.002
         bot = p[1] - 0.0015 - FLOOR * taper[-3] * (1 - abs(k) ** 3)
         return [x, top + (bot - top) * s, p[2] + 0.004], THROAT, [loww[-3] * s, upw[-3] * (1 - s), 0, loww[-3] * s]
-    grid(6, 13, throat)
-    return (np.array(P, np.float32), np.array(C, np.float32), np.array(J, np.float32), np.array(I, np.int64))
+    grid(6, 13, throat, 4)
+    return (np.array(P, np.float32), np.array(C, np.float32), np.array(J, np.float32), np.array(I, np.int64), np.array(M, np.float32))
 
 
 def eye_frames(pos, nrm):

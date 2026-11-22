@@ -303,6 +303,7 @@ export function loadWhaleModel() {
     // 口の中: あごの重みを aJaw に
     const mouthGeo = mouth.geometry;
     mouthGeo.setAttribute('aJaw', mouthGeo.attributes._jaw);
+    mouthGeo.setAttribute('aM', mouthGeo.attributes._m);
     mouthGeo.computeVertexNormals();
     const m = src.material;
     model = {
@@ -310,6 +311,7 @@ export function loadWhaleModel() {
       maps: { map: m.map, normalMap: m.normalMap, roughnessMap: m.roughnessMap },
       jaw: new THREE.BufferAttribute(jaw, 4),
       lid: geo.attributes._lid,
+      theta: new THREE.BufferAttribute(layout.theta, 1),
       eyeSkin: geo.attributes._eyeskin.array,
       specials: {},
     };
@@ -377,6 +379,52 @@ function decorMesh(look, uniforms) {
   return mesh;
 }
 
+// 口の中の模様(計算で描く)。aM = [場所の種類, 前後(口先 0 〜 口の端 1), 横または上下(0〜1)]
+//   1 天井: まん中にピンクの盛り上がり(上あごの骨のすじ)、左右はひげ板のつけ根で黒い
+//   2 ひげ板: つけ根は黒く、先へいくほど茶色い毛(ふさ)になって、ばらばらにほつれる
+//   3 舌と口の底: ピンクに、まだらと、しわ
+//   4 のどの奥: 暗い赤
+function mouthDetail(shader) {
+  shader.vertexShader = shader.vertexShader
+    .replace('#include <common>', '#include <common>\nattribute vec3 aM;\nvarying vec3 vM;')
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvM = aM;');
+  shader.fragmentShader = shader.fragmentShader
+    .replace('#include <common>', `#include <common>
+      varying vec3 vM;
+      float mh(float x) { return fract(sin(x * 127.1) * 43758.5453); }
+      float mn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+        float a = mh(i.x + i.y * 57.0), b = mh(i.x + 1.0 + i.y * 57.0), c = mh(i.x + (i.y + 1.0) * 57.0), d = mh(i.x + 1.0 + (i.y + 1.0) * 57.0);
+        return mix(mix(a, b, f.x), mix(c, d, f.x), f.y); }`)
+    .replace('#include <color_fragment>', `#include <color_fragment>
+      {
+        float region = floor(vM.x + 0.5), s = vM.y, t = vM.z;
+        vec3 col = diffuseColor.rgb;
+        if (region == 1.0) {
+          float keel = 1.0 - smoothstep(0.08, 0.32, abs(t - 0.5));
+          col = mix(vec3(0.02, 0.016, 0.014), vec3(0.50, 0.17, 0.17), keel);
+          col *= 0.8 + 0.4 * mn(vec2(s * 40.0, t * 12.0));
+        } else if (region == 2.0) {
+          // 板1枚ずつの筋と、毛のほつれ
+          float plate = 0.6 + 0.4 * smoothstep(0.2, 0.8, mn(vec2(s * 420.0, t * 2.0)));
+          float hair = mn(vec2(s * 900.0 + t * 40.0, t * 18.0));
+          float fringe = smoothstep(0.25, 0.95, t);
+          vec3 root = vec3(0.012, 0.010, 0.009), tuft = vec3(0.20, 0.12, 0.065);
+          col = mix(root, tuft * (0.55 + 0.75 * hair), fringe) * plate;
+          if (t > 0.85 && hair < (t - 0.85) * 5.0) discard;   // 先は毛がほつれて、すきまがある
+        } else if (region == 3.0) {
+          float m = mn(vec2(s * 30.0, t * 20.0)), w = mn(vec2(s * 120.0, t * 6.0));
+          float center = 1.0 - smoothstep(0.1, 0.48, abs(t - 0.5));
+          // 舌のまん中のくぼみと、前後にのびるしわ。ふちの歯ぐきは暗い
+          float groove = 1.0 - 0.25 * (1.0 - smoothstep(0.0, 0.06, abs(t - 0.5)));
+          float folds = 0.88 + 0.12 * sin(t * 70.0 + sin(s * 9.0) * 2.0);
+          col = mix(vec3(0.14, 0.06, 0.06), vec3(0.55, 0.22, 0.21), center) * (0.8 + 0.3 * m) * (0.9 + 0.15 * w) * groove * folds;
+        } else if (region == 4.0) {
+          col = vec3(0.05, 0.012, 0.012) * (0.7 + 0.5 * mn(vec2(s * 10.0, t * 10.0)));
+        }
+        diffuseColor.rgb = col;
+      }`);
+}
+
 // モデルの目(左右)。モデルの目のくぼみに、これまでと同じ目の玉(空と海が映る、明るいとひとみがU字)をはめ、
 // 上まぶたを、目の玉にかぶさる殻にして、前へ回して閉じる(まばたき)
 function createModelEyes(parent, individual, uniforms) {
@@ -436,6 +484,7 @@ function modelGeometryFor(ind) {
   if (shaped) g.setAttribute('position', new THREE.BufferAttribute(shaped, 3));
   g.setAttribute('aJaw', model.jaw);
   g.setAttribute('aLid', model.lid);
+  g.setAttribute('aTheta', model.theta);   // 体のまわりの角度(のどの畝の筋を描くため)
   const n = model.geo.attributes.position.count;
   let color, mix, base;
   if (ind && !ind.special) ({ color, mix, base } = individualColors(ind, model.layout));
@@ -498,14 +547,41 @@ function useModelLook(material, ind, uniforms) {
       // まぶた: 閉じぐあい uLid(0 で開き、1 で閉じる)だけ、まぶたの肌を動かす
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         transformed += uLid * aLid;
-        vMix = aMix; vBase = aBase;`);
+        vMix = aMix; vBase = aBase;
+        vLocal = position; vTheta = aTheta;`)
+      .replace('varying float vMix;', 'varying float vMix;\n        attribute float aTheta;\n        varying float vTheta;\n        varying vec3 vLocal;\n        varying float vStretch;')
+      // ふくらんだのどは、畝の細かいでこぼこがのびて平らになる: 面の向きを、ふくらむ向きへ寄せる
+      .replace('vJaw = aJaw;', `vJaw = aJaw;
+        if (uPouch > 0.0 && aJaw.z > 0.0) {
+          vec2 pr = vec2(position.x, position.y + 0.02);
+          vec3 pd = normalize(vec3(pr.x / max(length(pr), 1e-4) * ${POUCH_SIDEWAYS.toFixed(4)}, -1.0, 0.0));
+          float sm = clamp(uPouch * aJaw.z * 2.5, 0.0, 0.85);
+          objectNormal = normalize(mix(objectNormal, pd, sm));
+          vStretch = sm;
+        } else vStretch = 0.0;`);
     // 口の中は本物の網目で作ってあるので、体の色を口の中の色に塗りかえない。体の内側(裏の面)だけ、のどの奥の暗い色にする
     shader.fragmentShader = shader.fragmentShader
       .replace('float inside = gl_FrontFacing ? inMouth : jawPart;', 'float inside = gl_FrontFacing ? 0.0 : 1.0; opened = 1.0;')
-      .replace('vec3 mouthCol = mix(baleen, tongue, smoothstep(0.35, 0.75, vJaw.w));', 'vec3 mouthCol = vec3(0.03, 0.012, 0.012);');
+      .replace('vec3 mouthCol = mix(baleen, tongue, smoothstep(0.35, 0.75, vJaw.w));', 'vec3 mouthCol = vec3(0.03, 0.012, 0.012);')
+      // のどがふくらむと、白い畝のあいだのみぞが開いて、ピンクの筋が見える
+      .replace('diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.5, 0.48), 0.45 * uPouch * vJaw.z * vJaw.w);', `{
+          float stretch = clamp(uPouch * vJaw.z * 1.6, 0.0, 1.0);
+          // 畝は頭から尾の向きにのびる筋。ゆるやかに波打ち、ところどころで分かれる
+          float ang = vTheta - 3.14159265;
+          float k = ang * ${(MODEL.grooves / Math.PI).toFixed(3)} + 0.12 * sin(vLocal.z * 35.0 + ang * 2.0);
+          float g = abs(fract(k) - 0.5) * 2.0;          // 0 が畝のまん中、1 がみぞ
+          // のびた畝の肌は、テクスチャのでこぼこが引きのばされるので、白い畝の色にかえる
+          vec3 ridge = vec3(0.66, 0.68, 0.70) * (0.82 + 0.18 * (1.0 - g));
+          diffuseColor.rgb = mix(diffuseColor.rgb, ridge, smoothstep(0.05, 0.4, stretch) * 0.85);
+          float open = smoothstep(1.0 - 0.7 * stretch, 1.02 - 0.55 * stretch, g) * step(0.01, stretch);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.50, 0.15, 0.15), open * 0.92);
+        }`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
         varying float vMix;
+        varying vec3 vLocal;
+        varying float vTheta;
+        varying float vStretch;
         varying float vBase;
         uniform float uGlow;
         uniform float uGlowTime;`)
@@ -516,6 +592,8 @@ function useModelLook(material, ind, uniforms) {
         vec3 ownCol = vec3(clamp(texLum / vBase, 0.35, 1.8)) * vColor.rgb;
         diffuseColor.rgb *= mix(texel.rgb, ownCol, vMix);`)
       .replace('#include <color_fragment>', '')
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        normal = normalize(mix(normal, nonPerturbedNormal, vStretch));`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         ${style === 'fantasy' ? `
         // ファンタジー版: 模様の明るいところだけが、夜に光る
@@ -620,7 +698,7 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
         if (uPouch > 0.0 && aJaw.z > 0.0) {
           vec2 r = vec2(transformed.x, transformed.y + 0.02);
           vec3 d = normalize(vec3(r.x / max(length(r), 1e-4) * ${f(POUCH_SIDEWAYS)}, -1.0, 0.0));
-          transformed += d * ${f(POUCH_SWELL)} * uPouch * aJaw.z;
+          transformed += d * ${f(POUCH_SWELL * (useModel ? MODEL.pouchSwell : 1))} * uPouch * aJaw.z;
         }
         // ひげ板: 口を開けると本当の長さまでのびる(閉じているあいだは下あごの中にしまってある)
         if (aJaw.z < 0.0) transformed.y += aJaw.z * smoothstep(0.05, 0.5, uLowerJaw);
@@ -678,7 +756,7 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     eyes = createModelEyes(mesh, individual, uniforms);
     // 口の中(天井・ひげ板・舌・のどの奥)。体と同じしなりとあごの動きで動く
     const inner = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0, side: THREE.DoubleSide });
-    inner.onBeforeCompile = vertexPatch;
+    inner.onBeforeCompile = shader => { vertexPatch(shader); mouthDetail(shader); };
     inner.customProgramCacheKey = () => 'whale-model-mouth';
     mesh.add(new THREE.Mesh(model.mouthGeo, inner));
   } else {

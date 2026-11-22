@@ -306,9 +306,9 @@ def write_glb(path, pos, nrm, uv, idx, textures, colors=None, extra_attrs=None, 
     ii = add_acc(idx.astype(np.uint16 if small else np.uint32), 5123 if small else 5125, 'SCALAR', 34963)
     # ほかの網目(口の中など): 位置・色・あごの重み
     meshes, nodes = [], []
-    for name, (mp, mc, mj, mi) in more:
+    for name, (mp, mc, mj, mi, mm) in more:
         a2 = {'POSITION': add_acc(mp, 5126, 'VEC3', 34962, True), 'COLOR_0': add_acc(mc, 5126, 'VEC3', 34962),
-              '_JAW': add_acc(mj, 5126, 'VEC4', 34962)}
+              '_JAW': add_acc(mj, 5126, 'VEC4', 34962), '_M': add_acc(mm, 5126, 'VEC3', 34962)}
         i2 = add_acc(mi.astype(np.uint16), 5123, 'SCALAR', 34963)
         meshes.append({'name': name, 'primitives': [{'attributes': a2, 'indices': i2}]})
         nodes.append({'mesh': len(meshes), 'name': name})

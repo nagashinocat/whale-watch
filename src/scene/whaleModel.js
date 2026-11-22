@@ -34,6 +34,11 @@ export function setEyeLight(palette) {
 // 目の玉。茶色の虹彩、そのまわりの白っぽい輪、明るいとU字になるひとみ。
 // 表面はぬれてつやがあり、空と海が映りこむ
 let eyeballMaterial = null;
+let eyeSocketMaterial = null;
+function socketMaterial() {
+  eyeSocketMaterial ??= new THREE.MeshStandardMaterial({ color: 0x0b0707, roughness: 0.9, metalness: 0 });
+  return eyeSocketMaterial;
+}
 function eyeMaterial() {
   if (eyeballMaterial) return eyeballMaterial;
   const m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.25, clearcoat: 1, clearcoatRoughness: 0.03 });
@@ -432,6 +437,11 @@ function createModelEyes(parent, individual, uniforms) {
     pivot.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, out));
     const ball = new THREE.Mesh(new THREE.SphereGeometry(r, 48, 32), eyeMaterial());
     pivot.add(ball);
+    // 目のくぼみ: 目の玉のうしろを暗い肉でふさぐ(すき間から頭の中=口の中のひげ板などが透けて見えないように)
+    const socket = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 16), socketMaterial());
+    socket.scale.set(2.6, 2.4, 1.6);      // 目の開きは横に長いので、くぼみも横に広く(まぶたのつぎ目のすき間もふさぐ)
+    socket.position.z = -r * 1.3;         // 白目は見えるように、目の玉の前のほうは出しておく
+    pivot.add(socket);
     parent.add(pivot);
     return { ball };
   });
@@ -561,10 +571,11 @@ function useModelLook(material, ind, uniforms) {
           objectNormal = normalize(mix(objectNormal, pd, sm));
           vStretch = sm;
         } else vStretch = 0.0;`);
-    // 口の中は本物の網目で作ってあるので、体の色を口の中の色に塗りかえない。体の内側(裏の面)だけ、のどの奥の暗い色にする
+    // 口の中は本物の網目で作ってあるので、体の色を口の中の色に塗りかえない。体の内側(裏の面)だけ、ほぼ真っ黒にする
+    // (目の開きなどのすき間から、頭の内側が明るく透けて見えないように)
     shader.fragmentShader = shader.fragmentShader
       .replace('float inside = gl_FrontFacing ? inMouth : jawPart;', 'float inside = gl_FrontFacing ? 0.0 : 1.0; opened = 1.0;')
-      .replace('vec3 mouthCol = mix(baleen, tongue, smoothstep(0.35, 0.75, vJaw.w));', 'vec3 mouthCol = vec3(0.03, 0.012, 0.012);')
+      .replace('vec3 mouthCol = mix(baleen, tongue, smoothstep(0.35, 0.75, vJaw.w));', 'vec3 mouthCol = vec3(0.004, 0.003, 0.003);')
       // のどがふくらむと、白い畝のあいだのみぞが開いて、白い筋が見える
       .replace('diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.5, 0.48), 0.45 * uPouch * vJaw.z * vJaw.w);', `{
           // 筋は、おなか側のまん中あたりだけ(胸びれのつけ根の近くは、角度が急に変わるので描かない)

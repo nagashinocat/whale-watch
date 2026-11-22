@@ -773,11 +773,12 @@ const MOTIONS = {
         w.mixer.setFin?.(D2R(p.fin));
         w.mixer.setTwist?.(0);
       },
-      // カメラ: 飛び出す少し前から見上げて追い、落ちたところを見て、それからもとの向きへ
+      // カメラ: 頭を見る。水を割って出てくる頭を正面から見上げ、頭の上を通る顔(口・目・のど)を追い、
+      // 落ちていく頭を追ってふり返り、落ちたところを見て、それからもとの向きへ
       camera([w], t) {
         const up = ease((t - (launch - 1.2)) / 1.2) * (1 - ease((t - (land + 3.5)) / 2.5));
         if (up <= 0) return null;
-        const point = t < land + 0.3 ? bodyPoint(w, -0.1) : [x, 0.5, z0 + OVERHEAD.after];
+        const point = t < land + 0.3 ? bodyPoint(w, 0.38) : [x, 0.5, z0 + OVERHEAD.after];
         return { point, weight: up };
       },
       cues: [

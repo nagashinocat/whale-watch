@@ -179,7 +179,8 @@ def mouth_inside(right):
     # 口の底(下あごの内側の歯ぐきと舌): 左右の下くちびるのふちから、まん中の深いところへ
     def floor(s, t):
         p = at(s); k = 2 * t - 1
-        y = p[1] - 0.0015 - FLOOR * tp(s) * (1 - abs(k) ** 3)
+        # 口の底はくぼみ、まん中に大きくやわらかい舌がもり上がる
+        y = p[1] - 0.0015 - FLOOR * tp(s) * (1 - abs(k) ** 3) + 0.5 * FLOOR * tp(s) * (1 - k * k) ** 2 * smoothstep(0.0, 0.25, s)
         col = list(np.array(GUM) + (np.array(TONGUE) - np.array(GUM)) * (1 - abs(k) ** 2))
         return [k * lx(s) * 0.98, y, p[2] + 0.003], col, [lw(s), 0, 0, lw(s)]
     grid(30, 17, floor, 3)

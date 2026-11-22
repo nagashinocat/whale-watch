@@ -416,7 +416,7 @@ function mouthDetail(shader) {
           float center = 1.0 - smoothstep(0.1, 0.48, abs(t - 0.5));
           // 舌のまん中のくぼみと、前後にのびるしわ。ふちの歯ぐきは暗い
           float groove = 1.0 - 0.25 * (1.0 - smoothstep(0.0, 0.06, abs(t - 0.5)));
-          float folds = 0.88 + 0.12 * sin(t * 70.0 + sin(s * 9.0) * 2.0);
+          float folds = 0.94 + 0.06 * sin(t * 38.0 + sin(s * 9.0) * 2.5 + m * 3.0);
           col = mix(vec3(0.14, 0.06, 0.06), vec3(0.55, 0.22, 0.21), center) * (0.8 + 0.3 * m) * (0.9 + 0.15 * w) * groove * folds;
         } else if (region == 4.0) {
           col = vec3(0.05, 0.012, 0.012) * (0.7 + 0.5 * mn(vec2(s * 10.0, t * 10.0)));
@@ -565,7 +565,9 @@ function useModelLook(material, ind, uniforms) {
       .replace('vec3 mouthCol = mix(baleen, tongue, smoothstep(0.35, 0.75, vJaw.w));', 'vec3 mouthCol = vec3(0.03, 0.012, 0.012);')
       // のどがふくらむと、白い畝のあいだのみぞが開いて、ピンクの筋が見える
       .replace('diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.5, 0.48), 0.45 * uPouch * vJaw.z * vJaw.w);', `{
-          float stretch = clamp(uPouch * vJaw.z * 1.6, 0.0, 1.0);
+          // 筋は、おなか側のまん中あたりだけ(胸びれのつけ根の近くは、角度が急に変わるので描かない)
+          float belly = 1.0 - smoothstep(0.9, 1.3, abs(vTheta - 3.14159265));
+          float stretch = clamp(uPouch * vJaw.z * 1.6, 0.0, 1.0) * belly * smoothstep(0.08, 0.2, vJaw.z);
           // 畝は頭から尾の向きにのびる筋。ゆるやかに波打ち、ところどころで分かれる
           float ang = vTheta - 3.14159265;
           float k = ang * ${(MODEL.grooves / Math.PI).toFixed(3)} + 0.12 * sin(vLocal.z * 35.0 + ang * 2.0);

@@ -595,7 +595,7 @@ function useModelLook(material, ind, uniforms) {
     shader.fragmentShader = shader.fragmentShader
       .replace('float inside = gl_FrontFacing ? inMouth : jawPart;', 'float inside = gl_FrontFacing ? 0.0 : 1.0; opened = 1.0;')
       .replace('vec3 mouthCol = mix(baleen, tongue, smoothstep(0.35, 0.75, vJaw.w));', 'vec3 mouthCol = vec3(0.03, 0.012, 0.012);')
-      // のどがふくらむと、白い畝のあいだのみぞが開いて、ピンクの筋が見える
+      // のどがふくらむと、白い畝のあいだのみぞが開いて、白い筋が見える
       .replace('diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.5, 0.48), 0.45 * uPouch * vJaw.z * vJaw.w);', `{
           // 筋は、おなか側のまん中あたりだけ(胸びれのつけ根の近くは、角度が急に変わるので描かない)
           float belly = 1.0 - smoothstep(0.9, 1.3, abs(vTheta - 3.14159265));
@@ -608,7 +608,8 @@ function useModelLook(material, ind, uniforms) {
           vec3 ridge = vec3(0.66, 0.68, 0.70) * (0.82 + 0.18 * (1.0 - g));
           diffuseColor.rgb = mix(diffuseColor.rgb, ridge, smoothstep(0.05, 0.4, stretch) * 0.85);
           float open = smoothstep(1.0 - 0.7 * stretch, 1.02 - 0.55 * stretch, g) * step(0.01, stretch);
-          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.50, 0.15, 0.15), open * 0.92);
+          // 開いたみぞも白く(持ち主の好み)。畝より少し明るい白にして、筋がうっすら見えるようにする
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.88, 0.89, 0.90), open * 0.85);
         }`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>

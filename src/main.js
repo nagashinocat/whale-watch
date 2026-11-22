@@ -121,7 +121,7 @@ const viewSize = () => effects.setViewSize(innerWidth * devicePixelRatio, innerH
     return splash(position, kind, heading);
   };
   effects.spray = (point, velocity, dt) => {
-    ocean.addRipple(point[0], point[2], Math.min(0.35, 0.025 * Math.max(0, -velocity[1])));
+    ocean.addRipple(point[0], point[2], Math.min(0.2, 0.015 * Math.max(0, -velocity[1])));
     return spray(point, velocity, dt);
   };
 }

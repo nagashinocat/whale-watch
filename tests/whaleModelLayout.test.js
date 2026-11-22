@@ -184,3 +184,13 @@ test('尾びれの欠け: 点ごとに、尾びれの左右の位置と、うし
   const other = [...Array(n).keys()].find(i => L.part[i] !== PART.fluke);
   assert.deepEqual([e[other * 2], e[other * 2 + 1]], [0, 1]);
 });
+
+test('のどのふくらみの重みは、となりの点となじませる(同じ場所の点はそろう)', async () => {
+  const { smoothOverMesh } = await import('../src/logic/whaleModelLayout.js');
+  // 1列にならんだ4点(0と4は同じ場所)の三角2枚
+  const pos = new Float32Array([0, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0, 0, 0, 0]);
+  const index = [0, 1, 2, 1, 2, 3];
+  const v = smoothOverMesh(new Float32Array([1, 0, 0, 0, 0]), pos, index, 1);
+  assert.equal(v[0], v[4]);
+  assert.ok(v[0] < 1 && v[1] > 0 && v[3] === 0);
+});

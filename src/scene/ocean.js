@@ -94,10 +94,11 @@ function addRipples(material) {
     .replace('vec3 surfaceNormal = normalize( noise.xzy * vec3( 1.5, 1.0, 1.5 ) );', 'vec3 surfaceNormal = normalize( noise.xzy * vec3( 1.5, 1.0, 1.5 ) + vec3( -vRipGrad.x, 0.0, -vRipGrad.y ) * 1.5 / ( 1.0 + length( vRipGrad ) * 2.0 ) );');
   material.needsUpdate = true;
   return {
-    // 波の輪を足す(いちばん弱くなったものと入れかえる)。近い場所・時刻の輪は、まとめて大きくする
+    // 波の輪を足す(いちばん弱くなったものと入れかえる)。近い場所・時刻の輪は1つにまとめて、大きいほうの高さにする
+    // (体が水に入るあいだ毎こま出るしぶきの波を足しあわせると、大きな穴のようにへこんでしまう)
     add(x, z, amp, now) {
       for (const q of list) {
-        if (Math.hypot(q.x - x, q.y - z) < 3 && now - q.z < 0.4) { q.w = Math.min(RIPPLE.maxAmp, q.w + amp * 0.5); return; }
+        if (Math.hypot(q.x - x, q.y - z) < 3 && now - q.z < 0.4) { q.w = Math.max(q.w, amp); return; }
       }
       // あいている輪か、いちばん弱くなった輪を使う(大きなジャンプの波が、小さなしぶきの波に消されないように)
       const left = q => { const t = now - q.z; return t < 0 || t > RIPPLE.life ? 0 : q.w * (1 - t / RIPPLE.life) ** 2; };

@@ -274,6 +274,37 @@ function fitQuadratic(pts) {
 }
 
 // のどのふくらみ(畝のあるおなか側)の重み。計算で作ったクジラと同じ決め方(pouchAlong・pouchAcross)
+// 頂点の値を、網目でつながったとなりの頂点となじませる(iterations 回)。同じ場所にある頂点(テクスチャの切れ目で
+// 分かれた点)は、同じ値にそろえる。のどのふくらみの重みがとびとびだと、ふくらんだ肌が段々になるので使う
+export function smoothOverMesh(values, pos, index, iterations = 4) {
+  const n = values.length;
+  const key = i => `${Math.round(pos[i * 3] * 1e5)},${Math.round(pos[i * 3 + 1] * 1e5)},${Math.round(pos[i * 3 + 2] * 1e5)}`;
+  const groupOf = new Map(), group = new Int32Array(n);
+  for (let i = 0; i < n; i++) { const k = key(i); if (!groupOf.has(k)) groupOf.set(k, groupOf.size); group[i] = groupOf.get(k); }
+  const G = groupOf.size;
+  // となりの組(重なりは気にしない)
+  const nbr = Array.from({ length: G }, () => new Set());
+  for (let t = 0; t < index.length; t += 3) {
+    const a = group[index[t]], b = group[index[t + 1]], c = group[index[t + 2]];
+    nbr[a].add(b).add(c); nbr[b].add(a).add(c); nbr[c].add(a).add(b);
+  }
+  let v = new Float32Array(G), cnt = new Float32Array(G);
+  for (let i = 0; i < n; i++) { v[group[i]] += values[i]; cnt[group[i]]++; }
+  for (let g = 0; g < G; g++) v[g] /= cnt[g];
+  for (let it = 0; it < iterations; it++) {
+    const next = new Float32Array(G);
+    for (let g = 0; g < G; g++) {
+      let s = v[g], m = 1;
+      for (const h of nbr[g]) { s += v[h]; m++; }
+      next[g] = s / m;
+    }
+    v = next;
+  }
+  const out = new Float32Array(n);
+  for (let i = 0; i < n; i++) out[i] = v[group[i]];
+  return out;
+}
+
 export function modelPouch(L) {
   const n = L.part.length, out = new Float32Array(n);
   for (let i = 0; i < n; i++) {

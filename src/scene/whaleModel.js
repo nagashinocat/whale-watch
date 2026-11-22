@@ -5,7 +5,7 @@ import { specialMotif } from '../logic/specialCoats.js';
 import { buildFeatures } from '../logic/features3d.js';
 import { eyePatch, applyLid, eyeballPlacement, blinkOpen, EYE } from '../logic/eyeShape.js';
 import { flukeWhiteness } from '../logic/flukeId.js';
-import { MODEL, modelLayout, individualColors, specialAssets, eyeSpots, modelPouch, shapeForIndividual, flukeEdge, toLinear as modelLinear } from '../logic/whaleModelLayout.js';
+import { MODEL, modelLayout, individualColors, specialAssets, eyeSpots, modelPouch, smoothOverMesh, shapeForIndividual, flukeEdge, toLinear as modelLinear } from '../logic/whaleModelLayout.js';
 
 // 目の玉に映る空と海の色(時刻で変わる。setEyeLight で変える)
 const eyeUniforms = {
@@ -298,7 +298,17 @@ export function loadWhaleModel() {
     const eyes = eyeSpots(geo.attributes.position.array, geo.attributes.normal.array);
     // あごの重み(口の線で切ったときに決めてある)に、のどのふくらみを足す
     const jaw = Float32Array.from(geo.attributes._jaw.array);
-    const pouch = modelPouch(layout);
+    // ふくらみの重みは、網目でとなりとなじませる(段々や、胸びれのつけ根の裂け目が出ないように)
+    const P = geo.attributes.position.array, IX = geo.index.array;
+    const rawPouch = modelPouch(layout);
+    const pouch = smoothOverMesh(rawPouch, P, IX, 3);
+    // なじませると山が少し低くなるので、もとのいちばん大きいふくらみにそろえる
+    const peak = rawPouch.reduce((m, v) => Math.max(m, v), 0) / Math.max(1e-6, pouch.reduce((m, v) => Math.max(m, v), 0));
+    for (let i = 0; i < pouch.length; i++) pouch[i] = Math.min(1, pouch[i] * peak);
+    // 畝の筋を描く角度も、となりとなじませる(筋がぎざぎざに折れないように)
+    const sn = smoothOverMesh(layout.theta.map(Math.sin), P, IX, 2), cs = smoothOverMesh(layout.theta.map(Math.cos), P, IX, 2);
+    const theta = new Float32Array(sn.length);
+    for (let i = 0; i < theta.length; i++) theta[i] = (Math.atan2(sn[i], cs[i]) + Math.PI * 2) % (Math.PI * 2);
     for (let i = 0; i < pouch.length; i++) jaw[i * 4 + 2] = pouch[i];
     // 口の中: あごの重みを aJaw に
     const mouthGeo = mouth.geometry;
@@ -311,7 +321,7 @@ export function loadWhaleModel() {
       maps: { map: m.map, normalMap: m.normalMap, roughnessMap: m.roughnessMap },
       jaw: new THREE.BufferAttribute(jaw, 4),
       lid: geo.attributes._lid,
-      theta: new THREE.BufferAttribute(layout.theta, 1),
+      theta: new THREE.BufferAttribute(theta, 1),
       eyeSkin: geo.attributes._eyeskin.array,
       specials: {},
     };

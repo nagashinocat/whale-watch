@@ -24,11 +24,35 @@ export const BREACH = Object.freeze({
 // peak: 体の中心のいちばん高いところ(m)。ふつうのジャンプは約0.6m(体の半分以上が出る)
 export const FULL_BREACH = Object.freeze({ peak: 4.2, pitchFrom: 80, pitchTo: -30, roll: 95 });
 
+// 体のひねり(調べてわかったこと: ジャンプの映像と記録計の研究)
+//   ・ひねりは水の中で勢いをつけているときから始まり、水から出ていくあいだにいちばん速く回る
+//   ・回るのは頭と胸びれが先で、尾はおくれてついてくる(体がねじれて見える)
+//   ・着水して沈んだあと、水の中で体をもとの向きにもどしてから泳ぎ去る
+// start: 飛び出す何秒前からひねりはじめるか / atLaunch: 飛び出すときの倒れ(度)
+// lag: 尾が頭のひねりにおくれる秒数 / rightIn: 着水してから、体をもとの向きにもどすまでの秒数
+export const TWIST = Object.freeze({ start: 1.4, atLaunch: { normal: 20, full: 15 }, lag: 0.7, rightIn: 5, rightFrom: 0.6 });
+
+// 頭の倒れ(度)。L は飛び出してからの秒
+function headRoll(L, full) {
+  const top = full ? FULL_BREACH.roll : 80;
+  const first = full ? TWIST.atLaunch.full : TWIST.atLaunch.normal;
+  if (L < -TWIST.start) return 0;
+  if (L < 0) return first * ease((L + TWIST.start) / TWIST.start);
+  if (L < BREACH.air) {
+    // 水から出ていくあいだに速く回り、空中でゆっくりになる
+    const u = L / BREACH.air;
+    return lerp(first, top, 1 - (1 - u) ** (full ? 1.6 : 1.8));
+  }
+  // 着水して少し沈んでから、水の中で体をもとの向きにもどす
+  return top * (1 - ease((L - BREACH.air - TWIST.rightFrom) / TWIST.rightIn));
+}
+
 // 飛び出してから L 秒目の姿勢。k は体の大きさ(おとなを1)。full は大ジャンプ(体全体が水から出る)。
-// y は体の中心の高さ(m)、pitch は頭の上がり(度)、roll は横への倒れ(度)、along は前へ進んだ距離(m)
+// y は体の中心の高さ(m)、pitch は頭の上がり(度)、roll は頭の横への倒れ(度)、along は前へ進んだ距離(m)
+// twist は体のねじれ(度): 尾の倒れが頭よりどれだけおくれているか(尾は lag 秒前の頭と同じ向き)
 export function breachPose(L, k = 1, full = false) {
-  let y, pitch, roll;
-  if (L < 0) { y = -12; pitch = 20; roll = 0; }
+  let y, pitch;
+  if (L < 0) { y = -12; pitch = 20; }
   else if (L < BREACH.air) {
     const u = L / BREACH.air;
     if (full) {
@@ -36,18 +60,18 @@ export function breachPose(L, k = 1, full = false) {
       const a = 4 * (FULL_BREACH.peak + 8);
       y = -8 + a * u - a * u * u;
       pitch = lerp(FULL_BREACH.pitchFrom, FULL_BREACH.pitchTo, u ** 0.8);
-      roll = lerp(0, FULL_BREACH.roll, u ** 1.2);
     } else {
       // 体を立てて飛び出し、いちばん高いところで体の半分以上が水から出る
       y = -8 + 34.4 * u - 34.4 * u * u;
       pitch = lerp(75, -10, u ** 1.6);
-      roll = lerp(0, 80, u);
     }
-  } else { y = -8 - ease((L - BREACH.air) / 6) * 6; pitch = full ? FULL_BREACH.pitchTo : -10; roll = full ? FULL_BREACH.roll : 80; }
+  } else { y = -8 - ease((L - BREACH.air) / 6) * 6; pitch = full ? FULL_BREACH.pitchTo : -10; }
+  const roll = headRoll(L, full);
+  const twist = roll - headRoll(L - TWIST.lag, full);
   const along = L < 0 ? Math.max(0, L + BREACH.approach) * 0.3 : 2.4 + Math.min(L, 6) * 1.2;
   // 子クジラは体のわりに高く跳ぶ(高さは体の大きさの平方根に合わせる。そのぶん、落ちてくる速さもあまり落ちない)
   const h = Math.sqrt(k);
-  return { y: y * h, pitch, roll, along: along * k };
+  return { y: y * h, pitch, roll, twist, along: along * k };
 }
 
 // 群れでジャンプ: 2〜5頭が、0.3〜0.8秒ずつずれて次々に跳ぶ。跳び方は2とおり:

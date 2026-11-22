@@ -145,6 +145,7 @@ function breachAt(w, t, launch, start, yaw, rollSign = 1, full = false) {
   const f = forward(yaw);
   w.group.position.set(start[0] + f[0] * p.along, p.y, start[2] + f[2] * p.along);
   w.group.rotation.set(D2R(p.pitch), D2R(yaw), D2R(p.roll * rollSign));
+  w.mixer.setTwist?.(D2R(p.twist * rollSign));
 }
 
 // 体の中の点(体長1の比率。頭は -z)が、いまどれだけの速さで動いているか(m/秒)。

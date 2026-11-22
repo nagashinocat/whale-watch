@@ -119,3 +119,24 @@ test('群れでジャンプにも、大ジャンプがまざる', () => {
   for (let k = 0; k < 200; k++) for (const w of groupBreachPlan(rng)) { all++; if (w.full) full++; }
   assert.ok(full / all > 0.25 && full / all < 0.55, `${full / all}`);
 });
+
+test('ジャンプのひねり: 水の中から回りはじめ、尾はおくれてついてきて、沈んだあとは体をもとの向きにもどす', async () => {
+  const { breachPose, BREACH, TWIST } = await import('../src/logic/breach.js');
+  for (const full of [false, true]) {
+    assert.equal(breachPose(-TWIST.start - 0.5, 1, full).roll, 0);
+    const under = breachPose(-0.1, 1, full);
+    assert.ok(under.roll > 10, '飛び出す前から少し倒れている');
+    // 回りはじめは速く、空中ではゆっくり
+    const early = breachPose(0.5, 1, full).roll - breachPose(0, 1, full).roll;
+    const late = breachPose(BREACH.air, 1, full).roll - breachPose(BREACH.air - 0.5, 1, full).roll;
+    assert.ok(early > late * 2);
+    // 回っているあいだは尾がおくれる(ねじれ)
+    assert.ok(breachPose(0.4, 1, full).twist > 8, String(breachPose(0.4, 1, full).twist));
+    // 倒れはなめらかにつながる
+    for (let L = -2; L < BREACH.air + 8; L += 0.02) assert.ok(Math.abs(breachPose(L + 0.02, 1, full).roll - breachPose(L, 1, full).roll) < 2.5, `L=${L}`);
+    // 着水の直後は横倒し、沈んでから向きをもどす
+    assert.ok(breachPose(BREACH.air + 0.3, 1, full).roll > 70);
+    assert.ok(Math.abs(breachPose(BREACH.air + TWIST.rightFrom + TWIST.rightIn + 0.5, 1, full).roll) < 1);
+    assert.ok(breachPose(BREACH.air + 3, 1, full).twist < 0, 'もどすときも尾がおくれる');
+  }
+});

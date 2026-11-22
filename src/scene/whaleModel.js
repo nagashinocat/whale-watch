@@ -360,6 +360,13 @@ function specialLook(coat, style) {
   return look;
 }
 
+// 体のねじれ: 頭(胸びれより前)はそのまま、そこから尾へ向かって、体の軸のまわりに -uTwist まで回す。
+// 体全体の倒れは頭の向きに合わせてあるので、尾がおくれてついてくるように見える
+const TWIST_GLSL = `
+        uniform float uTwist;
+        float twistW(float z) { return smoothstep(-0.15, 0.5, z); }
+        vec3 twistP(vec3 p, float z) { float a = -uTwist * twistW(z), c = cos(a), s = sin(a); return vec3(p.x * c - p.y * s, p.x * s + p.y * c, p.z); }`;
+
 // 体の上に重ねる部品(彗星の頭・尾・光の粒)。体と同じしなりで動き、夜は明るく光る
 function decorMesh(look, uniforms) {
   const material = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
@@ -367,14 +374,16 @@ function decorMesh(look, uniforms) {
     shader.uniforms.uPhase = uniforms.uPhase;
     shader.uniforms.uSwim = uniforms.uSwim;
     shader.uniforms.uGlow = GLOW.uGlow;
+    shader.uniforms.uTwist = uniforms.uTwist;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
         uniform float uPhase;
-        uniform float uSwim;`)
+        uniform float uSwim;${TWIST_GLSL}`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         float swimS = clamp(position.z + 0.5, 0.0, 1.0);
         transformed.y += uSwim * ${SWIM.amplitude.toFixed(4)} * pow(swimS, ${SWIM.power.toFixed(2)})
-          * sin(uPhase - ${SWIM.wave.toFixed(2)} * swimS);`);
+          * sin(uPhase - ${SWIM.wave.toFixed(2)} * swimS);
+        transformed = twistP(transformed, position.z);`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
         uniform float uGlow;`)
@@ -641,6 +650,7 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     // 口の開き(下あご・上あごの角度、ラジアン)と、のどのふくらみ(0〜1)
     uLowerJaw: { value: 0 }, uUpperJaw: { value: 0 }, uPouch: { value: 0 },
     uLid: { value: 1 - EYE.relaxedOpen },   // まぶたの閉じぐあい(3Dモデルのとき)
+    uTwist: { value: 0 },   // 体のねじれ(ラジアン)。尾が頭よりこれだけおくれて倒れる
   };
   const useModel = kind === 'humpback' && !!model;
   const [hingeY, hingeZ] = useModel ? MODEL.hinge : kind === 'humpback' ? jawHinge(kind) : [0, 0];
@@ -660,8 +670,9 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     shader.uniforms.uLowerJaw = uniforms.uLowerJaw;
     shader.uniforms.uUpperJaw = uniforms.uUpperJaw;
     shader.uniforms.uPouch = uniforms.uPouch;
+    shader.uniforms.uTwist = uniforms.uTwist;
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', `#include <common>
+      .replace('#include <common>', `#include <common>${TWIST_GLSL}
         uniform float uPhase;
         uniform float uSwim;
         uniform float uLowerJaw;
@@ -710,6 +721,7 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
           vec2 jn = jawMoveNormal(jawTurn2(objectNormal.yz, upA), jd, uLowerJaw * aJaw.w);
           objectNormal = vec3(objectNormal.x, jn);
         }
+        objectNormal = twistP(objectNormal, position.z);
         vJaw = aJaw;${glows ? `
         vGlow = aGlow;` : ''}`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -726,7 +738,8 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
         transformed = jawApply(transformed);
         float swimS = clamp(position.z + 0.5, 0.0, 1.0);
         transformed.y += uSwim * ${SWIM.amplitude.toFixed(4)} * pow(swimS, ${SWIM.power.toFixed(2)})
-          * sin(uPhase - ${SWIM.wave.toFixed(2)} * swimS);`);
+          * sin(uPhase - ${SWIM.wave.toFixed(2)} * swimS);
+        transformed = twistP(transformed, position.z);`);
   };
   const vertexPatch = material.onBeforeCompile;   // 泳ぐしなりとあごの動き(口の中の網目にも使う)
   const baseCompile = material.onBeforeCompile;
@@ -797,6 +810,10 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     // 0 で止まる(寝ているクジラ)、1 でふつうに泳ぐ
     setSwim(amount) {
       uniforms.uSwim.value = amount;
+    },
+    // 体のねじれ(ラジアン)。尾が頭よりこれだけおくれて倒れる
+    setTwist(rad) {
+      uniforms.uTwist.value = rad;
     },
     // 口とのど(捕食)。lower・upper はあごの角度(ラジアン)、pouch はのどのふくらみ(0〜1)
     setJaw(lower, upper, pouch) {

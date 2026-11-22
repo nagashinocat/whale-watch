@@ -184,9 +184,11 @@ export function traitFinColor(ind, s, top, c) {
 }
 
 // 尾びれのうしろのふちの欠けの深さ(体長1)。s は尾びれの左 -1 〜 右 1
+// 尾びれの欠けの深さ(体長に対する割合)と、左右の広がり(尾びれの左右の位置 s で)
+export const FLUKE_BITE = Object.freeze({ depth: 0.03, width: 0.07 });
 export function flukeBite(ind, s) {
   if (ind.traits?.fluke !== 'bite') return 0;
-  return 0.03 * bump(s, ind.traits.bitePlace, 0.07);
+  return FLUKE_BITE.depth * bump(s, ind.traits.bitePlace, FLUKE_BITE.width);
 }
 
 // 尾びれの裏の色に個性を重ねる(白さ w を受けとって返す)

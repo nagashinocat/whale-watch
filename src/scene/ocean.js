@@ -91,17 +91,20 @@ function addRipples(material) {
     .replace('vec4 mvPosition =  modelViewMatrix * vec4( position, 1.0 );', 'vec4 mvPosition =  modelViewMatrix * vec4( ripP, 1.0 );');
   material.fragmentShader = material.fragmentShader
     .replace('varying vec4 worldPosition;', 'varying vec4 worldPosition;\nvarying vec2 vRipGrad;')
-    .replace('vec3 surfaceNormal = normalize( noise.xzy * vec3( 1.5, 1.0, 1.5 ) );', 'vec3 surfaceNormal = normalize( noise.xzy * vec3( 1.5, 1.0, 1.5 ) + vec3( -vRipGrad.x, 0.0, -vRipGrad.y ) * 4.0 );');
+    .replace('vec3 surfaceNormal = normalize( noise.xzy * vec3( 1.5, 1.0, 1.5 ) );', 'vec3 surfaceNormal = normalize( noise.xzy * vec3( 1.5, 1.0, 1.5 ) + vec3( -vRipGrad.x, 0.0, -vRipGrad.y ) * 1.5 / ( 1.0 + length( vRipGrad ) * 2.0 ) );');
   material.needsUpdate = true;
-  let next = 0;
   return {
-    // 波の輪を足す(いちばん古いものと入れかえる)。近い場所・時刻の輪は、まとめて大きくする
+    // 波の輪を足す(いちばん弱くなったものと入れかえる)。近い場所・時刻の輪は、まとめて大きくする
     add(x, z, amp, now) {
       for (const q of list) {
         if (Math.hypot(q.x - x, q.y - z) < 3 && now - q.z < 0.4) { q.w = Math.min(RIPPLE.maxAmp, q.w + amp * 0.5); return; }
       }
-      list[next].set(x, z, now, amp);
-      next = (next + 1) % list.length;
+      // あいている輪か、いちばん弱くなった輪を使う(大きなジャンプの波が、小さなしぶきの波に消されないように)
+      const left = q => { const t = now - q.z; return t < 0 || t > RIPPLE.life ? 0 : q.w * (1 - t / RIPPLE.life) ** 2; };
+      let weak = list[0];
+      for (const q of list) if (left(q) < left(weak)) weak = q;
+      if (left(weak) > amp) return;
+      weak.set(x, z, now, amp);
     },
     time(t) { material.uniforms.uRipTime.value = t; },
   };

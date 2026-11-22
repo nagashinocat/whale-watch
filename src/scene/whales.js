@@ -609,7 +609,8 @@ const MOTIONS = {
       const r = F.ringRadius * (1.25 - 0.25 * (k / N));
       const at = F.ringStart + (k / N) * (F.ringEnd - F.ringStart);
       const p = [c[0] + Math.cos(a) * r, 0, c[1] + Math.sin(a) * r];
-      cues.push({ at, run: fx => { fx.effects.foam(p, (F.surface + 8 - at) * 1000, { radius: 1.1, count: 45 }); fx.effects.bubbles(p, 6); } });
+      // 泡は水深6mくらいで吹く。大きい泡から順に浮かんで、はじける(bubbleBurst)
+      cues.push({ at, run: fx => { fx.effects.foam(p, (F.surface + 8 - at) * 1000, { radius: 1.1, count: 30 }); fx.effects.bubbleBurst?.(p, { depth: 6, count: 35, radius: 0.4 }); } });
     }
     cues.push({ at: 0.5, run: fx => fx.playSound('bubbles', { gain: 0.6, maxMs: 10000, position: [c[0], 0, c[1]] }) });
     cues.push({ at: F.call, run: fx => fx.playSound('humpback-call', { gain: 0.7, maxMs: 6000, position: [c[0], -5, c[1]] }) });
@@ -674,9 +675,9 @@ const MOTIONS = {
       const r = B.ringRadius * (1.15 - 0.15 * (k / N));
       const at = F.ringStart + (k / N) * (F.ringEnd - F.ringStart);
       const p = [c[0] + Math.cos(a) * r, 0, c[1] + Math.sin(a) * r];
-      cues.push({ at, run: fx => { fx.effects.foam(p, (F.surface + 10 - at) * 1000, { radius: 1.4, count: 50 }); fx.effects.bubbles(p, 8); } });
-      // 輪ができたあとも、しばらく泡がはじけつづける
-      cues.push({ at: at + 2.5, run: fx => fx.effects.bubbles(p, 5) });
+      // 水深8mくらいで吹いた泡が、大きいものから順に浮かんではじける。小さい泡は、輪ができたあとも
+      // しばらくシュワシュワと上がってくる(bubbleBurst)
+      cues.push({ at, run: fx => { fx.effects.foam(p, (F.surface + 10 - at) * 1000, { radius: 1.4, count: 35 }); fx.effects.bubbleBurst?.(p, { depth: 8, count: 45, radius: 0.5 }); } });
     }
     cues.push({ at: 0.5, run: fx => fx.playSound('bubbles', { gain: 0.8, maxMs: 10000, position: [c[0], 0, c[1]] }) });
     cues.push({ at: F.call, run: fx => fx.playSound('humpback-call', { gain: 0.8, maxMs: 6000, position: [c[0], -6, c[1]] }) });

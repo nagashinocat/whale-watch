@@ -163,9 +163,24 @@ test('背びれと尾びれの形の個性: こぶは低く、かぎ形は先が
   assert.ok(tipZ(hook) > tipZ(P) + 0.005, 'かぎ形の先は、うしろ(尾のほう)へ');
   const nick = shapeForIndividual(P, L, withTraits({ dorsal: 'nick' }));
   assert.ok(finTop(nick) < finTop(P) - 0.003 && finTop(nick) > finTop(knob));
-  const bite = shapeForIndividual(P, L, withTraits({ fluke: 'bite', bitePlace: 0.5 }));
-  const back = [...Array(start).keys()].filter(i => L.part[i] === PART.fluke && Math.abs(L.s[i] - 0.5) < 0.06 && L.c[i] > 0.9);
-  assert.ok(back.length && back.every(i => bite[i * 3 + 2] < P[i * 3 + 2] - 0.005), '欠けたところは、うしろのふちが前へ');
-  const far = [...Array(start).keys()].filter(i => L.part[i] === PART.fluke && L.s[i] < -0.4);
-  assert.ok(far.every(i => bite[i * 3 + 2] === P[i * 3 + 2]), '欠けていない側はそのまま');
+  // 尾びれの欠けは、点を動かさずに、けずって描く(三角が裏返って黒く見えないように)
+  assert.equal(shapeForIndividual(P, L, withTraits({ fluke: 'bite' })), null, '尾びれの欠けだけの子は、形を動かさない');
+});
+
+test('尾びれの欠け: 点ごとに、尾びれの左右の位置と、うしろのふちまでの長さを持つ', async () => {
+  const { flukeEdge } = await import('../src/logic/whaleModelLayout.js');
+  const { pos, nrm } = toyWhale();
+  const P = new Float32Array(pos), L = modelLayout(P, new Float32Array(nrm));
+  const e = flukeEdge(P, L);
+  const n = P.length / 3;
+  const fl = [...Array(n).keys()].filter(i => L.part[i] === PART.fluke);
+  assert.ok(fl.length > 0);
+  assert.ok(fl.every(i => e[i * 2] === L.s[i] && e[i * 2 + 1] >= 0));
+  // うしろのふちの点は 0、前のふちほど長い
+  const edge = fl.filter(i => L.c[i] > 0.97), front = fl.filter(i => L.c[i] < 0.1);
+  assert.ok(edge.some(i => e[i * 2 + 1] < 0.002));
+  const mean = list => list.reduce((s, i) => s + e[i * 2 + 1], 0) / list.length;
+  assert.ok(front.length && mean(front) > mean(edge) + 0.01);
+  const other = [...Array(n).keys()].find(i => L.part[i] !== PART.fluke);
+  assert.deepEqual([e[other * 2], e[other * 2 + 1]], [0, 1]);
 });

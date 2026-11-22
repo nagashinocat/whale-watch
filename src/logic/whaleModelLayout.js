@@ -10,7 +10,7 @@
 // モデルは tools/build_whale_model.py で、頭が -z、体長 1、まん中が原点になるように作ってある。
 
 import { skinColor, pouchAlong, pouchAcross } from './whaleShape.js';
-import { traitBodyColor, traitFinColor, flukeBite } from './traits.js';
+import { traitBodyColor, traitFinColor } from './traits.js';
 import { flukeWhiteness } from './flukeId.js';
 
 export const MODEL = Object.freeze({
@@ -191,8 +191,7 @@ export const DORSAL = Object.freeze({ from: 0.58, to: 0.735, halfWidth: 0.02 });
 export function shapeForIndividual(pos, L, ind) {
   const t = ind?.traits ?? {};
   const dorsal = t.dorsal && t.dorsal !== 'normal' ? t.dorsal : null;
-  const bite = t.fluke === 'bite';
-  if (!dorsal && !bite) return null;
+  if (!dorsal) return null;
   const out = Float32Array.from(pos);
   const n = pos.length / 3;
   if (dorsal) {
@@ -227,14 +226,30 @@ export function shapeForIndividual(pos, L, ind) {
       }
     }
   }
-  if (bite) {
-    for (let i = 0; i < n; i++) {
-      if (L.part[i] !== PART.fluke) continue;
-      const d = flukeBite(ind, L.s[i]);
-      if (d <= 0.0005) continue;
-      // うしろのふちに近いほど、前へ引く(前のふちはそのまま)
-      out[i * 3 + 2] -= d * L.c[i] * L.c[i];
+  return out;
+}
+
+// 尾びれのうしろのふちの欠けは、点を動かすと(尾びれの網目があらいので)三角が裏返って黒く見える。
+// そこで、点ごとに「尾びれの左右の位置 s」と「うしろのふちまでの長さ」を持たせ、欠けの中は描かない(けずる)。
+// 尾びれでない点は (0, 1)
+export function flukeEdge(pos, L) {
+  const n = pos.length / 3, out = new Float32Array(n * 2);
+  const BINS = 120, back = new Float32Array(BINS).fill(-Infinity);
+  const bin = sv => Math.min(BINS - 1, Math.max(0, Math.floor((sv + 1) / 2 * BINS)));
+  for (let i = 0; i < n; i++) if (L.part[i] === PART.fluke) { const b = bin(L.s[i]); back[b] = Math.max(back[b], pos[i * 3 + 2]); }
+  // 点のない列は、いちばん近い列から埋める
+  const filled = Float32Array.from(back);
+  for (let b = 0; b < BINS; b++) {
+    if (back[b] !== -Infinity) continue;
+    for (let k = 1; k < BINS; k++) {
+      const v = Math.max(back[b - k] ?? -Infinity, back[b + k] ?? -Infinity);
+      if (v !== -Infinity) { filled[b] = v; break; }
     }
+  }
+  for (let i = 0; i < n; i++) {
+    if (L.part[i] !== PART.fluke) { out[i * 2 + 1] = 1; continue; }
+    out[i * 2] = L.s[i];
+    out[i * 2 + 1] = Math.max(0, filled[bin(L.s[i])] - pos[i * 3 + 2]);
   }
   return out;
 }

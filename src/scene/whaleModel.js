@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import { buildWhaleGeometry, SWIM, strokesPerSecond, WHALE_SPECS, jawHinge, JAW_MOVE, POUCH_SWELL, POUCH_SIDEWAYS, ENGULF, BODY_GRID, ringU, aroundTheta, bodyPoint, flukeOutline } from '../logic/whaleShape.js';
-import { traitBodyColor, traitFinColor, flukeBite } from '../logic/traits.js';
+import { traitBodyColor, traitFinColor, flukeBite, FLUKE_BITE } from '../logic/traits.js';
 import { specialMotif } from '../logic/specialCoats.js';
 import { buildFeatures } from '../logic/features3d.js';
 import { eyePatch, applyLid, eyeballPlacement, blinkOpen, EYE } from '../logic/eyeShape.js';
 import { flukeWhiteness } from '../logic/flukeId.js';
-import { MODEL, modelLayout, individualColors, specialAssets, eyeSpots, modelPouch, shapeForIndividual, toLinear as modelLinear } from '../logic/whaleModelLayout.js';
+import { MODEL, modelLayout, individualColors, specialAssets, eyeSpots, modelPouch, shapeForIndividual, flukeEdge, toLinear as modelLinear } from '../logic/whaleModelLayout.js';
 
 // 目の玉に映る空と海の色(時刻で変わる。setEyeLight で変える)
 const eyeUniforms = {
@@ -485,6 +485,8 @@ function modelGeometryFor(ind) {
   g.setAttribute('aJaw', model.jaw);
   g.setAttribute('aLid', model.lid);
   g.setAttribute('aTheta', model.theta);   // 体のまわりの角度(のどの畝の筋を描くため)
+  // 尾びれのうしろのふちの欠け: ふちまでの長さを持たせて、欠けの中をけずる(useModelLook)
+  if (ind?.traits?.fluke === 'bite') g.setAttribute('aFluke', new THREE.BufferAttribute(flukeEdge(model.geo.attributes.position.array, model.layout), 2));
   const n = model.geo.attributes.position.count;
   let color, mix, base;
   if (ind && !ind.special) ({ color, mix, base } = individualColors(ind, model.layout));
@@ -530,12 +532,14 @@ function useModelLook(material, ind, uniforms) {
   material.normalMap = model.maps.normalMap;
   material.roughnessMap = model.maps.roughnessMap;
   material.roughness = 0.85;
+  const bite = ind?.traits?.fluke === 'bite';
   const prev = material.onBeforeCompile;
   material.onBeforeCompile = shader => {
     prev(shader);
     shader.uniforms.uGlow = GLOW.uGlow;
     shader.uniforms.uGlowTime = GLOW.uGlowTime;
     shader.uniforms.uLid = uniforms.uLid;
+    if (bite) shader.uniforms.uBite = { value: new THREE.Vector2(ind.traits.bitePlace, FLUKE_BITE.depth) };
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
         attribute float aMix;
@@ -543,12 +547,12 @@ function useModelLook(material, ind, uniforms) {
         attribute vec3 aLid;
         uniform float uLid;
         varying float vMix;
-        varying float vBase;`)
+        varying float vBase;${bite ? '\n        attribute vec2 aFluke;\n        varying vec2 vFluke;' : ''}`)
       // まぶた: 閉じぐあい uLid(0 で開き、1 で閉じる)だけ、まぶたの肌を動かす
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         transformed += uLid * aLid;
         vMix = aMix; vBase = aBase;
-        vLocal = position; vTheta = aTheta;`)
+        vLocal = position; vTheta = aTheta;${bite ? '\n        vFluke = aFluke;' : ''}`)
       .replace('varying float vMix;', 'varying float vMix;\n        attribute float aTheta;\n        varying float vTheta;\n        varying vec3 vLocal;\n        varying float vStretch;')
       // ふくらんだのどは、畝の細かいでこぼこがのびて平らになる: 面の向きを、ふくらむ向きへ寄せる
       .replace('vJaw = aJaw;', `vJaw = aJaw;
@@ -586,9 +590,12 @@ function useModelLook(material, ind, uniforms) {
         varying float vStretch;
         varying float vBase;
         uniform float uGlow;
-        uniform float uGlowTime;`)
+        uniform float uGlowTime;${bite ? '\n        varying vec2 vFluke;\n        uniform vec2 uBite;' : ''}`)
       // 色がふつうの子と同じところはテクスチャのまま。ちがうところは、テクスチャの明るさのむら(しわや陰)だけを使って、その子の色にする
-      .replace('#include <map_fragment>', `
+      .replace('#include <map_fragment>', `${bite ? `
+        // 尾びれのうしろのふちの欠け(深さ uBite.y、場所 uBite.x)。欠けの中は描かない
+        float biteD = uBite.y * exp(-pow((vFluke.x - uBite.x) / ${FLUKE_BITE.width.toFixed(3)}, 2.0));
+        if (biteD > 0.0005 && vFluke.y < biteD) discard;` : ''}
         vec4 texel = texture2D(map, vMapUv);
         float texLum = dot(texel.rgb, vec3(0.2126, 0.7152, 0.0722));
         vec3 ownCol = vec3(clamp(texLum / vBase, 0.35, 1.8)) * vColor.rgb;
@@ -604,7 +611,7 @@ function useModelLook(material, ind, uniforms) {
         float glowLum = dot(vColor.rgb, vec3(0.2126, 0.7152, 0.0722));
         totalEmissiveRadiance += vColor.rgb * smoothstep(0.04, 0.3, glowLum) * uGlow * 1.2 * (0.8 + 0.2 * sin(uGlowTime * 1.7 + vMapUv.x * 40.0));` : ''}`);
   };
-  material.customProgramCacheKey = () => `whale-model-${style}`;
+  material.customProgramCacheKey = () => `whale-model-${style}${bite ? '-bite' : ''}`;
   material.needsUpdate = true;
   return { style, look };
 }

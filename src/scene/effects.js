@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { BLOW, BLOW_EXHALE, blowDirection, blowSpeed } from '../logic/behavior.js';
 import { splashParticles, entrySpray, PARTICLE } from '../logic/splash.js';
+import { bubbleBurst, popJet, foamRadius, foamAlpha } from '../logic/bubbles.js';
 
 const MAX = 20000; // スマホで重くならないよう、全体の粒子数に上限をかける
 // 粒がカメラからこの距離(m)より近いと薄くなり、いちばん近いところで見えなくなる
@@ -140,6 +141,9 @@ export function createEffects(scene) {
 
   let cursor = 0;
   let alive = 0;
+  // 水の中を上がっている泡(水面に着くまで待つ)。{ at: 着くまでの秒, x, z, r }
+  let rising = [];
+  let clock = 0;
 
   // 空いている粒を使う。全部使っているときは、新しい粒を出さない
   // (まだ飛んでいる粒を使い回すと、その粒が急に消えて、チカチカして見える)
@@ -170,7 +174,7 @@ export function createEffects(scene) {
 
   const rand = (a, b) => a + Math.random() * (b - a);
 
-  return {
+  const api = {
     // 上に6〜9mほど噴き上がり、風に流れて3秒で消える霧
     // 潮吹き。ザトウクジラはまっすぐ上へ、もこもこと3〜5m。マッコウクジラは左前へ45度かたむく。
     // forward はクジラが向いている水平の向き
@@ -236,6 +240,9 @@ export function createEffects(scene) {
     waveRing(position, { length = 10, width = 6, speed = 3, heading = [1, 0, 0], count = 360, life = 6 } = {}) {
       const hl = Math.hypot(heading[0], heading[2]) || 1;
       const fx = heading[0] / hl, fz = heading[2] / hl, sx = -fz, sz = fx;
+      // 輪の粒が重なって真っ白な板に見えないよう、重なるぶんだけ1粒をうすくする(輪の太さは1.5mくらい)
+      const around = Math.PI * (length + width) / 2;
+      const a0 = Math.min(0.42, 2.5 / ((count * 1.6) / (around * 1.5)));
       for (let k = 0; k < count; k++) {
         const a = Math.random() * Math.PI * 2;
         const lx = Math.cos(a) * length / 2, lz = Math.sin(a) * width / 2;
@@ -244,7 +251,7 @@ export function createEffects(scene) {
         const dx = (fx * ox + sx * oz) / ol, dz = (fz * ox + sz * oz) / ol;
         const sp = speed * rand(0.9, 1.1);
         emit([position[0] + fx * lx + sx * lz, 0.2, position[2] + fz * lx + sz * lz], [dx * sp, 0, dz * sp],
-          { life: life * rand(0.8, 1), size: rand(0.9, 1.6), alpha: 0.42, gravity: 0, floor: 0, grow: 1.6, drag: 0.08, delay: rand(0.2, 0.6), kind: PARTICLE.foam });
+          { life: life * rand(0.8, 1), size: rand(0.9, 1.6), alpha: a0, gravity: 0, floor: 0, grow: 1.6, drag: 0.08, delay: rand(0.2, 0.6), kind: PARTICLE.foam });
       }
     },
 
@@ -256,7 +263,7 @@ export function createEffects(scene) {
         emit([center[0] + Math.cos(a) * r, 0.06, center[2] + Math.sin(a) * r], [Math.cos(a) * speed * rand(0.85, 1.15), rand(0, 0.12), Math.sin(a) * speed * rand(0.85, 1.15)],
           { life: life * rand(0.8, 1), size: rand(0.16, 0.32), alpha: 0.85, gravity: 0, floor: 0, grow: 1.35, drag: 0.22, delay: rand(0, 0.15), kind: PARTICLE.foam });
       }
-      this.bubbles(center, 8);
+      this.bubbleBurst(center, { depth: 3, count: 25, radius: radius * 0.6 });
     },
 
     // 泡が水面ではじける小さなしぶき(泡の網)
@@ -287,18 +294,43 @@ export function createEffects(scene) {
 
     // 海面に白い泡を円状に広げ、durationMs かけて薄くする
     // radius: 泡の広がり(m)、count: 粒の数。泡の輪は、小さな泡のかたまりをたくさん並べて作る
-    foam(position, durationMs = 8000, { radius = 6, count = 400 } = {}) {
+    // ring: 泡がふちに寄るぐあい(大きなものが落ちたところは、まん中の水が外へ押しやられて輪になる)
+    // 粒をたくさん重ねても真っ白にならないよう、重なるぶんだけ1粒をうすくする(foamAlpha)
+    foam(position, durationMs = 8000, { radius = 6, count = 400, ring = radius > 3 ? 0.6 : 0.15 } = {}) {
       const [x, , z] = position;
+      const a0 = foamAlpha(count, radius, 1.4);
       for (let k = 0; k < count; k++) {
-        const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * radius;
+        const a = Math.random() * Math.PI * 2, r = foamRadius(Math.random(), ring) * radius;
         emit([x + Math.cos(a) * r, 0.25, z + Math.sin(a) * r],
           [Math.cos(a) * 0.35, 0, Math.sin(a) * 0.35],
-          { life: (durationMs / 1000) * rand(0.7, 1), size: rand(1, 1.8), alpha: 0.6, gravity: 0, floor: 0, grow: 1.3, kind: PARTICLE.foam });
+          { life: (durationMs / 1000) * rand(0.7, 1), size: rand(1, 1.8), alpha: a0, gravity: 0, floor: 0, grow: 1.3, kind: PARTICLE.foam });
       }
+    },
+
+    // 水の中で吹いた泡。浮かび上がる速さを泡の大きさから計算し(bubbleBurst)、水面に着いた泡から順にはじける。
+    // 大きい泡が先にボコッと、小さい泡があとからシュワシュワと着く。depth: 吹いた深さ(m)
+    bubbleBurst(center, { depth = 8, count = 40, radius = 0.6 } = {}) {
+      for (const b of bubbleBurst(center, { depth, count, radius })) rising.push({ ...b, at: b.at + clock });
+      rising.sort((p, q) => p.at - q.at);
+    },
+
+    // 泡が水面ではじける: はじけた穴のまん中から細い水滴が飛び、小さな白い泡のあとが残る
+    pop(b) {
+      const { n, speed } = popJet(b.r);
+      for (let k = 0; k < n; k++) {
+        const a = Math.random() * Math.PI * 2, side = rand(0.05, 0.25) * speed;
+        emit([b.x, 0.04, b.z], [Math.cos(a) * side, speed * rand(0.6, 1), Math.sin(a) * side],
+          { life: rand(0.3, 0.7), size: rand(0.08, 0.14) + b.r * 2, alpha: 0.8, gravity: 9.8, grow: 1, kind: PARTICLE.drop });
+      }
+      emit([b.x, 0.08, b.z], [0, 0, 0], { life: rand(2.5, 4.5), size: 0.25 + b.r * 18, alpha: 0.55, gravity: 0, floor: 0, grow: 1.6, drag: 0.5, kind: PARTICLE.foam });
     },
 
     update(dt) {
       if (dt <= 0) return;
+      clock += dt;
+      let k = 0;
+      while (k < rising.length && rising[k].at <= clock) api.pop(rising[k++]);
+      if (k) rising = rising.slice(k);
       for (let i = 0; i < MAX; i++) {
         if (life[i] <= 0) { alpha[i] = 0; continue; }
         if (wait[i] > 0) { wait[i] -= dt; alpha[i] = 0; continue; }
@@ -329,4 +361,5 @@ export function createEffects(scene) {
       geometry.attributes.aVel.needsUpdate = true;
     },
   };
+  return api;
 }

@@ -58,8 +58,13 @@ function addRipples(material) {
   const list = Array.from({ length: RIPPLE.max }, () => new THREE.Vector4(0, 0, -1000, 0));   // x, z, 落ちた時刻, 高さ
   material.uniforms.uRipples = { value: list };
   material.uniforms.uRipTime = { value: 0 };
-  const K = (2 * Math.PI) / RIPPLE.wavelength;
-  const phase = Math.sqrt(9.8 / K);
+  const packets = RIPPLE.packets.map(([wl, w, width]) => {
+    const K = (2 * Math.PI) / wl, phase = Math.sqrt(9.8 / K);
+    return `{
+          float env = exp(-pow((r - (${(phase / 2).toFixed(4)} * t + 2.0)) / ${width.toFixed(1)}, 2.0));
+          wave += ${w.toFixed(3)} * env * cos(${K.toFixed(5)} * r - ${(K * phase).toFixed(5)} * t);
+        }`;
+  }).join('');
   const glsl = `
     uniform vec4 uRipples[${RIPPLE.max}];
     uniform float uRipTime;
@@ -72,11 +77,10 @@ function addRipples(material) {
         if (t <= 0.0 || t > ${RIPPLE.life.toFixed(1)} || q.w == 0.0) continue;
         float r = length(xz - q.xy);
         float fade = pow(1.0 - t / ${RIPPLE.life.toFixed(1)}, 2.0);
-        float front = ${(phase / 2).toFixed(4)} * t + 2.0;
-        float env = exp(-pow((r - front) / ${RIPPLE.width.toFixed(1)}, 2.0));
-        float ring = env * cos(${K.toFixed(5)} * r - ${(K * phase).toFixed(5)} * t) / sqrt(1.0 + r / 6.0);
-        float center = exp(-pow(r / 4.0, 2.0)) * -cos(t * 2.2) * exp(-t * 0.6);
-        h += q.w * fade * (ring + 0.8 * center);
+        float wave = 0.0;${packets}
+        wave /= sqrt(1.0 + r / 6.0);
+        float center = exp(-pow(r / ${RIPPLE.crater.toFixed(1)}, 2.0)) * -cos(t * 2.0) * exp(-t * 0.5);
+        h += q.w * fade * (wave + ${RIPPLE.craterDepth.toFixed(2)} * center);
       }
       return h;
     }`;

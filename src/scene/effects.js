@@ -3,7 +3,7 @@ import { BLOW, BLOW_EXHALE, blowDirection, blowSpeed } from '../logic/behavior.j
 import { splashParticles, entrySpray, PARTICLE } from '../logic/splash.js';
 import { bubbleBurst, popJet, foamRadius, foamAlpha } from '../logic/bubbles.js';
 
-const MAX = 20000; // スマホで重くならないよう、全体の粒子数に上限をかける
+const MAX = 24000; // スマホで重くならないよう、全体の粒子数に上限をかける
 // 粒がカメラからこの距離(m)より近いと薄くなり、いちばん近いところで見えなくなる
 export const NEAR_FADE = Object.freeze([2, 7]);
 // 粒の画面上の大きさの上限(画素)

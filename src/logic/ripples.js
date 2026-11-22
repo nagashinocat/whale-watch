@@ -8,30 +8,36 @@
 // アプリでは、波長 8m くらいの波のかたまり1つと、まん中のへこみ・もり上がりで作る
 
 export const RIPPLE = Object.freeze({
-  wavelength: 8,      // 波長(m)
+  wavelength: 8,      // 短い波の波長(m)
   width: 6,           // 波のかたまりの幅(m)
-  life: 14,           // 消えるまで(秒)
-  maxAmp: 1.2,        // 高さの上限(m)
+  life: 18,           // 消えるまで(秒)
+  maxAmp: 2.4,        // 高さの上限(m)
   max: 12,            // 同時に覚えておく波の輪の数(シェーダーの配列の大きさ)
   inner: 120,         // 細かい網目にする範囲(m)
+  // 重いものが落ちると、波長のちがう波がいっしょにできる。長い波ほど速く遠くへ行き、うねりのように持ち上げる
+  // (波長, 高さの割合, 幅)。短い波 → 長いうねりの順
+  packets: Object.freeze([[8, 1, 6], [17, 0.75, 10]]),
+  // まん中: 体が落ちてできる穴(半径 m)と、その深さの割合。穴がふさがると、水がもり上がって揺れる
+  crater: 5, craterDepth: 1.3,
 });
 
 const G = 9.8;
-const K = (2 * Math.PI) / RIPPLE.wavelength;
-const PHASE = Math.sqrt(G / K);        // 位相の速さ
-const GROUP = PHASE / 2;               // 波のかたまりの速さ
 
 // 落ちたところからの距離 r(m)、落ちてからの時間 t(秒)、高さ amp(m)での、海面の高さ(m)
 export function rippleHeight(r, t, amp) {
   if (t <= 0 || t > RIPPLE.life || amp === 0) return 0;
   const fade = (1 - t / RIPPLE.life) ** 2;
-  // 外へ広がる波のかたまり
-  const front = GROUP * t + 2;
-  const env = Math.exp(-(((r - front) / RIPPLE.width) ** 2));
-  const ring = env * Math.cos(K * r - K * PHASE * t) / Math.sqrt(1 + r / 6);
-  // まん中: はじめにへこみ、もどってもり上がり、ゆれながらおさまる
-  const center = Math.exp(-((r / 4) ** 2)) * -Math.cos(t * 2.2) * Math.exp(-t * 0.6);
-  return amp * fade * (ring + 0.8 * center);
+  let h = 0;
+  for (const [wl, w, width] of RIPPLE.packets) {
+    const K = (2 * Math.PI) / wl, phase = Math.sqrt(G / K);
+    // 波のかたまりは、位相の速さの半分で外へ広がる
+    const front = (phase / 2) * t + 2;
+    const env = Math.exp(-(((r - front) / width) ** 2));
+    h += w * env * Math.cos(K * r - K * phase * t) / Math.sqrt(1 + r / 6);
+  }
+  // まん中: はじめに大きくへこみ、もどってもり上がり、ゆれながらおさまる
+  const center = Math.exp(-((r / RIPPLE.crater) ** 2)) * -Math.cos(t * 2.0) * Math.exp(-t * 0.5);
+  return amp * fade * (h + RIPPLE.craterDepth * center);
 }
 
 // 落ちたものの重さ(kg)と、落ちる速さ(m/秒)からの波の高さ(m)。勢い(運動量)の平方根に比べる

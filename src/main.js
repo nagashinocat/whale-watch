@@ -116,7 +116,7 @@ const viewSize = () => effects.setViewSize(innerWidth * devicePixelRatio, innerH
 {
   const splash = effects.splash.bind(effects), spray = effects.spray.bind(effects);
   effects.splash = (position, kind = 'small', heading) => {
-    const amp = typeof kind === 'object' ? Math.min(RIPPLE.maxAmp, 0.55 * (kind.strength ?? 0.5)) : kind === 'large' ? 0.7 : 0.18;
+    const amp = typeof kind === 'object' ? Math.min(RIPPLE.maxAmp, 1.1 * (kind.strength ?? 0.5)) : kind === 'large' ? 1.3 : 0.25;
     ocean.addRipple(position[0], position[2], amp);
     return splash(position, kind, heading);
   };

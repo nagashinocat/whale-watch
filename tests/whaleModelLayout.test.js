@@ -194,3 +194,16 @@ test('のどのふくらみの重みは、となりの点となじませる(同�
   assert.equal(v[0], v[4]);
   assert.ok(v[0] < 1 && v[1] > 0 && v[3] === 0);
 });
+
+test('胸びれを動かす重み: 右は +、左は -、ほかは 0。つけ根のまん中がわかる', async () => {
+  const { finFlap } = await import('../src/logic/whaleModelLayout.js');
+  const { pos, nrm } = toyWhale();
+  const P = new Float32Array(pos), L = modelLayout(P, new Float32Array(nrm));
+  const { weight, pivot } = finFlap(P, L);
+  const n = P.length / 3;
+  for (let i = 0; i < n; i++) {
+    if (L.part[i] !== PART.fin) assert.equal(weight[i], 0);
+    else assert.equal(Math.sign(weight[i]), Math.sign(P[i * 3]));
+  }
+  assert.ok(pivot[0] > 0);
+});

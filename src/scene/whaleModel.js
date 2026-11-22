@@ -5,7 +5,7 @@ import { specialMotif } from '../logic/specialCoats.js';
 import { buildFeatures } from '../logic/features3d.js';
 import { eyePatch, applyLid, eyeballPlacement, blinkOpen, EYE } from '../logic/eyeShape.js';
 import { flukeWhiteness } from '../logic/flukeId.js';
-import { MODEL, modelLayout, individualColors, specialAssets, eyeSpots, modelPouch, smoothOverMesh, shapeForIndividual, flukeEdge, toLinear as modelLinear } from '../logic/whaleModelLayout.js';
+import { MODEL, modelLayout, individualColors, specialAssets, eyeSpots, modelPouch, smoothOverMesh, shapeForIndividual, flukeEdge, finFlap, toLinear as modelLinear } from '../logic/whaleModelLayout.js';
 
 // 目の玉に映る空と海の色(時刻で変わる。setEyeLight で変える)
 const eyeUniforms = {
@@ -322,6 +322,7 @@ export function loadWhaleModel() {
       jaw: new THREE.BufferAttribute(jaw, 4),
       lid: geo.attributes._lid,
       theta: new THREE.BufferAttribute(theta, 1),
+      fin: finFlap(geo.attributes.position.array, layout),
       eyeSkin: geo.attributes._eyeskin.array,
       specials: {},
     };
@@ -365,7 +366,12 @@ function specialLook(coat, style) {
 const TWIST_GLSL = `
         uniform float uTwist;
         float twistW(float z) { return smoothstep(-0.15, 0.5, z); }
-        vec3 twistP(vec3 p, float z) { float a = -uTwist * twistW(z), c = cos(a), s = sin(a); return vec3(p.x * c - p.y * s, p.x * s + p.y * c, p.z); }`;
+        vec3 twistP(vec3 p, float z) { float a = -uTwist * twistW(z), c = cos(a), s = sin(a); return vec3(p.x * c - p.y * s, p.x * s + p.y * c, p.z); }
+        // 体の反り: 頭(胸びれより前)はそのまま、そこから尾へ向かって背中側へ弓なりに曲げる。尾の先で uArch(体長の割合)
+        uniform float uArch;
+        float archS(float z) { return max(0.0, z + 0.15); }
+        float archY(float z) { float s = archS(z); return uArch * s * s / 0.4225; }
+        float archSlope(float z) { return uArch * 2.0 * archS(z) / 0.4225; }`;
 
 // 体の上に重ねる部品(彗星の頭・尾・光の粒)。体と同じしなりで動き、夜は明るく光る
 function decorMesh(look, uniforms) {
@@ -375,6 +381,7 @@ function decorMesh(look, uniforms) {
     shader.uniforms.uSwim = uniforms.uSwim;
     shader.uniforms.uGlow = GLOW.uGlow;
     shader.uniforms.uTwist = uniforms.uTwist;
+    shader.uniforms.uArch = uniforms.uArch;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
         uniform float uPhase;
@@ -383,6 +390,7 @@ function decorMesh(look, uniforms) {
         float swimS = clamp(position.z + 0.5, 0.0, 1.0);
         transformed.y += uSwim * ${SWIM.amplitude.toFixed(4)} * pow(swimS, ${SWIM.power.toFixed(2)})
           * sin(uPhase - ${SWIM.wave.toFixed(2)} * swimS);
+        transformed.y += archY(position.z);
         transformed = twistP(transformed, position.z);`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
@@ -504,6 +512,7 @@ function modelGeometryFor(ind) {
   g.setAttribute('aJaw', model.jaw);
   g.setAttribute('aLid', model.lid);
   g.setAttribute('aTheta', model.theta);   // 体のまわりの角度(のどの畝の筋を描くため)
+  g.setAttribute('aFin', model.finAttr ??= new THREE.BufferAttribute(model.fin.weight, 1));   // 胸びれの重み(胸びれを動かすため)
   // 尾びれのうしろのふちの欠け: ふちまでの長さを持たせて、欠けの中をけずる(useModelLook)
   if (ind?.traits?.fluke === 'bite') g.setAttribute('aFluke', new THREE.BufferAttribute(flukeEdge(model.geo.attributes.position.array, model.layout), 2));
   const n = model.geo.attributes.position.count;
@@ -651,6 +660,8 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     uLowerJaw: { value: 0 }, uUpperJaw: { value: 0 }, uPouch: { value: 0 },
     uLid: { value: 1 - EYE.relaxedOpen },   // まぶたの閉じぐあい(3Dモデルのとき)
     uTwist: { value: 0 },   // 体のねじれ(ラジアン)。尾が頭よりこれだけおくれて倒れる
+    uArch: { value: 0 },    // 体の反り(尾の先が背中側へ上がる長さ。体長の割合)
+    uFin: { value: 0 },     // 胸びれの上げぐあい(ラジアン。+ で背中側へ振り上げる)
   };
   const useModel = kind === 'humpback' && !!model;
   const [hingeY, hingeZ] = useModel ? MODEL.hinge : kind === 'humpback' ? jawHinge(kind) : [0, 0];
@@ -671,8 +682,26 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     shader.uniforms.uUpperJaw = uniforms.uUpperJaw;
     shader.uniforms.uPouch = uniforms.uPouch;
     shader.uniforms.uTwist = uniforms.uTwist;
+    shader.uniforms.uArch = uniforms.uArch;
+    shader.uniforms.uFin = uniforms.uFin;
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', `#include <common>${TWIST_GLSL}
+      .replace('#include <common>', `#include <common>${TWIST_GLSL}${useModel ? `
+        // 胸びれ: つけ根を通る体の向きの軸のまわりに回す。根もとは動かさず、先ほど大きく回す
+        attribute float aFin;
+        uniform float uFin;
+        vec3 finTurn(vec3 p) {
+          if (aFin == 0.0) return p;
+          float sd = sign(aFin), a = sd * uFin * smoothstep(0.0, 0.35, abs(aFin)), c = cos(a), s = sin(a);
+          vec2 d = vec2(p.x - sd * ${f(model.fin.pivot[0])}, p.y - ${f(model.fin.pivot[1])});
+          return vec3(sd * ${f(model.fin.pivot[0])} + d.x * c - d.y * s, ${f(model.fin.pivot[1])} + d.x * s + d.y * c, p.z);
+        }
+        vec3 finTurnN(vec3 n) {
+          if (aFin == 0.0) return n;
+          float a = sign(aFin) * uFin * smoothstep(0.0, 0.35, abs(aFin)), c = cos(a), s = sin(a);
+          return vec3(n.x * c - n.y * s, n.x * s + n.y * c, n.z);
+        }` : `
+        vec3 finTurn(vec3 p) { return p; }
+        vec3 finTurnN(vec3 n) { return n; }`}
         uniform float uPhase;
         uniform float uSwim;
         uniform float uLowerJaw;
@@ -710,6 +739,7 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
         }`)
       // 体がしなった向きに合わせて、陰のつけ方も曲げる(しなりの傾きは swimSlope と同じ式)
       .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+        objectNormal = finTurnN(objectNormal);
         float bendS = clamp(position.z + 0.5, 0.0, 1.0);
         float bendA = uPhase - ${SWIM.wave.toFixed(2)} * bendS;
         float bendSlope = uSwim * ${SWIM.amplitude.toFixed(4)} * (${SWIM.power.toFixed(2)} * pow(max(bendS, 1e-4), ${(SWIM.power - 1).toFixed(2)}) * sin(bendA)
@@ -721,10 +751,12 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
           vec2 jn = jawMoveNormal(jawTurn2(objectNormal.yz, upA), jd, uLowerJaw * aJaw.w);
           objectNormal = vec3(objectNormal.x, jn);
         }
+        objectNormal = normalize(vec3(objectNormal.x, objectNormal.y, objectNormal.z - archSlope(position.z) * objectNormal.y));
         objectNormal = twistP(objectNormal, position.z);
         vJaw = aJaw;${glows ? `
         vGlow = aGlow;` : ''}`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
+        transformed = finTurn(transformed);
         // のみこんだ水で、のどがふくらむ(下へ大きく、横へも少し。pouchDirection と同じ式)
         if (uPouch > 0.0 && aJaw.z > 0.0) {
           vec2 r = vec2(transformed.x, transformed.y + 0.02);
@@ -739,6 +771,7 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
         float swimS = clamp(position.z + 0.5, 0.0, 1.0);
         transformed.y += uSwim * ${SWIM.amplitude.toFixed(4)} * pow(swimS, ${SWIM.power.toFixed(2)})
           * sin(uPhase - ${SWIM.wave.toFixed(2)} * swimS);
+        transformed.y += archY(position.z);
         transformed = twistP(transformed, position.z);`);
   };
   const vertexPatch = material.onBeforeCompile;   // 泳ぐしなりとあごの動き(口の中の網目にも使う)
@@ -814,6 +847,14 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     // 体のねじれ(ラジアン)。尾が頭よりこれだけおくれて倒れる
     setTwist(rad) {
       uniforms.uTwist.value = rad;
+    },
+    // 体の反り(尾の先が背中側へ上がる長さ。体長の割合。マイナスはおなか側へ丸める)
+    setArch(amount) {
+      uniforms.uArch.value = amount;
+    },
+    // 胸びれの上げぐあい(ラジアン。+ で背中側へ振り上げる)
+    setFin(rad) {
+      uniforms.uFin.value = rad;
     },
     // 口とのど(捕食)。lower・upper はあごの角度(ラジアン)、pouch はのどのふくらみ(0〜1)
     setJaw(lower, upper, pouch) {

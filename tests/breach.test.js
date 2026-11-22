@@ -140,3 +140,26 @@ test('ジャンプのひねり: 水の中から回りはじめ、尾はおくれ
     assert.ok(breachPose(BREACH.air + 3, 1, full).twist < 0, 'もどすときも尾がおくれる');
   }
 });
+
+test('ジャンプの反り: 水から出ていくときに背中側へ反り、いちばん高いところでいちばん反り、着水の前に少し丸め、着水後はまっすぐ', async () => {
+  const { breachArch, breachPose, BREACH, ARCH } = await import('../src/logic/breach.js');
+  for (const full of [false, true]) {
+    const peak = full ? ARCH.full : ARCH.normal;
+    assert.equal(breachArch(-3, full), 0);
+    assert.ok(Math.abs(breachArch(BREACH.air * ARCH.top, full) - peak) < 1e-9);
+    assert.ok(breachArch(BREACH.air - 0.01, full) < 0, '着水の前は少し丸める');
+    assert.ok(Math.abs(breachArch(BREACH.air + 2, full)) < 1e-9);
+    for (let L = -2; L < BREACH.air + 3; L += 0.02) assert.ok(Math.abs(breachArch(L + 0.02, full) - breachArch(L, full)) < 0.01);
+    assert.equal(breachPose(1, 1, full).arch, breachArch(1, full));
+  }
+});
+
+test('ジャンプの胸びれ: 水の中では体にそわせ、出るときに振り上げ、着水でたたきつけるように下ろす', async () => {
+  const { breachFin, BREACH, PEC } = await import('../src/logic/breach.js');
+  assert.equal(breachFin(-3), 0);
+  assert.ok(breachFin(-0.05) < -10);
+  assert.ok(Math.abs(breachFin(BREACH.air * 0.3) - PEC.raised) < 1e-9);
+  assert.ok(breachFin(BREACH.air - 0.01) < 0);
+  assert.ok(Math.abs(breachFin(BREACH.air + 3)) < 1e-9);
+  for (let L = -2; L < BREACH.air + 3; L += 0.02) assert.ok(Math.abs(breachFin(L + 0.02) - breachFin(L)) < 2);
+});

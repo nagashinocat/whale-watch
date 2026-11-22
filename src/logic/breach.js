@@ -32,6 +32,43 @@ export const FULL_BREACH = Object.freeze({ peak: 4.2, pitchFrom: 80, pitchTo: -3
 // lag: 尾が頭のひねりにおくれる秒数 / rightIn: 着水してから、体をもとの向きにもどすまでの秒数
 export const TWIST = Object.freeze({ start: 1.4, atLaunch: { normal: 20, full: 15 }, lag: 0.7, rightIn: 5, rightFrom: 0.6 });
 
+// 体の反り(調べてわかったこと: ジャンプの写真と映像)
+//   ・水から出ていくとき、背中をそらせて頭と尾を背中側へ反らす(弓なり)。いちばん高いところで、いちばん反る
+//   ・落ちはじめると反りをもどし、着水の前には少しおなか側へ丸める
+// peak: いちばん反ったときに、尾の先が背中側へ上がる長さ(体長に対する割合)
+export const ARCH = Object.freeze({ normal: 0.13, full: 0.2, top: 0.4, tuck: -0.25 });
+
+// 体の反り(体長に対する割合。+ は背中側へ反る)。L は飛び出してからの秒
+export function breachArch(L, full = false) {
+  const peak = full ? ARCH.full : ARCH.normal;
+  if (L < -TWIST.start) return 0;
+  // 水の中で強く尾をあおぎながら、少しずつ反りはじめる
+  if (L < 0) return 0.3 * peak * ease((L + TWIST.start) / TWIST.start);
+  if (L < BREACH.air) {
+    const u = L / BREACH.air;
+    if (u < ARCH.top) return lerp(0.3 * peak, peak, ease(u / ARCH.top));
+    // 落ちはじめると反りをもどし、着水の前に少し丸める
+    return lerp(peak, ARCH.tuck * peak, ease((u - ARCH.top) / (1 - ARCH.top)));
+  }
+  // 着水したら、まっすぐにもどる
+  return ARCH.tuck * peak * (1 - ease((L - BREACH.air) / 1.5));
+}
+
+// 胸びれ(調べてわかったこと: ジャンプの写真)。水の中では体にそわせ、水から出るときに大きく広げて振り上げ、
+// 落ちていくあいだは広げたまま、着水でたたきつけるように下ろす。角度は度(+ が背中側へ上げる)
+export const PEC = Object.freeze({ tucked: -15, raised: 55, hold: 30 });
+export function breachFin(L) {
+  if (L < -TWIST.start) return 0;
+  if (L < 0) return PEC.tucked * ease((L + TWIST.start) / TWIST.start);
+  if (L < BREACH.air) {
+    const u = L / BREACH.air;
+    if (u < 0.3) return lerp(PEC.tucked, PEC.raised, ease(u / 0.3));
+    if (u < 0.75) return lerp(PEC.raised, PEC.hold, ease((u - 0.3) / 0.45));
+    return lerp(PEC.hold, -10, ease((u - 0.75) / 0.25));
+  }
+  return -10 * (1 - ease((L - BREACH.air) / 2));
+}
+
 // 頭の倒れ(度)。L は飛び出してからの秒
 function headRoll(L, full) {
   const top = full ? FULL_BREACH.roll : 80;
@@ -71,7 +108,7 @@ export function breachPose(L, k = 1, full = false) {
   const along = L < 0 ? Math.max(0, L + BREACH.approach) * 0.3 : 2.4 + Math.min(L, 6) * 1.2;
   // 子クジラは体のわりに高く跳ぶ(高さは体の大きさの平方根に合わせる。そのぶん、落ちてくる速さもあまり落ちない)
   const h = Math.sqrt(k);
-  return { y: y * h, pitch, roll, twist, along: along * k };
+  return { y: y * h, pitch, roll, twist, arch: breachArch(L, full), fin: breachFin(L), along: along * k };
 }
 
 // 群れでジャンプ: 2〜5頭が、0.3〜0.8秒ずつずれて次々に跳ぶ。跳び方は2とおり:

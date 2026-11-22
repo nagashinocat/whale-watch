@@ -229,6 +229,19 @@ export function shapeForIndividual(pos, L, ind) {
   return out;
 }
 
+// 胸びれを動かすための、点ごとの重み(胸びれの根もとからの長さの割合。右は +、左は -、胸びれでない点は 0)と、
+// つけ根のまん中(左右の |x| と y)。胸びれは、このつけ根を通る体の向きの軸のまわりに回す
+export function finFlap(pos, L) {
+  const n = pos.length / 3, w = new Float32Array(n);
+  let sx = 0, sy = 0, m = 0;
+  for (let i = 0; i < n; i++) {
+    if (L.part[i] !== PART.fin) continue;
+    w[i] = Math.sign(pos[i * 3]) * Math.max(1e-4, L.s[i]);
+    if (L.s[i] < 0.08) { sx += Math.abs(pos[i * 3]); sy += pos[i * 3 + 1]; m++; }
+  }
+  return { weight: w, pivot: m ? [sx / m, sy / m] : [0, 0] };
+}
+
 // 尾びれのうしろのふちの欠けは、点を動かすと(尾びれの網目があらいので)三角が裏返って黒く見える。
 // そこで、点ごとに「尾びれの左右の位置 s」と「うしろのふちまでの長さ」を持たせ、欠けの中は描かない(けずる)。
 // 尾びれでない点は (0, 1)

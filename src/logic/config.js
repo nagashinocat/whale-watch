@@ -39,7 +39,7 @@ export const INTERVALS = Object.freeze({
 export const RARITY = Object.freeze({
   voice: 1, spout: 1, fluke: 1, breach: 1,
   motherCalf: 2, sleeping: 2, pod: 2, bigBreach: 2, calfBreach: 2, spyhop: 2, pecSlap: 2, lobtail: 2,
-  groupBreach: 3, groupSpyhop: 3, feeding: 3, bubbleNet: 3, eyeContact: 3, bubbleRing: 3,
+  groupBreach: 3, groupSpyhop: 3, feeding: 3, bubbleNet: 3, eyeContact: 3, bubbleRing: 3, overhead: 3,
 });
 // 待つ時間が長いほど、めずらしい出方が出やすくなる。fromMin 分まではいつもどおり、toMin 分で最大
 // (★★ は tier2 倍、★★★ は tier3 倍)。その間は少しずつ増える
@@ -70,6 +70,8 @@ export const SCHEDULE = Object.freeze({
     lobtail: 5,
     // 間近のカメラのすぐ前まで来て、目が合う(めったにない)
     eyeContact: 3,
+    // 頭の上を跳びこえる(とてもめずらしい。間近のカメラでいちばん迫力がある)
+    overhead: 1,
     // 泡の輪のあいさつ(人の近くで泡の輪を吹く。とてもめずらしい)
     bubbleRing: 1,
     // 捕食。沖縄の海は子育ての場所で、ザトウクジラはほとんど食べない(えさは夏に北の海で食べる)ので、ごくまれ

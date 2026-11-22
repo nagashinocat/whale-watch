@@ -35,7 +35,7 @@ export const SPECIAL = Object.freeze({
 export const PAIR_PATTERNS = Object.freeze(['spout', 'fluke', 'breach', 'bigBreach', 'spyhop', 'pecSlap', 'lobtail', 'feeding']);
 
 // 1頭だけで来る出かた(群れや親子では出さない)
-export const SOLO_PATTERNS = Object.freeze(['spout', 'fluke', 'breach', 'bigBreach', 'spyhop', 'pecSlap', 'lobtail', 'feeding', 'eyeContact']);
+export const SOLO_PATTERNS = Object.freeze(['spout', 'fluke', 'breach', 'bigBreach', 'spyhop', 'pecSlap', 'lobtail', 'feeding', 'eyeContact', 'overhead']);
 
 // 1頭で来るときに、とくべつな子がそれぞれ来る確率。
 // 出会い(鳴き声だけのとき以外)のうち、1頭で来る出かたは一部だけなので、そのぶん高くして、出会いあたり perEncounter にする

@@ -153,6 +153,8 @@ const whalesReady = createWhales(ocean.scene, {
     const d = Math.hypot(position[0] - c.x, position[1] - c.y, position[2] - c.z);
     ocean.shake(cameraShake(d) * power);
   },
+  // クジラを目で追う(頭の上を跳ぶとき、間近のカメラが見上げてふり返る)
+  look: (point, weight) => ocean.look(point, weight),
   playSound: (name, opts) => playWhaleSound(name, opts),
   // この出方に来るクジラ(図鑑にのっているクジラが、ときどきもう一度来る)。taken は同じ出方ですでに来ているクジラ
   visitor(taken = [], { solo = false } = {}) {

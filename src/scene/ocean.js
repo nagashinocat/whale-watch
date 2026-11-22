@@ -215,10 +215,47 @@ export function createOcean(canvas) {
   let shakeAmount = 0;
   const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
+  // クジラを目で追う(頭の上を跳ぶクジラを見上げて、ふり返る)。向きは横(yaw)と上下(pitch)の角度で、なめらかに動かす
+  // look.want: 見たい場所(なければ、いつもの向き)と強さ(0〜1)。look.seen: そのこまで呼ばれたか
+  const look = { yaw: null, pitch: 0, want: null, weight: 0, seen: 0 };
+  const anglesTo = (from, to) => {
+    const d = [to[0] - from[0], to[1] - from[1], to[2] - from[2]];
+    return { yaw: Math.atan2(-d[0], -d[2]), pitch: Math.atan2(d[1], Math.hypot(d[0], d[2])) };
+  };
+  function updateLook(dt) {
+    const base = anglesTo(preset.position, preset.target);
+    if (look.yaw === null) { look.yaw = base.yaw; look.pitch = base.pitch; }
+    // しばらく呼ばれなければ、いつもの向きへもどる
+    look.seen += dt;
+    if (look.seen > 0.5) look.weight = Math.max(0, look.weight - dt);
+    let yaw = base.yaw, pitch = base.pitch;
+    if (look.want && look.weight > 0) {
+      const w = anglesTo(preset.position, look.want);
+      let dy = w.yaw - base.yaw;
+      dy = Math.atan2(Math.sin(dy), Math.cos(dy));   // 近いほうへ回る
+      yaw = base.yaw + dy * look.weight;
+      pitch = base.pitch + (Math.min(1.35, w.pitch) - base.pitch) * look.weight;
+    }
+    const k = 1 - Math.exp(-dt * 4);
+    let dy = yaw - look.yaw;
+    dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+    look.yaw += dy * k;
+    look.pitch += (pitch - look.pitch) * k;
+  }
+  const looking = () => {
+    if (look.yaw === null) return false;
+    const b = anglesTo(preset.position, preset.target);
+    return look.weight > 0.001 || Math.abs(look.pitch - b.pitch) > 0.002 || Math.abs(Math.atan2(Math.sin(look.yaw - b.yaw), Math.cos(look.yaw - b.yaw))) > 0.002;
+  };
+
   function placeCamera() {
     camera.fov = preset.fov;
     camera.position.set(...preset.position);
-    camera.lookAt(...preset.target);
+    if (look.yaw === null) camera.lookAt(...preset.target);
+    else {
+      const c = Math.cos(look.pitch);
+      camera.lookAt(preset.position[0] - Math.sin(look.yaw) * c, preset.position[1] + Math.sin(look.pitch), preset.position[2] - Math.cos(look.yaw) * c);
+    }
     if (shakeAmount > 0.001) {
       const a = shakeAmount;
       camera.position.y += Math.sin(elapsed * 31) * 0.12 * a;
@@ -239,6 +276,7 @@ export function createOcean(canvas) {
 
   function setCamera(name) {
     preset = CAMERA_PRESETS[name] ?? CAMERA_PRESETS.cliff;
+    look.yaw = null; look.weight = 0; look.want = null;
     whitecaps.setStrength(preset.whitecaps ?? 0.5);
     placeCamera();
     placeWhaleLights();
@@ -303,8 +341,10 @@ export function createOcean(canvas) {
     sky.update(dt);
     whitecaps.update(dt, camera.position);
     if (shakeAmount > 0.001) shakeAmount *= Math.exp(-dt * 3);
-    if (preset.sway || shakeAmount > 0.001) placeCamera();
     for (const fn of updaters) fn(dt);
+    // クジラを目で追うのは、間近のカメラだけ(崖の上や上空は、いつもの向きのまま)
+    if (preset === CAMERA_PRESETS.near) updateLook(dt);
+    if (preset.sway || shakeAmount > 0.001 || looking()) placeCamera();
     // 画面を真っ暗にしているあいだは、動きだけ進めて描かない(電池を節約する)
     if (!eco) renderer.render(scene, camera);
   }
@@ -386,6 +426,8 @@ export function createOcean(canvas) {
     addUpdater: fn => updaters.push(fn),
     // 海面の波の輪(x, z: 場所、amp: 高さ m)
     addRipple: (x, z, amp) => ripples.add(x, z, amp, elapsed),
+    // クジラを目で追う(point: 見る場所、weight: 0〜1)。毎こま呼ぶ。呼ばなくなると、いつもの向きへもどる
+    look: (point, weight = 1) => { if (reduceMotion) return; look.want = point; look.weight = Math.max(0, Math.min(1, weight)); look.seen = 0; },
     // 画面を揺らす(0〜1)。動きを減らす設定の端末では揺らさない
     shake: amount => { if (!reduceMotion) shakeAmount = Math.max(shakeAmount, amount); },
     // 海面に貼りつけるもの(映り込みには描かない)を足す

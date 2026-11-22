@@ -205,3 +205,50 @@ export function groupSpyhopPlan(rng = Math.random) {
   for (const i of order) { g[i].delay = d; d += 0.4 + rng() * 0.8; }
   return g;
 }
+
+// 頭の上を跳ぶ(間近のカメラの頭の上を、前から後ろへ跳びこえる)。
+//   ・前から水の中を近づき、カメラの手前 before m で飛び出す。体の中心はカメラの上 peak m を通り、うしろ after m に落ちる
+//   ・空中では、体の向きが飛ぶ向きにそってかわる(上向きに出て、下向きに落ちる)。カメラからは白いおなかと胸びれが見える
+//   ・高さと距離から、飛び出す速さと空中の時間を計算する(重力だけで飛ぶ)
+// side: カメラから右へずらす長さ(m。まうしろへ向きを変えるとき、真上でカメラがくるっと回らないように)
+export const OVERHEAD = Object.freeze({ launch: 9, before: 9, after: 9, peak: 6.5, exitY: -1, side: 3, from: 55, depth: 9 });
+
+// 空中にいる時間(秒)と、飛び出す速さ(前向き・上向き m/秒)
+export function overheadFlight(o = OVERHEAD) {
+  const vy = Math.sqrt(2 * 9.8 * (o.peak - o.exitY));
+  const air = (2 * vy) / 9.8;
+  return { air, vy, vz: (o.before + o.after) / air };
+}
+
+// t 秒目の体の中心(カメラからの前後 z: うしろが +、高さ y)と、頭の上がり(度)・反り・胸びれ。
+// 飛び出す前は、深いところから飛び出す点へ、飛び出すときの速さにつながるようになめらかに近づく(エルミート曲線)
+export function overheadPose(t, o = OVERHEAD) {
+  const { air, vy, vz } = overheadFlight(o);
+  const L = t - o.launch;
+  let z, y, dz, dy;
+  if (L < 0) {
+    const s = Math.max(0, t) / o.launch, T = o.launch;
+    const h00 = 2 * s ** 3 - 3 * s ** 2 + 1, h10 = s ** 3 - 2 * s ** 2 + s, h01 = -2 * s ** 3 + 3 * s ** 2, h11 = s ** 3 - s ** 2;
+    const d00 = (6 * s ** 2 - 6 * s) / T, d10 = (3 * s ** 2 - 4 * s + 1), d01 = (-6 * s ** 2 + 6 * s) / T, d11 = (3 * s ** 2 - 2 * s);
+    const P0 = [-o.from, -o.depth], V0 = [3, 0], P1 = [-o.before, o.exitY], V1 = [vz, vy];
+    z = h00 * P0[0] + h10 * T * V0[0] + h01 * P1[0] + h11 * T * V1[0];
+    y = h00 * P0[1] + h10 * T * V0[1] + h01 * P1[1] + h11 * T * V1[1];
+    dz = d00 * P0[0] + d10 * V0[0] + d01 * P1[0] + d11 * V1[0];
+    dy = d00 * P0[1] + d10 * V0[1] + d01 * P1[1] + d11 * V1[1];
+  } else if (L < air) {
+    z = -o.before + vz * L; y = o.exitY + vy * L - 4.9 * L * L;
+    dz = vz; dy = vy - 9.8 * L;
+  } else {
+    // 落ちたあとは、水の中を前へ進みながら深く潜っていく
+    const k = L - air, slow = Math.exp(-k * 0.5);
+    z = o.after + vz * (1 - slow) / 0.5;
+    y = o.exitY - vy * (1 - Math.exp(-k * 0.8)) / 0.8;
+    dz = vz * slow; dy = -vy * Math.exp(-k * 0.8);
+  }
+  const pitch = Math.atan2(dy, Math.max(0.01, dz)) * 180 / Math.PI;
+  const u = L / air;
+  // 空中では背中をそらせ(いちばん高いところでいちばん)、胸びれを大きく広げる
+  const arch = L < 0 || L > air ? 0.04 * Math.exp(-Math.abs(L < 0 ? L : L - air) * 2) : 0.04 + 0.12 * Math.sin(Math.PI * u);
+  const fin = L < -1.4 ? 0 : L < 0 ? -15 * ease((L + 1.4) / 1.4) : L < air ? lerp(-15, 60, ease(u / 0.3)) - 70 * ease((u - 0.8) / 0.2) : -10 * (1 - ease((L - air) / 2));
+  return { z, y, pitch, arch, fin, air, landed: L >= air };
+}

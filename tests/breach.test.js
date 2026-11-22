@@ -163,3 +163,24 @@ test('ジャンプの胸びれ: 水の中では体にそわせ、出るときに
   assert.ok(Math.abs(breachFin(BREACH.air + 3)) < 1e-9);
   for (let L = -2; L < BREACH.air + 3; L += 0.02) assert.ok(Math.abs(breachFin(L + 0.02) - breachFin(L)) < 2);
 });
+
+test('頭の上を跳ぶ: カメラの手前で飛び出し、カメラの上を高く通り、うしろに落ちる。動きはとぎれない', async () => {
+  const { overheadPose, overheadFlight, OVERHEAD } = await import('../src/logic/breach.js');
+  const { air } = overheadFlight();
+  const at = t => overheadPose(t);
+  assert.ok(Math.abs(at(OVERHEAD.launch).z + OVERHEAD.before) < 1e-6 && Math.abs(at(OVERHEAD.launch).y - OVERHEAD.exitY) < 1e-6);
+  // カメラの真上あたり(z≒0)では、体の中心が高いところにある
+  let top = -Infinity;
+  for (let t = OVERHEAD.launch; t < OVERHEAD.launch + air; t += 0.01) if (Math.abs(at(t).z) < 1) top = Math.max(top, at(t).y);
+  assert.ok(top > 5.5, String(top));
+  assert.ok(at(OVERHEAD.launch + air + 0.01).z > OVERHEAD.after - 0.5);
+  // 上向きに出て、下向きに落ちる
+  assert.ok(at(OVERHEAD.launch + 0.1).pitch > 30 && at(OVERHEAD.launch + air - 0.1).pitch < -30);
+  for (let t = 0; t < 20; t += 0.02) {
+    const a = at(t), b = at(t + 0.02);
+    assert.ok(Math.hypot(b.z - a.z, b.y - a.y) < 0.4, `t=${t}`);
+    assert.ok(Math.abs(b.pitch - a.pitch) < 6, `pitch t=${t}`);
+  }
+  // 飛び出す前は水の中
+  for (let t = 0; t < OVERHEAD.launch - 0.3; t += 0.1) assert.ok(at(t).y < 0);
+});

@@ -12,7 +12,7 @@ import { impactSplash, whaleMass, PART_MASS } from '../logic/impact.js';
 import { rippleAmplitude, bubblePlumeBoil } from '../logic/ripples.js';
 // 口を開けて水面を割るとき・横に倒れこむときに、体が押しのける水の勢い(重さの割合と、速さ m/秒)
 const LUNGE_PUSH = Object.freeze({ share: 0.5, rise: 3, fall: 4 });
-import { BREACH, breachPose, groupBreachPlan, calfBreachPlan, POD, podPlan, groupSpyhopPlan } from '../logic/breach.js';
+import { BREACH, breachPose, OVERHEAD, overheadPose, overheadFlight, groupBreachPlan, calfBreachPlan, POD, podPlan, groupSpyhopPlan } from '../logic/breach.js';
 import { divingYaw } from '../logic/behavior.js';
 import { followFactor } from '../logic/quality.js';
 import { SPOT, CAMERA_PRESETS } from './cameras.js';
@@ -752,6 +752,60 @@ const MOTIONS = {
   // 目が合う: 間近のカメラのすぐ前で、体を立てて頭を出し(スパイホップ)、片目でこちらをじっと見る。
   // ゆっくり上がってきて、少しずつ寄り、目が画面の半分以上になる近さ(約17cm)で20秒ほど止まる。
   // まばたきをして、目の玉も少し動く。最後はゆっくり離れて沈んでいく
+  // 頭の上を跳ぶ: 前から水の中を近づき、間近のカメラの頭の上を跳びこえて、うしろに落ちる。
+  // カメラは飛び出すクジラを見上げて追いかけ、落ちたほうへふり返り、しばらくしてもとの向きへもどる
+  overhead() {
+    const cam = CAMERA_PRESETS.near.position;
+    const x = cam[0] + OVERHEAD.side, z0 = cam[2];
+    const { air } = overheadFlight();
+    const roll = Math.random() < 0.5 ? 1 : -1;
+    const launch = OVERHEAD.launch, land = launch + air;
+    return {
+      whales: [{ kind: 'humpback' }],
+      each([w], t) {
+        const p = overheadPose(t);
+        w.group.position.set(x, p.y, z0 + p.z);
+        // 頭はうしろ(+z)向き。空中で少し横へ倒れながら、おなかをカメラに見せる
+        const lean = 25 * Math.sin(Math.PI * Math.min(1, Math.max(0, (t - launch + 0.5) / (air + 1))));
+        w.group.rotation.set(D2R(p.pitch), D2R(180), D2R(lean * roll));
+        w.mixer.setSwim(t < launch ? 1 : p.landed ? 0.6 : 0.1);
+        w.mixer.setArch?.(p.arch);
+        w.mixer.setFin?.(D2R(p.fin));
+        w.mixer.setTwist?.(0);
+      },
+      // カメラ: 飛び出す少し前から見上げて追い、落ちたところを見て、それからもとの向きへ
+      camera([w], t) {
+        const up = ease((t - (launch - 1.2)) / 1.2) * (1 - ease((t - (land + 3.5)) / 2.5));
+        if (up <= 0) return null;
+        const point = t < land + 0.3 ? bodyPoint(w, -0.1) : [x, 0.5, z0 + OVERHEAD.after];
+        return { point, weight: up };
+      },
+      cues: [
+        { at: 2, run: (fx, [w]) => fx.effects.foam(onWater([x, 0, z0 - 30]), 5000, { radius: 2, count: 80 }) },
+        {
+          at: launch - 0.05,
+          run: (fx, [w]) => {
+            const p = [x, 0, z0 - OVERHEAD.before];
+            const s = impactSplash({ mass: whaleMass(w.length) * 0.35, speed: 8, length: 0.35 * w.length, width: 0.23 * w.length });
+            fx.effects.splash(p, { ...s, column: 0 }, headingOf(w));
+            fx.effects.foam(p, s.foamMs * 0.6, { radius: s.foamRadius * 0.7, count: 200 });
+            fx.playSound('breach-rise', { gain: 1, position: p });
+          },
+        },
+        {
+          at: land - 0.15,
+          run: (fx, [w]) => {
+            const p = [x, 0, z0 + OVERHEAD.after];
+            const s = impactSplash({ mass: whaleMass(w.length), speed: 9, length: w.length, width: 0.23 * w.length });
+            slam(fx, p, headingOf(w), s);
+            fx.playSound('breach', { gain: 1, position: p });
+          },
+        },
+        { at: land + 7, run: (fx, [w]) => fx.footprint?.([x, 0, z0 + OVERHEAD.after + 4], 0) },
+      ],
+    };
+  },
+
   eyeContact() {
     const near = CAMERA_PRESETS.near;
     const cam = new THREE.Vector3(...near.position);
@@ -982,6 +1036,11 @@ export async function createWhales(scene, fx) {
         w.prevDt = dt;
       }
       applyMotion(act, act.t);
+      // 出方がカメラの向きを決めるとき(頭の上を跳ぶ): 見る場所をカメラに伝える
+      if (act.motion.camera && act.leaving === null) {
+        const c = act.motion.camera(act.whales, act.t);
+        if (c) fx.look?.(c.point, c.weight);
+      }
       // 決めた姿勢へ、なめらかに追いかける(動きの急な変わり目で、がくっとならないように)
       const k = followFactor(dt);
       for (const w of act.whales) {

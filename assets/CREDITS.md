@@ -44,3 +44,12 @@ m4a を読めないブラウザでは、同じ名前の wav を読む。ライ�
 
 クジラの声は `tools/audio/make_voice.sh` で、モノラル16kHzにして音量をそろえている
 (歌 -26 LUFS、短い鳴き声 -27 LUFS、マッコウクジラ -30 LUFS。マッコウクジラは音の角を丸めるため 5kHz より高い音を落としている)。
+
+## 3Dモデル (`assets/models/`)
+
+| ファイル | 内容 | 元 | ライセンス | 作者 |
+|---|---|---|---|---|
+| humpback.glb | ザトウクジラ(テクスチャつき)。`tools/build_whale_model.py` で向き・曲がり・太さをそろえ、テクスチャを軽くしたもの | 持ち主が ChatGPT の画像生成で作った絵を、Meshy(有料プラン)で3Dにしたもの | 持ち主のもの(OpenAI の利用規約で出力は利用者のもの。Meshy の有料プランは作った人が所有、表示不要) | 持ち主 |
+| special-galaxy-fantasy.jpg / special-fireworks-fantasy.jpg | ギンガ・ハナビの模様 | 同上 | 同上 | 持ち主 |
+| special-galaxy-cosmic.bin / special-fireworks-cosmic.bin | ホシゾラ・ボタンの頂点の色 | 同上 | 同上 | 持ち主 |
+| special-comet-fantasy.glb / special-comet-cosmic.glb | ホウキボシ・リュウセイの彗星の部品 | 同上 | 同上 | 持ち主 |

@@ -89,12 +89,17 @@ test('尾びれは、左 -1 〜 右 1、前のふち 0 〜 うしろのふち 1�
   assert.ok(L.c[front] < 0.2 && L.c[back] > 0.8);
 });
 
-test('モデルのファイルは assets/models/ にあり、とくべつな子は2つの姿(ファンタジー・宇宙)の素材をもつ', () => {
+test('モデルのファイルは assets/models/ にあり、とくべつな子は姿ごとの素材をもつ(彗星は体の上に重ねる部品)', () => {
   assert.match(MODEL.url, /^assets\/models\/.+\.glb$/);
-  for (const coat of ['galaxy', 'comet', 'fireworks']) {
-    const a = specialAssets(coat);
-    assert.match(a.fantasy, new RegExp(`special-${coat}-fantasy\\.jpg$`));
-    assert.match(a.cosmic, new RegExp(`special-${coat}-cosmic\\.bin$`));
+  for (const coat of ['galaxy', 'fireworks']) {
+    assert.match(specialAssets(coat, 'fantasy').texture, new RegExp(`special-${coat}-fantasy\\.jpg$`));
+    assert.match(specialAssets(coat, 'cosmic').colors, new RegExp(`special-${coat}-cosmic\\.bin$`));
+  }
+  for (const style of ['fantasy', 'cosmic']) {
+    const a = specialAssets('comet', style);
+    assert.match(a.decor, new RegExp(`special-comet-${style}\\.glb$`));
+    assert.equal(a.texture, undefined);
+    assert.equal(a.colors, undefined);
   }
 });
 

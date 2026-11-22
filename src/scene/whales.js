@@ -5,7 +5,8 @@ import { WHALE_SPECS, surfacedCenterY, bodySection, finTip, jawPoint, faceFeatur
 import { FEEDING, feedingPose, BUBBLE_NET, bubbleNetGroup } from '../logic/feeding.js';
 import { BREATH, ROLL, diveSurfacing, calfBreaths, rollingSurfacing } from '../logic/breathing.js';
 import { SLEEP, sleepingGroup, headBob } from '../logic/sleep.js';
-import { individual as individualById } from '../logic/flukeId.js';
+import { individual as individualById, partnerOf, comesAsPair } from '../logic/flukeId.js';
+import { PAIR_PATTERNS } from '../logic/specialCoats.js';
 import { lengthOf } from '../logic/zukan.js';
 import { impactSplash, whaleMass, PART_MASS } from '../logic/impact.js';
 import { BREACH, breachPose, groupBreachPlan, calfBreachPlan, POD, podPlan, groupSpyhopPlan } from '../logic/breach.js';
@@ -895,8 +896,18 @@ export async function createWhales(scene, fx) {
       D: durationMs / 1000,
       fired: new Set(),
     };
+    // とくべつな子は、たまに、つがいの相手(同じ模様の、もう1つの姿の子)といっしょに来る。
+    // 相手は少しうしろの横を、少しおくれて同じように泳ぐ
+    const lead = act.whales[0];
+    if (act.whales.length === 1 && lead.individual?.special && PAIR_PATTERNS.includes(name) && comesAsPair(lead.individual.id, globalThis.WHALE_FORCE_PAIR ? () => 0 : Math.random)) {   // 動作確認では WHALE_FORCE_PAIR で必ず2頭に
+      const mate = individualById(partnerOf(lead.individual.id));
+      act.whales.push(makeWhale('humpback', 1, undefined, mate));
+      const side = Math.random() < 0.5 ? 1 : -1;
+      const r = rightOf(f);
+      act.pair = { lag: 1.2 + Math.random() * 0.8, offset: [r[0] * 9 * side - f[0] * 4, 0, r[2] * 9 * side - f[2] * 4] };
+    }
     for (const w of act.whales) scene.add(w.group);
-    motion.each(act.whales, 0, act.D);
+    applyMotion(act, 0);
     act.order = ++order;
     act.leaving = null;   // 途中で潜っていなくなるとき、潜りはじめてからの秒数
     acts.add(act);
@@ -933,6 +944,16 @@ export async function createWhales(scene, fx) {
     return oldest.whales.length;
   }
 
+  // 出方の動きを、その出方のクジラに当てる(つがいの相手は、おくれて、横にずらして同じ動き)
+  function applyMotion(act, t) {
+    if (!act.pair) { act.motion.each(act.whales, t, act.D); return; }
+    act.motion.each([act.whales[0]], t, act.D);
+    const mate = act.whales[1];
+    act.motion.each([mate], Math.max(0, t - act.pair.lag), act.D);
+    mate.group.position.x += act.pair.offset[0];
+    mate.group.position.z += act.pair.offset[2];
+  }
+
   function update(dt) {
     for (const act of acts) {
       act.t += dt;
@@ -941,7 +962,7 @@ export async function createWhales(scene, fx) {
         w.prev = { pos: w.group.position.clone(), quat: w.group.quaternion.clone() };
         w.prevDt = dt;
       }
-      act.motion.each(act.whales, act.t, act.D);
+      applyMotion(act, act.t);
       // 決めた姿勢へ、なめらかに追いかける(動きの急な変わり目で、がくっとならないように)
       const k = followFactor(dt);
       for (const w of act.whales) {

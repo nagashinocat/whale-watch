@@ -308,27 +308,62 @@ export function loadWhaleModel() {
 }
 export const whaleModelReady = () => !!model;
 
-// とくべつな子の素材(ファンタジー版の模様の画像、宇宙版の頂点の色)。はじめて出るときに読みこむ
+// とくべつな子の素材(模様の画像・頂点の色・体の上に重ねる部品)。はじめて出るときに読みこむ
 function specialLook(coat, style) {
   const key = `${coat}-${style}`;
   if (model.specials[key]) return model.specials[key];
-  const look = { texture: null, colors: null };
-  const a = specialAssets(coat);
-  if (style === 'cosmic') {
-    fetch(a.cosmic).then(r => r.arrayBuffer()).then(buf => {
+  const a = specialAssets(coat, style);
+  const look = { texture: null, colors: null, decor: null, kind: a.texture ? 'texture' : a.colors ? 'colors' : 'decor', waiting: [] };
+  const ready = () => { for (const fn of look.waiting.splice(0)) fn(); };
+  if (a.texture) {
+    look.texture = new THREE.TextureLoader().load(a.texture);
+    look.texture.colorSpace = THREE.SRGBColorSpace;
+    look.texture.flipY = false;   // glTF のテクスチャと同じ向き
+  } else if (a.colors) {
+    fetch(a.colors).then(r => r.arrayBuffer()).then(buf => {
       const rgb = new Uint8Array(buf);
       const lin = new Float32Array(rgb.length);
       for (let i = 0; i < rgb.length; i++) lin[i] = modelLinear(rgb[i] / 255);
       look.colors = lin;
-      for (const fn of look.waiting ?? []) fn();
+      ready();
     }).catch(() => {});
   } else {
-    look.texture = new THREE.TextureLoader().load(a.fantasy);
-    look.texture.colorSpace = THREE.SRGBColorSpace;
-    look.texture.flipY = false;   // glTF のテクスチャと同じ向き
+    import('three/addons/loaders/GLTFLoader.js')
+      .then(({ GLTFLoader }) => new GLTFLoader().loadAsync(a.decor))
+      .then(g => { g.scene.traverse(o => { if (o.isMesh) look.decor = o.geometry; }); ready(); })
+      .catch(() => {});
   }
   model.specials[key] = look;
   return look;
+}
+
+// 体の上に重ねる部品(彗星の頭・尾・光の粒)。体と同じしなりで動き、夜は明るく光る
+function decorMesh(look, uniforms) {
+  const material = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+  material.onBeforeCompile = shader => {
+    shader.uniforms.uPhase = uniforms.uPhase;
+    shader.uniforms.uSwim = uniforms.uSwim;
+    shader.uniforms.uGlow = GLOW.uGlow;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+        uniform float uPhase;
+        uniform float uSwim;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        float swimS = clamp(position.z + 0.5, 0.0, 1.0);
+        transformed.y += uSwim * ${SWIM.amplitude.toFixed(4)} * pow(swimS, ${SWIM.power.toFixed(2)})
+          * sin(uPhase - ${SWIM.wave.toFixed(2)} * swimS);`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+        uniform float uGlow;`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        diffuseColor.rgb *= 0.8 + 0.25 * uGlow;`);
+  };
+  material.customProgramCacheKey = () => 'whale-decor';
+  const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
+  mesh.frustumCulled = false;
+  const attach = () => { mesh.geometry = look.decor; };
+  if (look.decor) attach(); else look.waiting.push(attach);
+  return mesh;
 }
 
 // 1頭ぶんの網目(形は使い回し、色だけその子のもの)
@@ -361,7 +396,7 @@ function cosmicGeometry(ind, look) {
   g.setAttribute('aMix', new THREE.BufferAttribute(new Float32Array(n).fill(1), 1));
   g.setAttribute('aBase', new THREE.BufferAttribute(new Float32Array(n).fill(0.03), 1));
   const apply = () => g.setAttribute('color', new THREE.BufferAttribute(look.colors, 3));
-  if (look.colors) apply(); else (look.waiting ??= []).push(apply);
+  if (look.colors) apply(); else look.waiting.push(apply);
   modelGeometries.set(key, g);
   return g;
 }
@@ -369,8 +404,9 @@ function cosmicGeometry(ind, look) {
 // これまでのクジラの描き方(material)に、モデルのテクスチャと、その子の色と、夜の光をのせる
 function useModelLook(material, ind) {
   const special = !!ind?.special;
-  const style = special ? (ind.traits?.style ?? 'fantasy') : 'real';
-  const look = special ? specialLook(ind.traits.coat, style) : null;
+  const look = special ? specialLook(ind.traits.coat, ind.traits.style ?? 'fantasy') : null;
+  // fantasy: 模様の画像 / cosmic: 頂点の色 / real: ふつうのテクスチャ(彗星の子は、体はふつう)
+  const style = !look ? 'real' : look.kind === 'texture' ? 'fantasy' : look.kind === 'colors' ? 'cosmic' : 'real';
   material.map = style === 'fantasy' ? look.texture : model.maps.map;
   material.normalMap = model.maps.normalMap;
   material.roughnessMap = model.maps.roughnessMap;
@@ -553,9 +589,11 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
   if (useModel) {
     // 3Dモデル: 目・口・フジツボは、テクスチャと形にふくまれている(目の動きと口の開きは、あとで作る)
     const { style, look } = useModelLook(material, individual);
-    const geo = style === 'cosmic' ? cosmicGeometry(individual, look) : modelGeometryFor(individual);
+    const geo = style === 'cosmic' ? cosmicGeometry(individual, look)
+      : modelGeometryFor(individual?.special ? null : individual);
     mesh = new THREE.Mesh(geo, material);
     mesh.scale.setScalar(lengthMeters);
+    if (look?.kind === 'decor') mesh.add(decorMesh(look, uniforms));
   } else {
     mesh = new THREE.Mesh(geometryForIndividual(kind, individual), material);
     mesh.scale.setScalar(lengthMeters);

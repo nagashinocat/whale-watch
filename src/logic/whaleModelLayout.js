@@ -19,11 +19,13 @@ export const MODEL = Object.freeze({
   finRange: Object.freeze([0.25, 0.68]),   // 胸びれがつく範囲(u)
 });
 
-// とくべつな子の素材(ファンタジー版は模様の画像、宇宙版は頂点ごとの色)
-export const specialAssets = coat => ({
-  fantasy: `assets/models/special-${coat}-fantasy.jpg`,
-  cosmic: `assets/models/special-${coat}-cosmic.bin`,
-});
+// とくべつな子の素材。texture: 体の模様の画像 / colors: 頂点ごとの色 / decor: 体の上に重ねる部品(体はふつうの子と同じ)
+//   ギンガ・ハナビ(ファンタジー版)は模様の画像、ホシゾラ・ボタン(宇宙版)は頂点の色、
+//   ホウキボシ・リュウセイは彗星の部品(頭・尾・光の粒)
+export function specialAssets(coat, style) {
+  if (coat === 'comet') return { decor: `assets/models/special-comet-${style}.glb` };
+  return style === 'cosmic' ? { colors: `assets/models/special-${coat}-cosmic.bin` } : { texture: `assets/models/special-${coat}-fantasy.jpg` };
+}
 
 export const PART = Object.freeze({ body: 0, fin: 1, fluke: 2 });
 

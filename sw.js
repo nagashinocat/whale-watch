@@ -1,6 +1,6 @@
 // このファイルは tools/build_sw.py で作る(手で書きかえない)
 // 一度開いたら、電波がなくても動くように、アプリのファイルを端末にとっておく
-const VERSION = '60226c90dc74';
+const VERSION = '9d8ba09e19f7';
 const APP = `whale-ocean-${VERSION}`;
 const EXTRA = 'whale-ocean-extra';   // 文字の形など、あとから読みこんだもの
 const FILES = [
@@ -121,8 +121,8 @@ const FILES = [
   "assets/icons/icon-maskable-512.png",
   "assets/icons/og.png",
   "assets/models/humpback.glb",
-  "assets/models/special-comet-cosmic.bin",
-  "assets/models/special-comet-fantasy.jpg",
+  "assets/models/special-comet-cosmic.glb",
+  "assets/models/special-comet-fantasy.glb",
   "assets/models/special-fireworks-cosmic.bin",
   "assets/models/special-fireworks-fantasy.jpg",
   "assets/models/special-galaxy-cosmic.bin",

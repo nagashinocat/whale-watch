@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PATTERNS } from '../logic/patterns.js';
-import { createWhaleMesh, prepareWhaleGeometry } from './whaleModel.js';
+import { createWhaleMesh, prepareWhaleGeometry, loadWhaleModel } from './whaleModel.js';
 import { WHALE_SPECS, surfacedCenterY, bodySection, finTip, jawPoint, faceFeatures } from '../logic/whaleShape.js';
 import { FEEDING, feedingPose, BUBBLE_NET, bubbleNetGroup } from '../logic/feeding.js';
 import { BREATH, ROLL, diveSurfacing, calfBreaths, rollingSurfacing } from '../logic/breathing.js';
@@ -756,14 +756,14 @@ const MOTIONS = {
             const score = n.clone().applyQuaternion(w.group.quaternion).dot(dir.clone().negate());
             if (score > best) { best = score; yaw = a; }
           }
-          w.mixer.eyes.alive = true;
+          if (w.mixer.eyes) w.mixer.eyes.alive = true;
         }
         const rise = ease(t / 10) - ease((t - (D - 5)) / 5);
         const close = ease((t - 10) / 6) - ease((t - 36) / 5);
         const target = eyeAt(lerp(far, EYE.contactDistance, close));
         target.y = lerp(-3.5, target.y, rise) + 0.015 * Math.sin(t * 0.9) * close;
         // 見つめている間は目を大きく開き、離れるときはふだんの開きにもどす
-        w.mixer.eyes.setBaseOpen(lerp(EYE.relaxedOpen, 1, ease((t - 15) / 3) - ease((t - 35) / 3)));
+        w.mixer.eyes?.setBaseOpen(lerp(EYE.relaxedOpen, 1, ease((t - 15) / 3) - ease((t - 35) / 3)));
         const sway = 2 * Math.sin(t * 0.3) * (1 - close * 0.7);
         w.group.rotation.set(D2R(pitch), D2R(yaw + sway), 0);
         w.group.position.set(0, 0, 0);
@@ -788,7 +788,7 @@ const MOTIONS = {
     return {
       whales: [{ kind: 'humpback', swim: 0.3 }],
       each([w], t) {
-        if (!w.mixer.eyes.alive) w.mixer.eyes.alive = true;
+        if (w.mixer.eyes && !w.mixer.eyes.alive) w.mixer.eyes.alive = true;
         const up = ease(t / 6), head = ease((t - 21) / 3) - ease((t - 29) / 3), down = ease((t - 31) / 6);
         const y = lerp(-9, -3.4, up) + head * 1.6 - down * 7;
         const pitch = 6 + head * 48 - down * 22;
@@ -847,9 +847,11 @@ const MOTIONS = {
 };
 
 // fx: { effects, playSound(name) } — 演出から水しぶきと効果音を出すために使う
-// クジラの形は計算で作るので、読み込みに失敗することはない
+// ザトウクジラは3Dモデル(読みこめないときは、計算で作った形)。マッコウクジラは計算で作った形
 export async function createWhales(scene, fx) {
   const models = { humpback: true, sperm: true };
+  // モデルの読みこみをはじめる(待たない。読みこめる前に出るクジラは、計算で作った形になる)
+  loadWhaleModel();
   // 画面が出たあと、ひと息おいてから形を作っておく(最初のクジラが出るときに引っかからないように)
   setTimeout(prepareWhaleGeometry, 2000);
   const acts = new Set();

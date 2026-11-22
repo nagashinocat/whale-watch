@@ -5,6 +5,7 @@ import { specialMotif } from '../logic/specialCoats.js';
 import { buildFeatures } from '../logic/features3d.js';
 import { eyePatch, applyLid, eyeballPlacement, blinkOpen, EYE } from '../logic/eyeShape.js';
 import { flukeWhiteness } from '../logic/flukeId.js';
+import { MODEL, modelLayout, individualColors, specialAssets, toLinear as modelLinear } from '../logic/whaleModelLayout.js';
 
 // 目の玉に映る空と海の色(時刻で変わる。setEyeLight で変える)
 const eyeUniforms = {
@@ -281,6 +282,138 @@ function featuresFor(kind, ind) {
   return geo;
 }
 
+// ---- 3Dモデルのザトウクジラ(assets/models/humpback.glb) ----
+// 読みこめたら、ザトウクジラはこのモデルで出す(読みこめないときは、これまでの計算で作ったクジラ)。
+// 泳ぐしなり・あごの動き・夜に光る模様は、これまでと同じ描き方(シェーダー)にのせる。
+let model = null;
+let modelLoading = null;
+export function loadWhaleModel() {
+  if (!modelLoading) modelLoading = (async () => {
+    const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+    const gltf = await new GLTFLoader().loadAsync(MODEL.url);
+    let src = null;
+    gltf.scene.traverse(o => { if (o.isMesh) src = o; });
+    const geo = src.geometry;
+    const layout = modelLayout(geo.attributes.position.array, geo.attributes.normal.array);
+    const m = src.material;
+    model = {
+      geo, layout,
+      maps: { map: m.map, normalMap: m.normalMap, roughnessMap: m.roughnessMap },
+      jaw: new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 4), 4),
+      specials: {},
+    };
+    return model;
+  })().catch(err => { console.warn('クジラのモデルを読みこめませんでした。計算で作ったクジラを使います', err); return null; });
+  return modelLoading;
+}
+export const whaleModelReady = () => !!model;
+
+// とくべつな子の素材(ファンタジー版の模様の画像、宇宙版の頂点の色)。はじめて出るときに読みこむ
+function specialLook(coat, style) {
+  const key = `${coat}-${style}`;
+  if (model.specials[key]) return model.specials[key];
+  const look = { texture: null, colors: null };
+  const a = specialAssets(coat);
+  if (style === 'cosmic') {
+    fetch(a.cosmic).then(r => r.arrayBuffer()).then(buf => {
+      const rgb = new Uint8Array(buf);
+      const lin = new Float32Array(rgb.length);
+      for (let i = 0; i < rgb.length; i++) lin[i] = modelLinear(rgb[i] / 255);
+      look.colors = lin;
+      for (const fn of look.waiting ?? []) fn();
+    }).catch(() => {});
+  } else {
+    look.texture = new THREE.TextureLoader().load(a.fantasy);
+    look.texture.colorSpace = THREE.SRGBColorSpace;
+    look.texture.flipY = false;   // glTF のテクスチャと同じ向き
+  }
+  model.specials[key] = look;
+  return look;
+}
+
+// 1頭ぶんの網目(形は使い回し、色だけその子のもの)
+const modelGeometries = new Map();
+function modelGeometryFor(ind) {
+  const key = ind ? `${ind.id}` : 'plain';
+  if (modelGeometries.has(key)) return modelGeometries.get(key);
+  const g = new THREE.BufferGeometry();
+  for (const name of ['position', 'normal', 'uv']) g.setAttribute(name, model.geo.attributes[name]);
+  g.setIndex(model.geo.index);
+  g.setAttribute('aJaw', model.jaw);
+  const n = model.geo.attributes.position.count;
+  let color, mix, base;
+  if (ind && !ind.special) ({ color, mix, base } = individualColors(ind, model.layout));
+  else { color = new Float32Array(n * 3).fill(1); mix = new Float32Array(n); base = new Float32Array(n).fill(1); }
+  g.setAttribute('color', new THREE.BufferAttribute(color, 3));
+  g.setAttribute('aMix', new THREE.BufferAttribute(mix, 1));
+  g.setAttribute('aBase', new THREE.BufferAttribute(base, 1));
+  g.boundingSphere = model.geo.boundingSphere;
+  modelGeometries.set(key, g);
+  return g;
+}
+
+// 宇宙版のとくべつな子: 頂点の色が届いたら、その子の網目に入れる
+function cosmicGeometry(ind, look) {
+  const key = `${ind.id}-cosmic`;
+  if (modelGeometries.has(key)) return modelGeometries.get(key);
+  const g = modelGeometryFor(null).clone();
+  const n = g.attributes.position.count;
+  g.setAttribute('aMix', new THREE.BufferAttribute(new Float32Array(n).fill(1), 1));
+  g.setAttribute('aBase', new THREE.BufferAttribute(new Float32Array(n).fill(0.03), 1));
+  const apply = () => g.setAttribute('color', new THREE.BufferAttribute(look.colors, 3));
+  if (look.colors) apply(); else (look.waiting ??= []).push(apply);
+  modelGeometries.set(key, g);
+  return g;
+}
+
+// これまでのクジラの描き方(material)に、モデルのテクスチャと、その子の色と、夜の光をのせる
+function useModelLook(material, ind) {
+  const special = !!ind?.special;
+  const style = special ? (ind.traits?.style ?? 'fantasy') : 'real';
+  const look = special ? specialLook(ind.traits.coat, style) : null;
+  material.map = style === 'fantasy' ? look.texture : model.maps.map;
+  material.normalMap = model.maps.normalMap;
+  material.roughnessMap = model.maps.roughnessMap;
+  material.roughness = 0.85;
+  const prev = material.onBeforeCompile;
+  material.onBeforeCompile = shader => {
+    prev(shader);
+    shader.uniforms.uGlow = GLOW.uGlow;
+    shader.uniforms.uGlowTime = GLOW.uGlowTime;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+        attribute float aMix;
+        attribute float aBase;
+        varying float vMix;
+        varying float vBase;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        vMix = aMix; vBase = aBase;`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+        varying float vMix;
+        varying float vBase;
+        uniform float uGlow;
+        uniform float uGlowTime;`)
+      // 色がふつうの子と同じところはテクスチャのまま。ちがうところは、テクスチャの明るさのむら(しわや陰)だけを使って、その子の色にする
+      .replace('#include <map_fragment>', `
+        vec4 texel = texture2D(map, vMapUv);
+        float texLum = dot(texel.rgb, vec3(0.2126, 0.7152, 0.0722));
+        vec3 ownCol = vec3(clamp(texLum / vBase, 0.35, 1.8)) * vColor.rgb;
+        diffuseColor.rgb *= mix(texel.rgb, ownCol, vMix);`)
+      .replace('#include <color_fragment>', '')
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        ${style === 'fantasy' ? `
+        // ファンタジー版: 模様の明るいところだけが、夜に光る
+        totalEmissiveRadiance += texel.rgb * smoothstep(0.06, 0.3, texLum) * uGlow * 0.35;` : ''}${style === 'cosmic' ? `
+        // 宇宙版: 色の明るいところだけが、夜に光って、ゆっくりまたたく
+        float glowLum = dot(vColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+        totalEmissiveRadiance += vColor.rgb * smoothstep(0.04, 0.3, glowLum) * uGlow * 0.35 * (0.8 + 0.2 * sin(uGlowTime * 1.7 + vMapUv.x * 40.0));` : ''}`);
+  };
+  material.customProgramCacheKey = () => `whale-model-${style}`;
+  material.needsUpdate = true;
+  return { style, look };
+}
+
 // 形の計算には少し時間がかかるので、クジラが出てくる前にすませておく
 export function prepareWhaleGeometry() {
   geometryFor('humpback');
@@ -298,7 +431,8 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
   };
   const [hingeY, hingeZ] = kind === 'humpback' ? jawHinge(kind) : [0, 0];
   // とくべつな子は、夜に模様が光る
-  const glows = kind === 'humpback' && !!individual?.special;
+  const useModel = kind === 'humpback' && !!model;
+  const glows = !useModel && kind === 'humpback' && !!individual?.special;
   const f = v => v.toFixed(5);
   // ぬれた肌は少しつやがある。重い描き方(二重のつや)はやめて、つるつる具合だけで出す
   const material = new THREE.MeshStandardMaterial({
@@ -415,13 +549,22 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     if (glows) { shader.uniforms.uGlow = GLOW.uGlow; shader.uniforms.uGlowTime = GLOW.uGlowTime; }
   };
   material.customProgramCacheKey = () => `whale-${kind}${glows ? '-glow' : ''}`;
-  const mesh = new THREE.Mesh(geometryForIndividual(kind, individual), material);
-  mesh.scale.setScalar(lengthMeters);
-  // ザトウクジラは、目のまわりを細かく作った部品をはめこむ(体の網目のその部分は抜いてある)
-  const eyes = kind === 'humpback' ? createEyes(mesh, material, individual) : null;
-  // フジツボと、盛り上がった傷あと(体と同じ描き方なので、しなりやあごの動きもいっしょ)
-  const features = featuresFor(kind, individual);
-  if (features) mesh.add(new THREE.Mesh(features, material));
+  let mesh, eyes = null;
+  if (useModel) {
+    // 3Dモデル: 目・口・フジツボは、テクスチャと形にふくまれている(目の動きと口の開きは、あとで作る)
+    const { style, look } = useModelLook(material, individual);
+    const geo = style === 'cosmic' ? cosmicGeometry(individual, look) : modelGeometryFor(individual);
+    mesh = new THREE.Mesh(geo, material);
+    mesh.scale.setScalar(lengthMeters);
+  } else {
+    mesh = new THREE.Mesh(geometryForIndividual(kind, individual), material);
+    mesh.scale.setScalar(lengthMeters);
+    // ザトウクジラは、目のまわりを細かく作った部品をはめこむ(体の網目のその部分は抜いてある)
+    eyes = kind === 'humpback' ? createEyes(mesh, material, individual) : null;
+    // フジツボと、盛り上がった傷あと(体と同じ描き方なので、しなりやあごの動きもいっしょ)
+    const features = featuresFor(kind, individual);
+    if (features) mesh.add(new THREE.Mesh(features, material));
+  }
 
   // 大きいクジラほどゆっくり尾をあおぐ(14mでおよそ4.5秒に1回)
   const strokes = strokesPerSecond(lengthMeters);
@@ -443,7 +586,7 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     eyes,
     update(dt) {
       uniforms.uPhase.value += dt * Math.PI * 2 * strokes;
-      if (glows) GLOW.uGlowTime.value = performance.now() / 1000;
+      if (glows || (useModel && individual?.special)) GLOW.uGlowTime.value = performance.now() / 1000;
       eyes?.update(dt);
     },
   };

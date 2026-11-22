@@ -10,10 +10,14 @@ FILES += sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'assets/guide').glob('
 FILES += sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'src').rglob('*.js'))
 FILES += sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'assets/audio').glob('*.m4a'))
 FILES += sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'assets/icons').glob('*.png'))
+# ザトウクジラの3Dモデルと、とくべつな子の模様(tools/build_whale_model.py で作る)
+FILES += sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'assets/models').iterdir() if p.suffix in ('.glb', '.jpg', '.bin'))
 # 外から読みこむ 3D の道具(index.html の importmap と同じ版)
 CDN = [
     'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js',
     'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/objects/Water.js',
+    'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/loaders/GLTFLoader.js',
+    'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/utils/BufferGeometryUtils.js',
 ]
 
 h = hashlib.sha256()

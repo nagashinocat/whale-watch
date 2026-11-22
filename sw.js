@@ -1,6 +1,6 @@
 // このファイルは tools/build_sw.py で作る(手で書きかえない)
 // 一度開いたら、電波がなくても動くように、アプリのファイルを端末にとっておく
-const VERSION = 'b427af6ecacb';
+const VERSION = '60226c90dc74';
 const APP = `whale-ocean-${VERSION}`;
 const EXTRA = 'whale-ocean-extra';   // 文字の形など、あとから読みこんだもの
 const FILES = [
@@ -80,6 +80,7 @@ const FILES = [
   "src/logic/traits.js",
   "src/logic/view.js",
   "src/logic/waterNormals.js",
+  "src/logic/whaleModelLayout.js",
   "src/logic/whaleShape.js",
   "src/logic/whisper.js",
   "src/logic/zukan.js",
@@ -118,11 +119,20 @@ const FILES = [
   "assets/icons/icon-192.png",
   "assets/icons/icon-512.png",
   "assets/icons/icon-maskable-512.png",
-  "assets/icons/og.png"
+  "assets/icons/og.png",
+  "assets/models/humpback.glb",
+  "assets/models/special-comet-cosmic.bin",
+  "assets/models/special-comet-fantasy.jpg",
+  "assets/models/special-fireworks-cosmic.bin",
+  "assets/models/special-fireworks-fantasy.jpg",
+  "assets/models/special-galaxy-cosmic.bin",
+  "assets/models/special-galaxy-fantasy.jpg"
 ];
 const CDN = [
   "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-  "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/objects/Water.js"
+  "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/objects/Water.js",
+  "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/loaders/GLTFLoader.js",
+  "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/utils/BufferGeometryUtils.js"
 ];
 
 self.addEventListener('install', event => {

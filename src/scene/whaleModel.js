@@ -5,7 +5,7 @@ import { specialMotif } from '../logic/specialCoats.js';
 import { buildFeatures } from '../logic/features3d.js';
 import { eyePatch, applyLid, eyeballPlacement, blinkOpen, EYE } from '../logic/eyeShape.js';
 import { flukeWhiteness } from '../logic/flukeId.js';
-import { MODEL, modelLayout, individualColors, specialAssets, eyeSpots, modelJaw, shapeForIndividual, toLinear as modelLinear } from '../logic/whaleModelLayout.js';
+import { MODEL, modelLayout, individualColors, specialAssets, eyeSpots, modelPouch, shapeForIndividual, toLinear as modelLinear } from '../logic/whaleModelLayout.js';
 
 // 目の玉に映る空と海の色(時刻で変わる。setEyeLight で変える)
 const eyeUniforms = {
@@ -291,16 +291,26 @@ export function loadWhaleModel() {
   if (!modelLoading) modelLoading = (async () => {
     const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
     const gltf = await new GLTFLoader().loadAsync(MODEL.url);
-    let src = null;
-    gltf.scene.traverse(o => { if (o.isMesh) src = o; });
+    let src = null, mouth = null;
+    gltf.scene.traverse(o => { if (o.isMesh) { if (o.name === 'mouth') mouth = o; else src = o; } });
     const geo = src.geometry;
     const layout = modelLayout(geo.attributes.position.array, geo.attributes.normal.array);
     const eyes = eyeSpots(geo.attributes.position.array, geo.attributes.normal.array);
+    // あごの重み(口の線で切ったときに決めてある)に、のどのふくらみを足す
+    const jaw = Float32Array.from(geo.attributes._jaw.array);
+    const pouch = modelPouch(layout);
+    for (let i = 0; i < pouch.length; i++) jaw[i * 4 + 2] = pouch[i];
+    // 口の中: あごの重みを aJaw に
+    const mouthGeo = mouth.geometry;
+    mouthGeo.setAttribute('aJaw', mouthGeo.attributes._jaw);
+    mouthGeo.computeVertexNormals();
     const m = src.material;
     model = {
-      geo, layout, eyes,
+      geo, layout, eyes, mouthGeo,
       maps: { map: m.map, normalMap: m.normalMap, roughnessMap: m.roughnessMap },
-      jaw: new THREE.BufferAttribute(modelJaw(layout), 4),
+      jaw: new THREE.BufferAttribute(jaw, 4),
+      lid: geo.attributes._lid,
+      eyeSkin: geo.attributes._eyeskin.array,
       specials: {},
     };
     return model;
@@ -369,34 +379,29 @@ function decorMesh(look, uniforms) {
 
 // モデルの目(左右)。モデルの目のくぼみに、これまでと同じ目の玉(空と海が映る、明るいとひとみがU字)をはめ、
 // 上まぶたを、目の玉にかぶさる殻にして、前へ回して閉じる(まばたき)
-const lidGeometry = new THREE.SphereGeometry(1, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2);
-function createModelEyes(parent, individual) {
+function createModelEyes(parent, individual, uniforms) {
   const r = MODEL.eye.radius;
-  const white = individual?.traits?.coat === 'white';
-  const lidMaterial = new THREE.MeshStandardMaterial({ color: white ? 0xd8d6d2 : 0x0e1319, roughness: 0.55, side: THREE.DoubleSide });
   const eyes = model.eyes.map(({ point, normal }) => {
     const out = new THREE.Vector3(...normal);
     const up = new THREE.Vector3(0, 1, 0).addScaledVector(out, -out.y).normalize();
     const side = new THREE.Vector3().crossVectors(up, out);
     const pivot = new THREE.Group();
-    pivot.position.fromArray(point).addScaledVector(out, -r * 0.95);   // 目の玉は、くぼみから少しだけのぞく
+    pivot.position.fromArray(point).addScaledVector(out, -r * 1.05);   // 目の玉は、目の開きから少しだけのぞく
     pivot.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, out));
     const ball = new THREE.Mesh(new THREE.SphereGeometry(r, 48, 32), eyeMaterial());
-    const lid = new THREE.Mesh(lidGeometry, lidMaterial);
-    lid.scale.setScalar(r * 1.06);
-    pivot.add(ball, lid);
+    pivot.add(ball);
     parent.add(pivot);
-    return { ball, lid };
+    return { ball };
   });
   let blinking = false, blinkT = 0, nextBlink = 4 + Math.random() * 6;
   let baseOpen = EYE.relaxedOpen;
   const look = { x: 0, y: 0, tx: 0, ty: 0, next: 1 };
-  // 開き 1 で上まぶたは肌の奥(うしろ上)にかくれ、0 で前へ回って目の玉をおおう
-  const setOpen = open => { for (const e of eyes) e.lid.rotation.x = -1.15 + (1 - open) * (Math.PI / 2 + 1.15); };
+  // まぶたは体の肌そのもの。閉じぐあいをシェーダーに渡す(0 で開き、1 で閉じる)
+  const setOpen = open => { uniforms.uLid.value = 1 - open; };
   setOpen(baseOpen);
   return {
     alive: false,
-    setBaseOpen(v) { baseOpen = v; },
+    setBaseOpen(v) { baseOpen = v; if (!this.alive) setOpen(v); },
     update(dt) {
       if (!this.alive) return;
       nextBlink -= dt;
@@ -430,10 +435,20 @@ function modelGeometryFor(ind) {
   const shaped = ind ? shapeForIndividual(model.geo.attributes.position.array, model.layout, ind) : null;
   if (shaped) g.setAttribute('position', new THREE.BufferAttribute(shaped, 3));
   g.setAttribute('aJaw', model.jaw);
+  g.setAttribute('aLid', model.lid);
   const n = model.geo.attributes.position.count;
   let color, mix, base;
   if (ind && !ind.special) ({ color, mix, base } = individualColors(ind, model.layout));
   else { color = new Float32Array(n * 3).fill(1); mix = new Float32Array(n); base = new Float32Array(n).fill(1); }
+  // まぶたの網目: 色は頂点ごとに写しとったもの(真っ白な子は、その子の色のまま)
+  const skin = model.eyeSkin;
+  if (ind?.traits?.coat !== 'white') {
+    for (let i = 0; i < n; i++) {
+      if (skin[i * 4 + 3] <= 0) continue;
+      color[i * 3] = skin[i * 4]; color[i * 3 + 1] = skin[i * 4 + 1]; color[i * 3 + 2] = skin[i * 4 + 2];
+      mix[i] = 1; base[i] = skin[i * 4 + 3];
+    }
+  }
   g.setAttribute('color', new THREE.BufferAttribute(color, 3));
   g.setAttribute('aMix', new THREE.BufferAttribute(mix, 1));
   g.setAttribute('aBase', new THREE.BufferAttribute(base, 1));
@@ -457,7 +472,7 @@ function cosmicGeometry(ind, look) {
 }
 
 // これまでのクジラの描き方(material)に、モデルのテクスチャと、その子の色と、夜の光をのせる
-function useModelLook(material, ind) {
+function useModelLook(material, ind, uniforms) {
   const special = !!ind?.special;
   const look = special ? specialLook(ind.traits.coat, ind.traits.style ?? 'fantasy') : null;
   // fantasy: 模様の画像 / cosmic: 頂点の色 / real: ふつうのテクスチャ(彗星の子は、体はふつう)
@@ -471,14 +486,23 @@ function useModelLook(material, ind) {
     prev(shader);
     shader.uniforms.uGlow = GLOW.uGlow;
     shader.uniforms.uGlowTime = GLOW.uGlowTime;
+    shader.uniforms.uLid = uniforms.uLid;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
         attribute float aMix;
         attribute float aBase;
+        attribute vec3 aLid;
+        uniform float uLid;
         varying float vMix;
         varying float vBase;`)
+      // まぶた: 閉じぐあい uLid(0 で開き、1 で閉じる)だけ、まぶたの肌を動かす
       .replace('#include <begin_vertex>', `#include <begin_vertex>
+        transformed += uLid * aLid;
         vMix = aMix; vBase = aBase;`);
+    // 口の中は本物の網目で作ってあるので、体の色を口の中の色に塗りかえない。体の内側(裏の面)だけ、のどの奥の暗い色にする
+    shader.fragmentShader = shader.fragmentShader
+      .replace('float inside = gl_FrontFacing ? inMouth : jawPart;', 'float inside = gl_FrontFacing ? 0.0 : 1.0; opened = 1.0;')
+      .replace('vec3 mouthCol = mix(baleen, tongue, smoothstep(0.35, 0.75, vJaw.w));', 'vec3 mouthCol = vec3(0.03, 0.012, 0.012);');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
         varying float vMix;
@@ -519,10 +543,11 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     uPhase: { value: Math.random() * Math.PI * 2 }, uSwim: { value: 1 },
     // 口の開き(下あご・上あごの角度、ラジアン)と、のどのふくらみ(0〜1)
     uLowerJaw: { value: 0 }, uUpperJaw: { value: 0 }, uPouch: { value: 0 },
+    uLid: { value: 1 - EYE.relaxedOpen },   // まぶたの閉じぐあい(3Dモデルのとき)
   };
-  const [hingeY, hingeZ] = kind === 'humpback' ? jawHinge(kind) : [0, 0];
-  // とくべつな子は、夜に模様が光る
   const useModel = kind === 'humpback' && !!model;
+  const [hingeY, hingeZ] = useModel ? MODEL.hinge : kind === 'humpback' ? jawHinge(kind) : [0, 0];
+  // とくべつな子は、夜に模様が光る
   const glows = !useModel && kind === 'humpback' && !!individual?.special;
   const f = v => v.toFixed(5);
   // ぬれた肌は少しつやがある。重い描き方(二重のつや)はやめて、つるつる具合だけで出す
@@ -606,6 +631,7 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
         transformed.y += uSwim * ${SWIM.amplitude.toFixed(4)} * pow(swimS, ${SWIM.power.toFixed(2)})
           * sin(uPhase - ${SWIM.wave.toFixed(2)} * swimS);`);
   };
+  const vertexPatch = material.onBeforeCompile;   // 泳ぐしなりとあごの動き(口の中の網目にも使う)
   const baseCompile = material.onBeforeCompile;
   material.onBeforeCompile = shader => {
     baseCompile(shader);
@@ -643,13 +669,18 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
   let mesh, eyes = null;
   if (useModel) {
     // 3Dモデル: 目・口・フジツボは、テクスチャと形にふくまれている(目の動きと口の開きは、あとで作る)
-    const { style, look } = useModelLook(material, individual);
+    const { style, look } = useModelLook(material, individual, uniforms);
     const geo = style === 'cosmic' ? cosmicGeometry(individual, look)
       : modelGeometryFor(individual?.special ? null : individual);
     mesh = new THREE.Mesh(geo, material);
     mesh.scale.setScalar(lengthMeters);
     if (look?.kind === 'decor') mesh.add(decorMesh(look, uniforms));
-    eyes = createModelEyes(mesh, individual);
+    eyes = createModelEyes(mesh, individual, uniforms);
+    // 口の中(天井・ひげ板・舌・のどの奥)。体と同じしなりとあごの動きで動く
+    const inner = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0, side: THREE.DoubleSide });
+    inner.onBeforeCompile = vertexPatch;
+    inner.customProgramCacheKey = () => 'whale-model-mouth';
+    mesh.add(new THREE.Mesh(model.mouthGeo, inner));
   } else {
     mesh = new THREE.Mesh(geometryForIndividual(kind, individual), material);
     mesh.scale.setScalar(lengthMeters);

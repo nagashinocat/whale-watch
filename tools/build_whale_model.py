@@ -14,6 +14,9 @@ import numpy as np
 from PIL import Image
 from pygltflib import GLTF2
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import whale_mouth as wm  # noqa: E402
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / 'assets/models'
 THICKEN = 1.2            # 太さの倍率
@@ -43,6 +46,21 @@ def image(g, blob, tex_index):
     im = g.images[g.textures[tex_index].source]
     bv = g.bufferViews[im.bufferView]
     return Image.open(io.BytesIO(blob[(bv.byteOffset or 0):(bv.byteOffset or 0) + bv.byteLength]))
+
+
+def pbr_base_index(g):
+    return g.materials[0].pbrMetallicRoughness.baseColorTexture.index
+
+
+def sample(img, uv):
+    """テクスチャの色を、場所(uv)ごとに読みとる(0〜1、glTF のテクスチャの向き)"""
+    a = np.asarray(img, np.float32) / 255
+    h, w = a.shape[:2]
+    x = np.clip(uv[:, 0] * (w - 1), 0, w - 1); y = np.clip(uv[:, 1] * (h - 1), 0, h - 1)
+    x0, y0 = np.floor(x).astype(int), np.floor(y).astype(int)
+    x1, y1 = np.minimum(x0 + 1, w - 1), np.minimum(y0 + 1, h - 1)
+    fx, fy = (x - x0)[:, None], (y - y0)[:, None]
+    return (a[y0, x0] * (1 - fx) * (1 - fy) + a[y0, x1] * fx * (1 - fy) + a[y1, x0] * (1 - fx) * fy + a[y1, x1] * fx * fy)
 
 
 def jpeg(img, size, quality=85):
@@ -162,6 +180,36 @@ def build(tex_glb, fantasy_dir, cosmic_dir, comet_dir=None):
 
     shape = Shape(pos)
     pos, nrm = shape.apply(pos, nrm)
+    n_orig = len(pos)
+
+    # 口: 口の線で網目を切り、口の中を作る。まぶた: 目のくぼみを抜き、閉じるときの動きを決める
+    curve, right = wm.gape_curve(pos)
+    f, valid = wm.classify(pos, curve)
+    idx, extra, extra_lower = wm.cut(idx, f, valid)
+    lower = np.concatenate([(f < 0) & (pos[:, 2] < curve[-1, 2]), extra_lower])
+    pos, nrm, uv = wm.extend(pos, extra), wm.extend(nrm, extra), wm.extend(uv, extra)
+    nrm /= np.linalg.norm(nrm, axis=1, keepdims=True)
+    jaw = wm.body_jaw(pos, lower, curve[-1])
+    idx, eye_extra, lid_add, eye_uv, eye_uv0 = wm.eyelids(pos, nrm, idx, wm.eye_frames(pos, nrm), uv)
+    extra = extra + eye_extra
+    pos, nrm = wm.extend(pos, eye_extra), wm.extend(nrm, eye_extra)
+    # まぶたの網目は、テクスチャの切れ目をまたぐとまだらになるので、色は頂点ごとに写しとり(_EYESKIN)、
+    # テクスチャの場所は目のまん中の1点にそろえる。_EYESKIN の4つ目は、その1点のテクスチャの明るさ(0 はまぶたでない)
+    base_img = image(g, blob, pbr_base_index(g)).convert('RGB')
+    skin = np.zeros((len(pos), 4), np.float32)
+    lin = lambda c: np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+    m = len(eye_uv)
+    skin[-m:, :3] = lin(sample(base_img, eye_uv))
+    l0 = lin(sample(base_img, eye_uv0))
+    skin[-m:, 3] = np.maximum(0.004, l0 @ [0.2126, 0.7152, 0.0722])
+    uv = np.concatenate([uv, eye_uv0])
+    nrm /= np.linalg.norm(nrm, axis=1, keepdims=True)
+    # まぶたの網目は、体の肌からほんの少し浮かせる(重なっているところで、ちらつかないように)
+    pos[-len(eye_extra):] += nrm[-len(eye_extra):] * 0.00025
+    jaw = np.concatenate([jaw, np.zeros((len(eye_extra), 4), np.float32)])
+    lid = np.concatenate([np.zeros((len(pos) - len(eye_extra), 3), np.float32), lid_add])
+    inside = wm.mouth_inside(right)
+    print(f'口の線で {len(extra)} 頂点を足した。口の中 {len(inside[0])} 頂点。口の端 {np.round(curve[-1], 4).tolist()}')
 
     mat = g.materials[0]
     pbr = mat.pbrMetallicRoughness
@@ -170,7 +218,8 @@ def build(tex_glb, fantasy_dir, cosmic_dir, comet_dir=None):
         'normal': jpeg(image(g, blob, mat.normalTexture.index), NORMAL_SIZE, 92),
         'rough': jpeg(image(g, blob, pbr.metallicRoughnessTexture.index), ROUGH_SIZE),
     }
-    write_glb(OUT / 'humpback.glb', pos.astype(np.float32), nrm.astype(np.float32), uv, idx, textures)
+    write_glb(OUT / 'humpback.glb', pos.astype(np.float32), nrm.astype(np.float32), uv, idx, textures,
+              extra_attrs={'_JAW': jaw, '_LID': lid, '_EYESKIN': skin}, more=[('mouth', inside)])
 
     # とくべつな子
     fantasy_dir, cosmic_dir = pathlib.Path(fantasy_dir), pathlib.Path(cosmic_dir)
@@ -189,9 +238,11 @@ def build(tex_glb, fantasy_dir, cosmic_dir, comet_dir=None):
         cg = GLTF2().load(cosmic_dir / f'humpback_{name}.glb')
         cb = cg.binary_blob()
         col = accessor(cg, cb, cg.meshes[0].primitives[0].attributes.COLOR_0)[:, :3]
-        if col.dtype != np.uint8:
-            col = np.clip(np.round(col * 255), 0, 255).astype(np.uint8)
-        assert len(col) == len(pos), '宇宙版の頂点の数が、もとのモデルとちがう'
+        assert len(col) == n_orig, '宇宙版の頂点の数が、もとのモデルとちがう'
+        col = wm.extend(col.astype(np.float32), extra)          # 口の線で足した頂点の色も
+        if cg.accessors[cg.meshes[0].primitives[0].attributes.COLOR_0].componentType != 5121:
+            col = col * 255
+        col = np.clip(np.round(col), 0, 255).astype(np.uint8)
         (OUT / f'special-{name}-cosmic.bin').write_bytes(col.tobytes())
     print('書き出し:', ', '.join(sorted(p.name for p in OUT.iterdir())))
 
@@ -218,7 +269,7 @@ def write_decor(path, src, shape):
     write_glb(path, pos.astype(np.float32), None, None, idx, {}, colors=(np.clip(np.round(col * 255), 0, 255)).astype(np.uint8))
 
 
-def write_glb(path, pos, nrm, uv, idx, textures, colors=None):
+def write_glb(path, pos, nrm, uv, idx, textures, colors=None, extra_attrs=None, more=()):
     """形と3枚のテクスチャを1つの glb にまとめる(Blender などを使わずに書く)"""
     chunks, views, accessors = [], [], []
 
@@ -249,12 +300,23 @@ def write_glb(path, pos, nrm, uv, idx, textures, colors=None):
     if colors is not None:
         attrs['COLOR_0'] = add_acc(colors, 5121, 'VEC4', 34962)
         accessors[-1]['normalized'] = True
-    ii = add_acc(idx.astype(np.uint16 if idx.max() < 65536 else np.uint32), 5123 if idx.max() < 65536 else 5125, 'SCALAR', 34963)
+    for name, arr in (extra_attrs or {}).items():
+        attrs[name] = add_acc(np.ascontiguousarray(arr, np.float32), 5126, {3: 'VEC3', 4: 'VEC4'}[arr.shape[1]], 34962)
+    small = idx.max() < 65536
+    ii = add_acc(idx.astype(np.uint16 if small else np.uint32), 5123 if small else 5125, 'SCALAR', 34963)
+    # ほかの網目(口の中など): 位置・色・あごの重み
+    meshes, nodes = [], []
+    for name, (mp, mc, mj, mi) in more:
+        a2 = {'POSITION': add_acc(mp, 5126, 'VEC3', 34962, True), 'COLOR_0': add_acc(mc, 5126, 'VEC3', 34962),
+              '_JAW': add_acc(mj, 5126, 'VEC4', 34962)}
+        i2 = add_acc(mi.astype(np.uint16), 5123, 'SCALAR', 34963)
+        meshes.append({'name': name, 'primitives': [{'attributes': a2, 'indices': i2}]})
+        nodes.append({'mesh': len(meshes), 'name': name})
     gltf = {
         'asset': {'version': '2.0', 'generator': 'tools/build_whale_model.py'},
-        'scene': 0, 'scenes': [{'nodes': [0]}],
-        'nodes': [{'mesh': 0, 'name': path.stem}],
-        'meshes': [{'primitives': [{'attributes': attrs, 'indices': ii, 'material': 0}]}],
+        'scene': 0, 'scenes': [{'nodes': list(range(1 + len(nodes)))}],
+        'nodes': [{'mesh': 0, 'name': path.stem}] + nodes,
+        'meshes': [{'name': path.stem, 'primitives': [{'attributes': attrs, 'indices': ii, 'material': 0}]}] + meshes,
         'materials': [{'name': path.stem, 'pbrMetallicRoughness': {'metallicFactor': 0, 'roughnessFactor': 1}}],
         'accessors': accessors, 'bufferViews': views,
         'buffers': [{'byteLength': sum(len(c) for c in chunks)}],

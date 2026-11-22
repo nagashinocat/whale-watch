@@ -9,7 +9,7 @@
 //
 // モデルは tools/build_whale_model.py で、頭が -z、体長 1、まん中が原点になるように作ってある。
 
-import { skinColor, jawWeights } from './whaleShape.js';
+import { skinColor, pouchAlong, pouchAcross } from './whaleShape.js';
 import { traitBodyColor, traitFinColor, flukeBite } from './traits.js';
 import { flukeWhiteness } from './flukeId.js';
 
@@ -18,7 +18,9 @@ export const MODEL = Object.freeze({
   flukeRoot: 0.915,                 // これよりうしろは尾びれ
   finRange: Object.freeze([0.25, 0.68]),   // 胸びれがつく範囲(u)
   // 目のまん中の高さと前後の場所(モデルを横から写して決めた)。目の玉の大きさ(体長1)
-  eye: Object.freeze({ y: 0.032, z: -0.212, radius: 0.0062 }),
+  eye: Object.freeze({ y: 0.032, z: -0.212, radius: 0.0052 }),
+  // 下あごが回る軸(口の端のすぐうしろ)の [y, z]。軸は左右の向き
+  hinge: Object.freeze([0.036, -0.241]),
 });
 
 // 目の場所(左右)。頭の横で、決めた高さ・前後にいちばん近い肌の点と、そこでの外向きの向き
@@ -180,17 +182,6 @@ export function individualColors(ind, L) {
   return { color, mix, base };
 }
 
-// 口の動き(あご・のど)の重み。計算で作ったクジラと同じ決め方を、モデルの頂点の場所(u, θ)で使う。
-// [下あご, 上あご, のどのふくらみ, 口の線より下か] のならび(シェーダーの aJaw)
-export function modelJaw(L) {
-  const n = L.part.length, out = new Float32Array(n * 4);
-  for (let i = 0; i < n; i++) {
-    if (L.part[i] !== PART.body || L.u[i] > 0.6) continue;
-    out.set(jawWeights('humpback', Math.max(0, L.u[i]), L.theta[i]), i * 4);
-  }
-  return out;
-}
-
 // ---- 形の個性(背びれのこぶ・かぎ形・欠け、尾びれのうしろのふちの欠け) ----
 // 背びれ: 背中の線(背びれの前と後ろの背中の高さを結んだ線)より上に出ている、まん中の頂点。
 // その高さ h を変えて形を作る。形を変えない子は null
@@ -263,4 +254,15 @@ function fitQuadratic(pts) {
     }
   }
   return [M[0][3] / M[0][0], M[1][3] / M[1][1], M[2][3] / M[2][2]];
+}
+
+// のどのふくらみ(畝のあるおなか側)の重み。計算で作ったクジラと同じ決め方(pouchAlong・pouchAcross)
+export function modelPouch(L) {
+  const n = L.part.length, out = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    if (L.part[i] !== PART.body) continue;
+    const side = Math.abs(Math.atan2(Math.sin(L.theta[i]), Math.cos(L.theta[i])));   // 背中のまん中からの角度(π がおなか)
+    out[i] = pouchAlong(Math.max(0, L.u[i])) * pouchAcross(side);
+  }
+  return out;
 }

@@ -240,7 +240,9 @@ def build(tex_glb, fantasy_dir, cosmic_dir, comet_dir=None):
         col = accessor(cg, cb, cg.meshes[0].primitives[0].attributes.COLOR_0)[:, :3]
         assert len(col) == n_orig, '宇宙版の頂点の数が、もとのモデルとちがう'
         col = wm.extend(col.astype(np.float32), extra)          # 口の線で足した頂点の色も
-        if cg.accessors[cg.meshes[0].primitives[0].attributes.COLOR_0].componentType != 5121:
+        # accessor() は 0〜1 の値で返す(8ビットの色も、ならした値になっている)ので、いつも 255 倍する
+        # (前は 8ビットのときに 255 倍しておらず、宇宙版の色がほとんど真っ黒になっていた)
+        if col.max() <= 1.0001:
             col = col * 255
         col = np.clip(np.round(col), 0, 255).astype(np.uint8)
         (OUT / f'special-{name}-cosmic.bin').write_bytes(col.tobytes())

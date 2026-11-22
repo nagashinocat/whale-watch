@@ -988,6 +988,11 @@ export async function createWhales(scene, fx) {
           act.fired.add(i);
           c.run(fx, act.whales);
         }
+        // つがいの相手にも、おくれて同じ水しぶきと潮吹き(音は1頭目だけ。2つ重なるとうるさいので)
+        if (act.pair && act.t >= c.at + act.pair.lag && !act.fired.has(`m${i}`)) {
+          act.fired.add(`m${i}`);
+          c.run({ ...fx, playSound: () => {} }, [act.whales[1]]);
+        }
       });
       for (const w of act.whales) {
         w.mixer.update(dt);

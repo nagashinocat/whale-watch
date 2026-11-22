@@ -440,10 +440,10 @@ function useModelLook(material, ind) {
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         ${style === 'fantasy' ? `
         // ファンタジー版: 模様の明るいところだけが、夜に光る
-        totalEmissiveRadiance += texel.rgb * smoothstep(0.06, 0.3, texLum) * uGlow * 0.35;` : ''}${style === 'cosmic' ? `
+        totalEmissiveRadiance += texel.rgb * smoothstep(0.06, 0.3, texLum) * uGlow * 1.2;` : ''}${style === 'cosmic' ? `
         // 宇宙版: 色の明るいところだけが、夜に光って、ゆっくりまたたく
         float glowLum = dot(vColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-        totalEmissiveRadiance += vColor.rgb * smoothstep(0.04, 0.3, glowLum) * uGlow * 0.35 * (0.8 + 0.2 * sin(uGlowTime * 1.7 + vMapUv.x * 40.0));` : ''}`);
+        totalEmissiveRadiance += vColor.rgb * smoothstep(0.04, 0.3, glowLum) * uGlow * 1.2 * (0.8 + 0.2 * sin(uGlowTime * 1.7 + vMapUv.x * 40.0));` : ''}`);
   };
   material.customProgramCacheKey = () => `whale-model-${style}`;
   material.needsUpdate = true;

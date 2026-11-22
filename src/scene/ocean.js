@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { Water } from 'three/addons/objects/Water.js';
-import { CAMERA_PRESETS } from './cameras.js';
+import { CAMERA_PRESETS, SPOT } from './cameras.js';
 import { sunForTime } from '../logic/sky.js';
 import { waterNormalPixels } from '../logic/waterNormals.js';
+import { RIPPLE, rippleGrid } from '../logic/ripples.js';
 import { createGradientSky } from './sky.js';
 import { createWhitecaps } from './whitecaps.js';
 import { createQualityControl } from '../logic/quality.js';
@@ -52,6 +53,60 @@ function tuneWaterShader(material) {
   return true;
 }
 
+// 波の輪(logic/ripples.js と同じ式)。落ちたところから広がる波で、海面の高さと向きを変える
+function addRipples(material) {
+  const list = Array.from({ length: RIPPLE.max }, () => new THREE.Vector4(0, 0, -1000, 0));   // x, z, 落ちた時刻, 高さ
+  material.uniforms.uRipples = { value: list };
+  material.uniforms.uRipTime = { value: 0 };
+  const K = (2 * Math.PI) / RIPPLE.wavelength;
+  const phase = Math.sqrt(9.8 / K);
+  const glsl = `
+    uniform vec4 uRipples[${RIPPLE.max}];
+    uniform float uRipTime;
+    varying vec2 vRipGrad;
+    float ripH(vec2 xz) {
+      float h = 0.0;
+      for (int i = 0; i < ${RIPPLE.max}; i++) {
+        vec4 q = uRipples[i];
+        float t = uRipTime - q.z;
+        if (t <= 0.0 || t > ${RIPPLE.life.toFixed(1)} || q.w == 0.0) continue;
+        float r = length(xz - q.xy);
+        float fade = pow(1.0 - t / ${RIPPLE.life.toFixed(1)}, 2.0);
+        float front = ${(phase / 2).toFixed(4)} * t + 2.0;
+        float env = exp(-pow((r - front) / ${RIPPLE.width.toFixed(1)}, 2.0));
+        float ring = env * cos(${K.toFixed(5)} * r - ${(K * phase).toFixed(5)} * t) / sqrt(1.0 + r / 6.0);
+        float center = exp(-pow(r / 4.0, 2.0)) * -cos(t * 2.2) * exp(-t * 0.6);
+        h += q.w * fade * (ring + 0.8 * center);
+      }
+      return h;
+    }`;
+  material.vertexShader = material.vertexShader
+    .replace('void main() {', `${glsl}
+    void main() {
+      vec4 ripW = modelMatrix * vec4( position, 1.0 );
+      float rh = ripH(ripW.xz);
+      vRipGrad = vec2(ripH(ripW.xz + vec2(0.25, 0.0)) - rh, ripH(ripW.xz + vec2(0.0, 0.25)) - rh) / 0.25;
+      vec3 ripP = position + vec3(0.0, 0.0, rh);`)
+    .replace('mirrorCoord = modelMatrix * vec4( position, 1.0 );', 'mirrorCoord = modelMatrix * vec4( ripP, 1.0 );')
+    .replace('vec4 mvPosition =  modelViewMatrix * vec4( position, 1.0 );', 'vec4 mvPosition =  modelViewMatrix * vec4( ripP, 1.0 );');
+  material.fragmentShader = material.fragmentShader
+    .replace('varying vec4 worldPosition;', 'varying vec4 worldPosition;\nvarying vec2 vRipGrad;')
+    .replace('vec3 surfaceNormal = normalize( noise.xzy * vec3( 1.5, 1.0, 1.5 ) );', 'vec3 surfaceNormal = normalize( noise.xzy * vec3( 1.5, 1.0, 1.5 ) + vec3( -vRipGrad.x, 0.0, -vRipGrad.y ) * 4.0 );');
+  material.needsUpdate = true;
+  let next = 0;
+  return {
+    // 波の輪を足す(いちばん古いものと入れかえる)。近い場所・時刻の輪は、まとめて大きくする
+    add(x, z, amp, now) {
+      for (const q of list) {
+        if (Math.hypot(q.x - x, q.y - z) < 3 && now - q.z < 0.4) { q.w = Math.min(RIPPLE.maxAmp, q.w + amp * 0.5); return; }
+      }
+      list[next].set(x, z, now, amp);
+      next = (next + 1) % list.length;
+    },
+    time(t) { material.uniforms.uRipTime.value = t; },
+  };
+}
+
 // 海・空・カメラ・描画ループ。
 export function createOcean(canvas) {
   const lowPower = window.innerWidth < 768 || window.devicePixelRatio > 2;
@@ -68,7 +123,16 @@ export function createOcean(canvas) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 30000);
 
-  const water = new Water(new THREE.PlaneGeometry(40000, 40000), {
+  // 海の網目: クジラの出るあたりは細かく(波の輪で海面が波打つように)、遠くはあらい
+  const grid = rippleGrid([SPOT[0], SPOT[2]]);
+  const waterGeo = new THREE.BufferGeometry();
+  // 海は x-y の面で作って、あとで寝かせる(世界の z = -y)
+  const local = new Float32Array(grid.positions.length);
+  for (let i = 0; i < local.length; i += 3) { local[i] = grid.positions[i]; local[i + 1] = -grid.positions[i + 2]; local[i + 2] = 0; }
+  waterGeo.setAttribute('position', new THREE.BufferAttribute(local, 3));
+  waterGeo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(local.length).map((_, i) => (i % 3 === 2 ? 1 : 0)), 3));
+  waterGeo.setIndex(grid.indices);
+  const water = new Water(waterGeo, {
     textureWidth: 512,
     textureHeight: 512,
     waterNormals: makeWaterNormals(lowPower ? 128 : 256),
@@ -79,8 +143,10 @@ export function createOcean(canvas) {
     fog: true,
   });
   water.rotation.x = -Math.PI / 2;
+  water.material.side = THREE.DoubleSide;
   scene.add(water);
   const tuned = tuneWaterShader(water.material);
+  const ripples = addRipples(water.material);
 
   // 白波。海に映り込むと二重に見えるので、海の映り込みを描くあいだは隠す
   const whitecaps = createWhitecaps(lowPower);
@@ -215,6 +281,7 @@ export function createOcean(canvas) {
 
   function render(dt) {
     elapsed += dt;
+    ripples.time(elapsed);
     water.material.uniforms.time.value += dt * 0.6;
     sky.update(dt);
     whitecaps.update(dt, camera.position);
@@ -300,6 +367,8 @@ export function createOcean(canvas) {
     camera,
     // 毎フレーム呼んでほしい処理(クジラ・エフェクト)を登録する
     addUpdater: fn => updaters.push(fn),
+    // 海面の波の輪(x, z: 場所、amp: 高さ m)
+    addRipple: (x, z, amp) => ripples.add(x, z, amp, elapsed),
     // 画面を揺らす(0〜1)。動きを減らす設定の端末では揺らさない
     shake: amount => { if (!reduceMotion) shakeAmount = Math.max(shakeAmount, amount); },
     // 海面に貼りつけるもの(映り込みには描かない)を足す

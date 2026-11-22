@@ -3,6 +3,7 @@ import { createWhales } from './scene/whales.js';
 import { createEffects } from './scene/effects.js';
 import { createFootprints } from './scene/footprints.js';
 import { SPOT } from './scene/cameras.js';
+import { RIPPLE } from './logic/ripples.js';
 import { setEyeLight, setWhaleGlow } from './scene/whaleModel.js';
 import { cameraShake } from './logic/behavior.js';
 import { PATTERNS, PATTERN_LABELS, resolvePattern, voiceSound } from './logic/patterns.js';
@@ -111,9 +112,24 @@ let onLanding = true;   // はじめのページを出しているあいだ(ス�
 const effects = createEffects(ocean.scene);
 // 水滴の筋の長さは画面の画素で計算するので、画面の大きさを伝えておく
 const viewSize = () => effects.setViewSize(innerWidth * devicePixelRatio, innerHeight * devicePixelRatio);
+// 水に落ちたところから、海面が波打って輪が広がる(しぶきの勢いで波の高さを決める)
+{
+  const splash = effects.splash.bind(effects), spray = effects.spray.bind(effects);
+  effects.splash = (position, kind = 'small', heading) => {
+    const amp = typeof kind === 'object' ? Math.min(RIPPLE.maxAmp, 0.55 * (kind.strength ?? 0.5)) : kind === 'large' ? 0.7 : 0.18;
+    ocean.addRipple(position[0], position[2], amp);
+    return splash(position, kind, heading);
+  };
+  effects.spray = (point, velocity, dt) => {
+    ocean.addRipple(point[0], point[2], Math.min(0.35, 0.025 * Math.max(0, -velocity[1])));
+    return spray(point, velocity, dt);
+  };
+}
 viewSize();
 addEventListener('resize', viewSize);
 ocean.addUpdater(effects.update);
+// 動作確認: 波の輪を手で起こせるように
+if (DEBUG) window.WHALE_OCEAN = ocean;
 // 潜ったクジラの足あと(海面のなめらかな跡)
 const footprints = createFootprints();
 ocean.addSurfaceDecal(footprints.group);

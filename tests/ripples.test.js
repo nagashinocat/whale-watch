@@ -38,3 +38,15 @@ test('海の網目: まん中(クジラの出るあたり)ほど細かく、遠�
   assert.ok(near.length > 60);
   assert.ok(g.indices.length % 3 === 0 && Math.max(...g.indices) < n);
 });
+
+test('泡がはじけると、大きい泡ほど海面がもり上がる(小さい泡は波を立てない)', async () => {
+  const { bubbleBoil } = await import('../src/logic/ripples.js');
+  assert.equal(bubbleBoil(0.005), 0);
+  assert.ok(bubbleBoil(0.04) > bubbleBoil(0.02) && bubbleBoil(0.02) > 0);
+  assert.ok(bubbleBoil(1) <= 0.35);
+});
+
+test('波の高さは、ジャンプの着水(28トン・秒速7m)で約1m', () => {
+  const a = rippleAmplitude(28500, 7);
+  assert.ok(a > 0.9 && a < 1.3, String(a));
+});

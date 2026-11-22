@@ -40,10 +40,11 @@ export function rippleHeight(r, t, amp) {
   return amp * fade * (h + RIPPLE.craterDepth * center);
 }
 
-// 落ちたものの重さ(kg)と、落ちる速さ(m/秒)からの波の高さ(m)。勢い(運動量)の平方根に比べる
+// 落ちたもの(または水を押しのけたもの)の重さ(kg)と速さ(m/秒)からの波の高さ(m)。勢い(運動量)の平方根に比べる。
+// ジャンプの着水(28トンが秒速7m)で約1.1m になるようにそろえてある
 export function rippleAmplitude(massKg, speed) {
   if (massKg <= 0 || speed <= 0) return 0;
-  return Math.min(RIPPLE.maxAmp, 0.0012 * Math.sqrt(massKg * speed));
+  return Math.min(RIPPLE.maxAmp, 0.0025 * Math.sqrt(massKg * speed));
 }
 
 // 海の網目(まるい板)。center([x, z])のまわりは細かく、遠くはあらい。y = 0 の平らな面
@@ -71,4 +72,10 @@ export function rippleGrid(center, { spokes = 160, outer = 20000 } = {}) {
     }
   }
   return { positions: new Float32Array(positions), indices };
+}
+
+// 水の中で吹いた泡がはじけるときの、海面のもり上がり(m)。たくさんの泡が水を持ち上げて、ぼこっともり上がる。
+// 大きい泡(半径 r m)ほど強い。小さい泡は 0(波を立てない)
+export function bubbleBoil(r) {
+  return r < 0.015 ? 0 : Math.min(0.35, 4 * r);
 }

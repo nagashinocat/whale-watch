@@ -3,7 +3,7 @@ import { createWhales } from './scene/whales.js';
 import { createEffects } from './scene/effects.js';
 import { createFootprints } from './scene/footprints.js';
 import { SPOT } from './scene/cameras.js';
-import { RIPPLE } from './logic/ripples.js';
+import { RIPPLE, bubbleBoil } from './logic/ripples.js';
 import { setEyeLight, setWhaleGlow } from './scene/whaleModel.js';
 import { cameraShake } from './logic/behavior.js';
 import { PATTERNS, PATTERN_LABELS, resolvePattern, voiceSound } from './logic/patterns.js';
@@ -120,6 +120,10 @@ const viewSize = () => effects.setViewSize(innerWidth * devicePixelRatio, innerH
     ocean.addRipple(position[0], position[2], amp);
     return splash(position, kind, heading);
   };
+  // 泡がはじけると、まとまった泡が水を持ち上げて、海面がぼこっと波打つ
+  effects.onPop = b => { const amp = bubbleBoil(b.r); if (amp > 0) ocean.addRipple(b.x, b.z, amp); };
+  // 体が水を押しのけたところ(口を開けて飛び出す・横に倒れこむなど)を波打たせる
+  effects.ripple = (position, amp) => ocean.addRipple(position[0], position[2], Math.min(RIPPLE.maxAmp, amp));
   effects.spray = (point, velocity, dt) => {
     ocean.addRipple(point[0], point[2], Math.min(0.2, 0.015 * Math.max(0, -velocity[1])));
     return spray(point, velocity, dt);

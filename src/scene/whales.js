@@ -9,6 +9,9 @@ import { individual as individualById, partnerOf, comesAsPair } from '../logic/f
 import { PAIR_PATTERNS } from '../logic/specialCoats.js';
 import { lengthOf } from '../logic/zukan.js';
 import { impactSplash, whaleMass, PART_MASS } from '../logic/impact.js';
+import { rippleAmplitude } from '../logic/ripples.js';
+// 口を開けて水面を割るとき・横に倒れこむときに、体が押しのける水の勢い(重さの割合と、速さ m/秒)
+const LUNGE_PUSH = Object.freeze({ share: 0.5, rise: 3, fall: 4 });
 import { BREACH, breachPose, groupBreachPlan, calfBreachPlan, POD, podPlan, groupSpyhopPlan } from '../logic/breach.js';
 import { divingYaw } from '../logic/behavior.js';
 import { followFactor } from '../logic/quality.js';
@@ -617,8 +620,9 @@ const MOTIONS = {
     cues.push({ at: F.call, run: fx => fx.playSound('humpback-call', { gain: 0.7, maxMs: 6000, position: [c[0], -5, c[1]] }) });
     cues.push({
       at: F.surface,
-      run: fx => {
+      run: (fx, [w]) => {
         fx.effects.splash([c[0], 0, c[1]], 'small', f);
+        fx.effects.ripple?.([c[0], 0, c[1]], rippleAmplitude(whaleMass(w.length) * LUNGE_PUSH.share, LUNGE_PUSH.rise));
         fx.effects.leap([c[0], 0, c[1]], 40, 3.5);
         fx.effects.foam([c[0], 0, c[1]], 16000);
         fx.playSound('splash', { gain: 0.6, position: [c[0], 0, c[1]] });
@@ -631,13 +635,19 @@ const MOTIONS = {
         fx.effects.cascade(lip(w, 0.04, false, Math.random() < 0.5 ? 1 : -1), 2);
       } });
     }
-    cues.push({ at: F.fall + 1.5, run: fx => { fx.effects.splash([c[0], 0, c[1]], 'small', f); fx.effects.foam([c[0], 0, c[1]], 14000); } });
+    cues.push({ at: F.fall + 1.5, run: (fx, [w]) => {
+      fx.effects.splash([c[0], 0, c[1]], 'small', f); fx.effects.foam([c[0], 0, c[1]], 14000);
+      // 横に倒れこむ体が、まわりの水を押しのけて波を立てる
+      fx.effects.ripple?.(onWater(bodyPoint(w, 0)), rippleAmplitude(whaleMass(w.length), LUNGE_PUSH.fall));
+    } });
     // 水面に横になって、口のわきから水を押し出す
     for (let t = F.filterStart + 1; t < F.filterEnd - 4; t += 1.3) {
       cues.push({ at: t, run: (fx, [w]) => {
         const side = Math.random() < 0.5 ? 1 : -1;
         const p = lip(w, 0.12 + Math.random() * 0.12, false, side);
         if (p[1] > -0.3) fx.effects.cascade([p[0], Math.max(0.05, p[1]), p[2]], 3);
+        // のどをしぼって水を押し出すたびに、口のわきの海面が波打つ
+        if (p[1] > -0.3) fx.effects.ripple?.([p[0], 0, p[2]], 0.12);
       } });
     }
     cues.push({ at: F.blow, run: (fx, [w]) => blow(fx, w) });
@@ -693,7 +703,8 @@ const MOTIONS = {
     cues.push({ at: F.surface, run: fx => fx.playSound('splash', { gain: 0.9, position: [c[0], 0, c[1]] }) });
     group.forEach((g, i) => {
       const p = () => [c[0] + g.offset[0], 0, c[1] + g.offset[1]];
-      cues.push({ at: F.surface + g.delay, run: fx => { fx.effects.splash(p(), 'small', forward(yaw)); fx.effects.leap(p(), 12, 2.5);
+      cues.push({ at: F.surface + g.delay, run: (fx, ws) => { fx.effects.splash(p(), 'small', forward(yaw)); fx.effects.leap(p(), 12, 2.5);
+        fx.effects.ripple?.(p(), rippleAmplitude(whaleMass(ws[i].length) * LUNGE_PUSH.share, LUNGE_PUSH.rise));
         fx.playSound('splash', { gain: 0.45, position: p() }); } });
       // 開いた口から、水があふれ落ちる
       for (let t = F.surface + 0.5; t < F.closed; t += 0.4) {

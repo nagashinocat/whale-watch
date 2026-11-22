@@ -323,7 +323,11 @@ export function createEffects(scene) {
           { life: rand(0.3, 0.7), size: rand(0.08, 0.14) + b.r * 2, alpha: 0.8, gravity: 9.8, grow: 1, kind: PARTICLE.drop });
       }
       emit([b.x, 0.08, b.z], [0, 0, 0], { life: rand(2.5, 4.5), size: 0.25 + b.r * 18, alpha: 0.55, gravity: 0, floor: 0, grow: 1.6, drag: 0.5, kind: PARTICLE.foam });
+      api.onPop?.(b);
     },
+
+    // 泡がはじけたときに呼ぶ(海面を波打たせるのに使う)
+    onPop: null,
 
     update(dt) {
       if (dt <= 0) return;

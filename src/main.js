@@ -121,9 +121,10 @@ const viewSize = () => effects.setViewSize(innerWidth * devicePixelRatio, innerH
     return splash(position, kind, heading);
   };
   // 泡がはじけると、まとまった泡が水を持ち上げて、海面がぼこっと波打つ
-  effects.onPop = b => { const amp = bubbleBoil(b.r); if (amp > 0) ocean.addRipple(b.x, b.z, amp); };
+  effects.onPop = b => { const amp = bubbleBoil(b.r); if (amp > 0) ocean.addRipple(b.x, b.z, -amp); };
   // 体が水を押しのけたところ(口を開けて飛び出す・横に倒れこむなど)を波打たせる
-  effects.ripple = (position, amp) => ocean.addRipple(position[0], position[2], Math.min(RIPPLE.maxAmp, amp));
+  //(amp がマイナスなら、へこまずにもり上がる)
+  effects.ripple = (position, amp) => ocean.addRipple(position[0], position[2], Math.sign(amp) * Math.min(RIPPLE.maxAmp, Math.abs(amp)));
   effects.spray = (point, velocity, dt) => {
     ocean.addRipple(point[0], point[2], Math.min(0.2, 0.015 * Math.max(0, -velocity[1])));
     return spray(point, velocity, dt);

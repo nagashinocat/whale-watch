@@ -79,6 +79,7 @@ function addRipples(material) {
         float fade = pow(1.0 - t / ${RIPPLE.life.toFixed(1)}, 2.0);
         float wave = 0.0;${packets}
         wave /= sqrt(1.0 + r / 6.0);
+        wave *= 1.0 - exp(-t / 0.8);
         float center = exp(-pow(r / ${RIPPLE.crater.toFixed(1)}, 2.0)) * -cos(t * 2.0) * exp(-t * 0.5);
         h += q.w * fade * (wave + ${RIPPLE.craterDepth.toFixed(2)} * center);
       }
@@ -91,24 +92,32 @@ function addRipples(material) {
       float rh = ripH(ripW.xz);
       vRipGrad = vec2(ripH(ripW.xz + vec2(0.25, 0.0)) - rh, ripH(ripW.xz + vec2(0.0, 0.25)) - rh) / 0.25;
       vec3 ripP = position + vec3(0.0, 0.0, rh);`)
-    .replace('mirrorCoord = modelMatrix * vec4( position, 1.0 );', 'mirrorCoord = modelMatrix * vec4( ripP, 1.0 );')
     .replace('vec4 mvPosition =  modelViewMatrix * vec4( position, 1.0 );', 'vec4 mvPosition =  modelViewMatrix * vec4( ripP, 1.0 );');
   material.fragmentShader = material.fragmentShader
     .replace('varying vec4 worldPosition;', 'varying vec4 worldPosition;\nvarying vec2 vRipGrad;')
-    .replace('vec3 surfaceNormal = normalize( noise.xzy * vec3( 1.5, 1.0, 1.5 ) );', 'vec3 surfaceNormal = normalize( noise.xzy * vec3( 1.5, 1.0, 1.5 ) + vec3( -vRipGrad.x, 0.0, -vRipGrad.y ) * 1.5 / ( 1.0 + length( vRipGrad ) * 2.0 ) );');
+    .replace('vec3 surfaceNormal = normalize( noise.xzy * vec3( 1.5, 1.0, 1.5 ) );', `vec3 ripN = vec3( -vRipGrad.x, 0.0, -vRipGrad.y ) * 1.5 / ( 1.0 + length( vRipGrad ) * 2.0 );
+      vec3 surfaceNormal = normalize( noise.xzy * vec3( 1.5, 1.0, 1.5 ) + ripN );
+      // 映りこみのゆれは少しだけ(大きくゆらすと、映す絵の外=水平線より下を拾って、黒い穴のように見える)
+      vec3 mirrorNormal = normalize( noise.xzy * vec3( 1.5, 1.0, 1.5 ) + ripN * 0.3 );`)
+    .replace('vec2 distortion = surfaceNormal.xz * ( 0.001 + 1.0 / distance ) * distortionScale;', 'vec2 distortion = mirrorNormal.xz * ( 0.001 + 1.0 / distance ) * distortionScale;');
   material.needsUpdate = true;
   return {
     // 波の輪を足す(いちばん弱くなったものと入れかえる)。近い場所・時刻の輪は1つにまとめて、大きいほうの高さにする
     // (体が水に入るあいだ毎こま出るしぶきの波を足しあわせると、大きな穴のようにへこんでしまう)
+    // amp がマイナスのときは、まん中がへこまずに、もり上がってから波が広がる(水の中の泡が水を持ち上げるとき)
     add(x, z, amp, now) {
+      const size = Math.abs(amp);
       for (const q of list) {
-        if (Math.hypot(q.x - x, q.y - z) < 3 && now - q.z < 0.4) { q.w = Math.max(q.w, amp); return; }
+        if (Math.hypot(q.x - x, q.y - z) < 3 && now - q.z < 0.4 && Math.sign(q.w) === Math.sign(amp)) {
+          if (size > Math.abs(q.w)) q.w = amp;
+          return;
+        }
       }
       // あいている輪か、いちばん弱くなった輪を使う(大きなジャンプの波が、小さなしぶきの波に消されないように)
-      const left = q => { const t = now - q.z; return t < 0 || t > RIPPLE.life ? 0 : q.w * (1 - t / RIPPLE.life) ** 2; };
+      const left = q => { const t = now - q.z; return t < 0 || t > RIPPLE.life ? 0 : Math.abs(q.w) * (1 - t / RIPPLE.life) ** 2; };
       let weak = list[0];
       for (const q of list) if (left(q) < left(weak)) weak = q;
-      if (left(weak) > amp) return;
+      if (left(weak) > size) return;
       weak.set(x, z, now, amp);
     },
     time(t) { material.uniforms.uRipTime.value = t; },

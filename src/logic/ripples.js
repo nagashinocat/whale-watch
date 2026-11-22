@@ -12,7 +12,7 @@ export const RIPPLE = Object.freeze({
   width: 6,           // 波のかたまりの幅(m)
   life: 18,           // 消えるまで(秒)
   maxAmp: 2.4,        // 高さの上限(m)
-  max: 12,            // 同時に覚えておく波の輪の数(シェーダーの配列の大きさ)
+  max: 20,            // 同時に覚えておく波の輪の数(シェーダーの配列の大きさ)
   inner: 120,         // 細かい網目にする範囲(m)
   // 重いものが落ちると、波長のちがう波がいっしょにできる。長い波ほど速く遠くへ行き、うねりのように持ち上げる
   // (波長, 高さの割合, 幅)。短い波 → 長いうねりの順
@@ -35,6 +35,8 @@ export function rippleHeight(r, t, amp) {
     const env = Math.exp(-(((r - front) / width) ** 2));
     h += w * env * Math.cos(K * r - K * phase * t) / Math.sqrt(1 + r / 6);
   }
+  // 輪の波は、まん中の水が動いてから少しずつできる(はじめはまん中のへこみ・もり上がりだけ)
+  h *= 1 - Math.exp(-t / 0.8);
   // まん中: はじめに大きくへこみ、もどってもり上がり、ゆれながらおさまる
   const center = Math.exp(-((r / RIPPLE.crater) ** 2)) * -Math.cos(t * 2.0) * Math.exp(-t * 0.5);
   return amp * fade * (h + RIPPLE.craterDepth * center);
@@ -75,7 +77,13 @@ export function rippleGrid(center, { spokes = 160, outer = 20000 } = {}) {
 }
 
 // 水の中で吹いた泡がはじけるときの、海面のもり上がり(m)。たくさんの泡が水を持ち上げて、ぼこっともり上がる。
-// 大きい泡(半径 r m)ほど強い。小さい泡は 0(波を立てない)
+// 大きい泡(半径 r m)ほど強い。小さい泡は 0(波を立てない)。もり上がりなので、ripple にはマイナスで渡す
 export function bubbleBoil(r) {
-  return r < 0.015 ? 0 : Math.min(0.35, 4 * r);
+  return r < 0.012 ? 0 : Math.min(0.15, 3 * r);
+}
+
+// 泡の網(バブルネット)の一部分に、泡のかたまりがいっせいに着いたときのもり上がり(m)。
+// count: その部分の泡の数 / depth: 泡を吹いた深さ(m)。深いほど泡が広がって、もり上がりはなだらかになる
+export function bubblePlumeBoil(count, depth) {
+  return Math.min(0.45, 0.0065 * count * Math.sqrt(8 / Math.max(2, depth)));
 }

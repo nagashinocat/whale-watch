@@ -9,7 +9,7 @@ import { individual as individualById, partnerOf, comesAsPair } from '../logic/f
 import { PAIR_PATTERNS } from '../logic/specialCoats.js';
 import { lengthOf } from '../logic/zukan.js';
 import { impactSplash, whaleMass, PART_MASS } from '../logic/impact.js';
-import { rippleAmplitude } from '../logic/ripples.js';
+import { rippleAmplitude, bubblePlumeBoil } from '../logic/ripples.js';
 // 口を開けて水面を割るとき・横に倒れこむときに、体が押しのける水の勢い(重さの割合と、速さ m/秒)
 const LUNGE_PUSH = Object.freeze({ share: 0.5, rise: 3, fall: 4 });
 import { BREACH, breachPose, groupBreachPlan, calfBreachPlan, POD, podPlan, groupSpyhopPlan } from '../logic/breach.js';
@@ -616,7 +616,8 @@ const MOTIONS = {
       const at = F.ringStart + (k / N) * (F.ringEnd - F.ringStart);
       const p = [c[0] + Math.cos(a) * r, 0, c[1] + Math.sin(a) * r];
       // 泡は水深6mくらいで吹く。大きい泡から順に浮かんで、はじける(bubbleBurst)
-      cues.push({ at, run: fx => { fx.effects.foam(p, (F.surface + 8 - at) * 1000, { radius: 1.1, count: 30 }); fx.effects.bubbleBurst?.(p, { depth: 6, count: 35, radius: 0.4 }); } });
+      cues.push({ at, run: fx => { fx.effects.foam(p, (F.surface + 8 - at) * 1000, { radius: 1.1, count: 30 }); fx.effects.bubbleBurst?.(p, { depth: 6, count: 35, radius: 0.4 });
+        fx.effects.ripple?.(p, -bubblePlumeBoil(35, 6)); } });
     }
     cues.push({ at: 0.5, run: fx => fx.playSound('bubbles', { gain: 0.6, maxMs: 10000, position: [c[0], 0, c[1]] }) });
     cues.push({ at: F.call, run: fx => fx.playSound('humpback-call', { gain: 0.7, maxMs: 6000, position: [c[0], -5, c[1]] }) });
@@ -690,7 +691,9 @@ const MOTIONS = {
       const p = [c[0] + Math.cos(a) * r, 0, c[1] + Math.sin(a) * r];
       // 水深8mくらいで吹いた泡が、大きいものから順に浮かんではじける。小さい泡は、輪ができたあとも
       // しばらくシュワシュワと上がってくる(bubbleBurst)
-      cues.push({ at, run: fx => { fx.effects.foam(p, (F.surface + 10 - at) * 1000, { radius: 1.4, count: 35 }); fx.effects.bubbleBurst?.(p, { depth: 8, count: 45, radius: 0.5 }); } });
+      cues.push({ at, run: fx => { fx.effects.foam(p, (F.surface + 10 - at) * 1000, { radius: 1.4, count: 35 }); fx.effects.bubbleBurst?.(p, { depth: 8, count: 45, radius: 0.5 });
+        // 泡のかたまりが水を持ち上げて、輪にそって海面がもり上がる
+        fx.effects.ripple?.(p, -bubblePlumeBoil(45, 8)); } });
     }
     cues.push({ at: 0.5, run: fx => fx.playSound('bubbles', { gain: 0.8, maxMs: 10000, position: [c[0], 0, c[1]] }) });
     cues.push({ at: F.call, run: fx => fx.playSound('humpback-call', { gain: 0.8, maxMs: 6000, position: [c[0], -6, c[1]] }) });

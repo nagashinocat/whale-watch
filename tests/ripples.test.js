@@ -43,10 +43,19 @@ test('泡がはじけると、大きい泡ほど海面がもり上がる(小さ�
   const { bubbleBoil } = await import('../src/logic/ripples.js');
   assert.equal(bubbleBoil(0.005), 0);
   assert.ok(bubbleBoil(0.04) > bubbleBoil(0.02) && bubbleBoil(0.02) > 0);
-  assert.ok(bubbleBoil(1) <= 0.35);
+  assert.ok(bubbleBoil(1) <= 0.15);
 });
 
 test('波の高さは、ジャンプの着水(28トン・秒速7m)で約1m', () => {
   const a = rippleAmplitude(28500, 7);
   assert.ok(a > 0.9 && a < 1.3, String(a));
+});
+
+test('バブルネットの泡のかたまりは、海面をはっきりもり上げる(泡が多いほど高く、深いほどなだらか)', async () => {
+  const { bubblePlumeBoil } = await import('../src/logic/ripples.js');
+  assert.ok(bubblePlumeBoil(45, 8) > 0.2);
+  assert.ok(bubblePlumeBoil(45, 8) > bubblePlumeBoil(20, 8));
+  assert.ok(bubblePlumeBoil(45, 16) < bubblePlumeBoil(45, 8));
+  // マイナスの高さで渡すと、まん中はへこまずにもり上がってはじまる
+  assert.ok(rippleHeight(0, 0.2, -0.5) > 0);
 });

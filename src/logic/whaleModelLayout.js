@@ -17,7 +17,35 @@ export const MODEL = Object.freeze({
   url: 'assets/models/humpback.glb',
   flukeRoot: 0.915,                 // これよりうしろは尾びれ
   finRange: Object.freeze([0.25, 0.68]),   // 胸びれがつく範囲(u)
+  // 目のまん中の高さと前後の場所(モデルを横から写して決めた)。目の玉の大きさ(体長1)
+  eye: Object.freeze({ y: 0.032, z: -0.212, radius: 0.0062 }),
 });
+
+// 目の場所(左右)。頭の横で、決めた高さ・前後にいちばん近い肌の点と、そこでの外向きの向き
+export function eyeSpots(pos, nrm, at = MODEL.eye) {
+  return [1, -1].map(side => {
+    // 決めた高さ・前後のまわり(半径 near の中)で、いちばん外側の肌の点。なければ、いちばん近い点
+    let best = -1, bestX = -Infinity, nearest = -1, nearD = Infinity;
+    const near = 0.004;
+    for (let i = 0; i < pos.length / 3; i++) {
+      if (Math.sign(pos[i * 3]) !== side) continue;
+      const d = Math.hypot(pos[i * 3 + 1] - at.y, pos[i * 3 + 2] - at.z);
+      if (d < nearD) { nearD = d; nearest = i; }
+      if (d < near && Math.abs(pos[i * 3]) > bestX) { bestX = Math.abs(pos[i * 3]); best = i; }
+    }
+    if (best < 0) best = nearest;
+    // 目のまん中は決めた高さ・前後のまま、横の位置だけ肌(まぶたのふち)の高さにする
+    const p = best === nearest && bestX === -Infinity ? [pos[best * 3], pos[best * 3 + 1], pos[best * 3 + 2]] : [side * bestX, at.y, at.z];
+    const n = [0, 0, 0];
+    for (let i = 0; i < pos.length / 3; i++) {
+      if (Math.sign(pos[i * 3]) !== side) continue;
+      if (Math.hypot(pos[i * 3] - p[0], pos[i * 3 + 1] - p[1], pos[i * 3 + 2] - p[2]) > 0.02) continue;
+      for (let k = 0; k < 3; k++) n[k] += nrm[i * 3 + k];
+    }
+    const len = Math.hypot(...n) || 1;
+    return { side, point: p, normal: n.map(v => v / len) };
+  });
+}
 
 // とくべつな子の素材。texture: 体の模様の画像 / colors: 頂点ごとの色 / decor: 体の上に重ねる部品(体はふつうの子と同じ)
 //   ギンガ・ハナビ(ファンタジー版)は模様の画像、ホシゾラ・ボタン(宇宙版)は頂点の色、

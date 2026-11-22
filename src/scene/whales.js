@@ -741,11 +741,12 @@ const MOTIONS = {
     const eyeAt = d => cam.clone().addScaledVector(dir, d);
     const far = 1.4;   // 上がってくるときの、カメラから目までの距離(m)
     const pitch = 78;  // 体の立ち方(90で真上)
-    const local = eyeFrame(1);
-    let yaw = null;
+    let local = null, yaw = null;
     return {
       whales: [{ kind: 'humpback', swim: 0 }],
       each([w], t, D) {
+        // 右目の場所(3Dモデルのときは、モデルの目)
+        local ??= w.mixer.eyeSpot ?? eyeFrame(1);
         const eyeLocal = new THREE.Vector3(...local.center).multiplyScalar(w.length);
         if (yaw === null) {
           // 右目がカメラのほうを向く向きを探す

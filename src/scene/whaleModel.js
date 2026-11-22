@@ -5,7 +5,7 @@ import { specialMotif } from '../logic/specialCoats.js';
 import { buildFeatures } from '../logic/features3d.js';
 import { eyePatch, applyLid, eyeballPlacement, blinkOpen, EYE } from '../logic/eyeShape.js';
 import { flukeWhiteness } from '../logic/flukeId.js';
-import { MODEL, modelLayout, individualColors, specialAssets, toLinear as modelLinear } from '../logic/whaleModelLayout.js';
+import { MODEL, modelLayout, individualColors, specialAssets, eyeSpots, toLinear as modelLinear } from '../logic/whaleModelLayout.js';
 
 // 目の玉に映る空と海の色(時刻で変わる。setEyeLight で変える)
 const eyeUniforms = {
@@ -295,9 +295,10 @@ export function loadWhaleModel() {
     gltf.scene.traverse(o => { if (o.isMesh) src = o; });
     const geo = src.geometry;
     const layout = modelLayout(geo.attributes.position.array, geo.attributes.normal.array);
+    const eyes = eyeSpots(geo.attributes.position.array, geo.attributes.normal.array);
     const m = src.material;
     model = {
-      geo, layout,
+      geo, layout, eyes,
       maps: { map: m.map, normalMap: m.normalMap, roughnessMap: m.roughnessMap },
       jaw: new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 4), 4),
       specials: {},
@@ -364,6 +365,57 @@ function decorMesh(look, uniforms) {
   const attach = () => { mesh.geometry = look.decor; };
   if (look.decor) attach(); else look.waiting.push(attach);
   return mesh;
+}
+
+// モデルの目(左右)。モデルの目のくぼみに、これまでと同じ目の玉(空と海が映る、明るいとひとみがU字)をはめ、
+// 上まぶたを、目の玉にかぶさる殻にして、前へ回して閉じる(まばたき)
+const lidGeometry = new THREE.SphereGeometry(1, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+function createModelEyes(parent, individual) {
+  const r = MODEL.eye.radius;
+  const white = individual?.traits?.coat === 'white';
+  const lidMaterial = new THREE.MeshStandardMaterial({ color: white ? 0xd8d6d2 : 0x0e1319, roughness: 0.55, side: THREE.DoubleSide });
+  const eyes = model.eyes.map(({ point, normal }) => {
+    const out = new THREE.Vector3(...normal);
+    const up = new THREE.Vector3(0, 1, 0).addScaledVector(out, -out.y).normalize();
+    const side = new THREE.Vector3().crossVectors(up, out);
+    const pivot = new THREE.Group();
+    pivot.position.fromArray(point).addScaledVector(out, -r * 0.95);   // 目の玉は、くぼみから少しだけのぞく
+    pivot.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, out));
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(r, 48, 32), eyeMaterial());
+    const lid = new THREE.Mesh(lidGeometry, lidMaterial);
+    lid.scale.setScalar(r * 1.06);
+    pivot.add(ball, lid);
+    parent.add(pivot);
+    return { ball, lid };
+  });
+  let blinking = false, blinkT = 0, nextBlink = 4 + Math.random() * 6;
+  let baseOpen = EYE.relaxedOpen;
+  const look = { x: 0, y: 0, tx: 0, ty: 0, next: 1 };
+  // 開き 1 で上まぶたは肌の奥(うしろ上)にかくれ、0 で前へ回って目の玉をおおう
+  const setOpen = open => { for (const e of eyes) e.lid.rotation.x = -1.15 + (1 - open) * (Math.PI / 2 + 1.15); };
+  setOpen(baseOpen);
+  return {
+    alive: false,
+    setBaseOpen(v) { baseOpen = v; },
+    update(dt) {
+      if (!this.alive) return;
+      nextBlink -= dt;
+      if (!blinking && nextBlink <= 0) { blinking = true; blinkT = 0; }
+      if (blinking) {
+        blinkT += dt;
+        if (blinkT > 1.2) { blinking = false; nextBlink = 5 + Math.random() * 7; }
+      }
+      setOpen(blinking ? blinkOpen(blinkT, baseOpen) : baseOpen);
+      look.next -= dt;
+      if (look.next <= 0) {
+        look.tx = (Math.random() - 0.5) * 0.12; look.ty = (Math.random() - 0.5) * 0.08;
+        look.next = 1.5 + Math.random() * 2.5;
+      }
+      const k = 1 - Math.exp(-dt * 8);
+      look.x += (look.tx - look.x) * k; look.y += (look.ty - look.y) * k;
+      for (const e of eyes) e.ball.rotation.set(-look.y, look.x, 0);
+    },
+  };
 }
 
 // 1頭ぶんの網目(形は使い回し、色だけその子のもの)
@@ -594,6 +646,7 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     mesh = new THREE.Mesh(geo, material);
     mesh.scale.setScalar(lengthMeters);
     if (look?.kind === 'decor') mesh.add(decorMesh(look, uniforms));
+    eyes = createModelEyes(mesh, individual);
   } else {
     mesh = new THREE.Mesh(geometryForIndividual(kind, individual), material);
     mesh.scale.setScalar(lengthMeters);
@@ -622,6 +675,8 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     },
     // 目(ザトウクジラだけ)。alive にすると、まばたきと目の動きをする
     eyes,
+    // 3Dモデルの右目の場所(体長1)。「目が合う」でカメラの前に目を持ってくるのに使う
+    eyeSpot: useModel ? { center: model.eyes[0].point, normal: model.eyes[0].normal } : null,
     update(dt) {
       uniforms.uPhase.value += dt * Math.PI * 2 * strokes;
       if (glows || (useModel && individual?.special)) GLOW.uGlowTime.value = performance.now() / 1000;

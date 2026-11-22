@@ -125,3 +125,16 @@ test('その子の色: ふつうの子の体はテクスチャのまま。真っ
   assert.ok(finTop.every(i => d.mix[i] > 0.5 && lum(d.color, i) < 0.05), '胸びれの表が黒い');
   for (let i = 0; i < n; i++) assert.ok(a.base[i] > 0);
 });
+
+test('目の場所: 左右それぞれ、頭の横の肌の上の点と、外向きの向き', async () => {
+  const { eyeSpots } = await import('../src/logic/whaleModelLayout.js');
+  const { pos, nrm } = toyWhale();
+  const spots = eyeSpots(pos, nrm, { y: 0.03, z: -0.2 });
+  assert.equal(spots.length, 2);
+  for (const e of spots) {
+    assert.equal(Math.sign(e.point[0]), e.side);
+    assert.ok(Math.abs(e.point[2] + 0.2) < 0.02 && Math.abs(e.point[1] - 0.03) < 0.03);
+    assert.ok(e.normal[0] * e.side > 0.5, '外を向いている');
+    assert.ok(Math.abs(Math.hypot(...e.normal) - 1) < 1e-6);
+  }
+});

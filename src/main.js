@@ -109,6 +109,10 @@ let outEl = null;
 let dark = false;      // 真っ暗画面(音を流しっぱなしにして休んでいるので、知らせない)
 let onLanding = true;   // はじめのページを出しているあいだ(スタートを押すまで・しばらく使わなくてもどったとき)
 const effects = createEffects(ocean.scene);
+// 水滴の筋の長さは画面の画素で計算するので、画面の大きさを伝えておく
+const viewSize = () => effects.setViewSize(innerWidth * devicePixelRatio, innerHeight * devicePixelRatio);
+viewSize();
+addEventListener('resize', viewSize);
 ocean.addUpdater(effects.update);
 // 潜ったクジラの足あと(海面のなめらかな跡)
 const footprints = createFootprints();

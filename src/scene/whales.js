@@ -1028,6 +1028,8 @@ export async function createWhales(scene, fx) {
       if (!before) return;
       const vel = world.map((v, k) => Math.max(-12, Math.min(12, (v - before[k]) / dt)));
       const rising = vel[1];
+      // 水面を割って飛びこんだ(前のこまは水の上、いまは水の中): 飛びこむ速さから、しぶきを計算する
+      if (before[1] > 0 && world[1] <= 0 && rising < -1.5 && fx.effects.spray) fx.effects.spray(world, vel, dt);
       if (world[1] > 0.2 && rising > 0.3 && rising < 40) {
         // 速く水から出るほど、たくさんの水が体といっしょに持ち上がって流れ落ちる
         const n = Math.min(10, Math.round(Math.min(rising, 9) * 16 * dt + Math.random()));

@@ -50,3 +50,21 @@ test('尾びれの小さな水しぶきは、ジャンプの水しぶきより�
 test('粒の数は、画面に出せる数の上限におさまる', () => {
   assert.ok(splashParticles('large', [0, 0, 0], [1, 0, 0], seeded(13)).length <= 2600);
 });
+
+test('体が水に飛びこむ速さから、しぶきを計算する: 速いほど多く高く、ゆっくりなら出ない。しぶきは進む向きの前と横へ', async () => {
+  const { entrySpray, PARTICLE } = await import('../src/logic/splash.js');
+  const seeded = s => () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+  assert.equal(entrySpray([0, 0, 0], [0, -0.5, 0], 1 / 60, seeded(1)).length, 0, 'ゆっくりは出ない');
+  const slow = entrySpray([0, 0, 0], [3, -3, 0], 1 / 60, seeded(2));
+  const fast = entrySpray([0, 0, 0], [6, -9, 0], 1 / 60, seeded(2));
+  assert.ok(fast.length > slow.length && slow.length > 0);
+  const top = list => Math.max(...list.map(q => q.v[1]));
+  assert.ok(top(fast) > top(slow), '速いほど高く');
+  const ahead = fast.filter(q => q.v[0] > 0).length;
+  assert.ok(ahead / fast.length > 0.6, '進む向き(+x)へ多く飛ぶ');
+  for (const q of fast) {
+    assert.ok(q.v[1] > 0, '上へ');
+    assert.ok([PARTICLE.drop, PARTICLE.sheet, PARTICLE.mist].includes(q.kind));
+    assert.ok(Math.abs(q.p[1]) < 0.5, '水面から');
+  }
+});

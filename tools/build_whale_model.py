@@ -27,7 +27,8 @@ NORMAL_SIZE = 1024       # でこぼこ(法線)のテクスチャ
 ROUGH_SIZE = 512         # つや
 SPECIAL_SIZE = 1024      # とくべつな子の模様
 SPECIALS = ['galaxy', 'comet', 'fireworks']
-COMET_FILES = {'fantasy': 'humpback_comet_fantasy_deluxe.glb', 'cosmic': 'humpback_comet_halley.glb'}
+# ホウキボシ(ファンタジー版)・リュウセイ(宇宙版): 体ごと彗星の模様を焼きこんだモデル(形と uv は、もとのモデルと同じ)
+COMET_SKINS = {'fantasy': 'humpback_comet_fantasy_skin.glb', 'cosmic': 'humpback_comet_halley_skin.glb'}
 
 
 def accessor(g, blob, idx):
@@ -223,11 +224,15 @@ def build(tex_glb, fantasy_dir, cosmic_dir, comet_dir=None):
 
     # とくべつな子
     fantasy_dir, cosmic_dir = pathlib.Path(fantasy_dir), pathlib.Path(cosmic_dir)
-    # ホウキボシ・リュウセイ: 体はふつうの子と同じで、彗星(頭・尾・光の粒)の部品を体の上に重ねる
+    # ホウキボシ・リュウセイ: 模様の画像と、夜に光るところの画像(モデルの光る色のテクスチャ)
     if comet_dir:
         comet_dir = pathlib.Path(comet_dir)
-        for style, fname in COMET_FILES.items():
-            write_decor(OUT / f'special-comet-{style}.glb', comet_dir / fname, shape)
+        for style, fname in COMET_SKINS.items():
+            cg = GLTF2().load(comet_dir / fname)
+            cb = cg.binary_blob()
+            mat = cg.materials[0]
+            (OUT / f'special-comet-{style}.jpg').write_bytes(jpeg(image(cg, cb, mat.pbrMetallicRoughness.baseColorTexture.index), SPECIAL_SIZE, 88))
+            (OUT / f'special-comet-{style}-glow.jpg').write_bytes(jpeg(image(cg, cb, mat.emissiveTexture.index), SPECIAL_SIZE // 2, 85))
     for name in SPECIALS:
         if comet_dir and name == 'comet':
             continue
@@ -247,28 +252,6 @@ def build(tex_glb, fantasy_dir, cosmic_dir, comet_dir=None):
         col = np.clip(np.round(col), 0, 255).astype(np.uint8)
         (OUT / f'special-{name}-cosmic.bin').write_bytes(col.tobytes())
     print('書き出し:', ', '.join(sorted(p.name for p in OUT.iterdir())))
-
-
-def write_decor(path, src, shape):
-    """体の上に重ねる部品(体以外のメッシュ)を、体と同じ動かし方でそろえて、色つきの1つの網目にまとめる"""
-    g = GLTF2().load(src)
-    blob = g.binary_blob()
-    P, C, I = [], [], []
-    for m in g.meshes[1:]:
-        for prim in m.primitives:
-            pos = accessor(g, blob, prim.attributes.POSITION)
-            mat = g.materials[prim.material]
-            rgba = list(mat.pbrMetallicRoughness.baseColorFactor or [1, 1, 1, 1])
-            if mat.alphaMode != 'BLEND':
-                rgba[3] = 1
-            base = sum(len(p) for p in P)
-            P.append(pos)
-            C.append(np.tile(np.array(rgba, dtype=np.float32), (len(pos), 1)))
-            I.append(accessor(g, blob, prim.indices).reshape(-1).astype(np.int64) + base)
-    pos, _ = shape.apply(np.concatenate(P))
-    col = np.concatenate(C)
-    idx = np.concatenate(I)
-    write_glb(path, pos.astype(np.float32), None, None, idx, {}, colors=(np.clip(np.round(col * 255), 0, 255)).astype(np.uint8))
 
 
 def write_glb(path, pos, nrm, uv, idx, textures, colors=None, extra_attrs=None, more=()):

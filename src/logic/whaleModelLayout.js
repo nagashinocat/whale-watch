@@ -51,11 +51,11 @@ export function eyeSpots(pos, nrm, at = MODEL.eye) {
   });
 }
 
-// とくべつな子の素材。texture: 体の模様の画像 / colors: 頂点ごとの色 / decor: 体の上に重ねる部品(体はふつうの子と同じ)
+// とくべつな子の素材。texture: 体の模様の画像 / colors: 頂点ごとの色 / glow: 夜に光るところの画像
 //   ギンガ・ハナビ(ファンタジー版)は模様の画像、ホシゾラ・ボタン(宇宙版)は頂点の色、
-//   ホウキボシ・リュウセイは彗星の部品(頭・尾・光の粒)
+//   ホウキボシ・リュウセイは、体ごと彗星の模様を焼きこんだ画像と、光るところの画像
 export function specialAssets(coat, style) {
-  if (coat === 'comet') return { decor: `assets/models/special-comet-${style}.glb` };
+  if (coat === 'comet') return { texture: `assets/models/special-comet-${style}.jpg`, glow: `assets/models/special-comet-${style}-glow.jpg` };
   return style === 'cosmic' ? { colors: `assets/models/special-${coat}-cosmic.bin` } : { texture: `assets/models/special-${coat}-fantasy.jpg` };
 }
 

@@ -97,8 +97,8 @@ test('モデルのファイルは assets/models/ にあり、とくべつな子�
   }
   for (const style of ['fantasy', 'cosmic']) {
     const a = specialAssets('comet', style);
-    assert.match(a.decor, new RegExp(`special-comet-${style}\\.glb$`));
-    assert.equal(a.texture, undefined);
+    assert.match(a.texture, new RegExp(`special-comet-${style}\\.jpg$`));
+    assert.match(a.glow, new RegExp(`special-comet-${style}-glow\\.jpg$`));
     assert.equal(a.colors, undefined);
   }
 });

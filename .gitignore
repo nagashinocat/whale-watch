@@ -18,3 +18,7 @@
 !/HANDOFF.md
 !/pages/
 !/promo/
+
+# Python が自動で作るファイルは記録しない
+__pycache__/
+*.pyc

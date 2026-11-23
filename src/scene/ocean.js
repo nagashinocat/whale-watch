@@ -234,9 +234,10 @@ export function createOcean(canvas) {
       let dy = w.yaw - base.yaw;
       dy = Math.atan2(Math.sin(dy), Math.cos(dy));   // 近いほうへ回る
       yaw = base.yaw + dy * look.weight;
-      pitch = base.pitch + (Math.min(1.35, w.pitch) - base.pitch) * look.weight;
+      pitch = base.pitch + (Math.min(1.5, w.pitch) - base.pitch) * look.weight;
     }
-    const k = 1 - Math.exp(-dt * 4);
+    // 速く跳ぶクジラにおくれないよう、すばやく追う
+    const k = 1 - Math.exp(-dt * 7);
     let dy = yaw - look.yaw;
     dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     look.yaw += dy * k;

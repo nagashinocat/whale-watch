@@ -37,6 +37,12 @@ export const PAIR_PATTERNS = Object.freeze(['spout', 'fluke', 'breach', 'bigBrea
 // 1頭だけで来る出かた(群れや親子では出さない)
 export const SOLO_PATTERNS = Object.freeze(['spout', 'fluke', 'breach', 'bigBreach', 'spyhop', 'pecSlap', 'lobtail', 'feeding', 'eyeContact', 'overhead']);
 
+// この出方で、とくべつな子が来られるか。
+// 「呼ぶ」「えらんで呼ぶ」「タイマー」で来てもらったときは来ない(自然に出会ったときだけ、ごくまれに来る)
+export function specialCanCome(event) {
+  return !['summon', 'pick', 'timer'].includes(event?.kind) && event?.pattern !== 'summon';
+}
+
 // 1頭で来るときに、とくべつな子がそれぞれ来る確率。
 // 出会い(鳴き声だけのとき以外)のうち、1頭で来る出かたは一部だけなので、そのぶん高くして、出会いあたり perEncounter にする
 export function specialChance(weights = SCHEDULE.weights) {

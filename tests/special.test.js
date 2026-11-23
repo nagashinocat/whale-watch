@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SPECIAL, SOLO_PATTERNS, PAIR_PATTERNS, specialChance, specialMotif, specialBodyColor, FIREWORK_BURSTS } from '../src/logic/specialCoats.js';
+import { SPECIAL, SOLO_PATTERNS, PAIR_PATTERNS, specialChance, specialCanCome, specialMotif, specialBodyColor, FIREWORK_BURSTS } from '../src/logic/specialCoats.js';
 import { population, nextVisitor, bookTotal, individual, partnerOf, comesAsPair } from '../src/logic/flukeId.js';
 import { traitBodyColor, traitsText } from '../src/logic/traits.js';
 import { commentFor } from '../src/logic/zukan.js';
@@ -109,6 +109,16 @@ test('とくべつな子は、1頭で来る出かたのときだけ来る(群れ
   assert.ok(Math.abs(solo - expect) < expect * 0.25, `${solo} / ${expect.toFixed(0)}`);
   // 1頭で来る出かたは、ほんとうに1頭(図鑑にのるおとなが1頭だけ)の出かた
   for (const n of ['pod', 'groupBreach', 'groupSpyhop', 'bubbleNet', 'motherCalf', 'calfBreach', 'voice', 'sleeping']) assert.ok(!SOLO_PATTERNS.includes(n));
+});
+
+test('「呼ぶ」「えらんで呼ぶ」「タイマー」で来てもらったときは、とくべつな子は来ない(自然に出会ったときだけ)', () => {
+  assert.equal(specialCanCome({ kind: 'summon', pattern: 'summon' }), false);
+  assert.equal(specialCanCome({ kind: 'pick', pattern: 'breach' }), false);
+  assert.equal(specialCanCome({ kind: 'timer', pattern: 'spout' }), false);
+  assert.equal(specialCanCome({ pattern: 'summon' }), false);
+  // ふつうに来たときは来られる
+  assert.equal(specialCanCome({ kind: 'natural', pattern: 'breach' }), true);
+  assert.equal(specialCanCome({ kind: 'natural', pattern: 'overhead' }), true);
 });
 
 test('図鑑にのったあとも、とくべつな子は「また来る」で来ない(ずっとまれなまま)', () => {

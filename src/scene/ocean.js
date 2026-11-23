@@ -432,6 +432,8 @@ export function createOcean(canvas) {
     shake: amount => { if (!reduceMotion) shakeAmount = Math.max(shakeAmount, amount); },
     // 海面に貼りつけるもの(映り込みには描かない)を足す
     addSurfaceDecal: obj => { surfaceDecals.push(obj); scene.add(obj); },
+    // 海の映り込みには描かないもの(しぶきや泡の粒。映り込みの絵の中では、暗いかたまりになってしまう)
+    hideInMirror: obj => { surfaceDecals.push(obj); },
     // 時刻が変わったときに呼んでほしい処理(空の色を使うもの)を登録する
     onPalette: fn => paletteListeners.push(fn),
   };

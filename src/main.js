@@ -110,6 +110,8 @@ let outEl = null;
 let dark = false;      // 真っ暗画面(音を流しっぱなしにして休んでいるので、知らせない)
 let onLanding = true;   // はじめのページを出しているあいだ(スタートを押すまで・しばらく使わなくてもどったとき)
 const effects = createEffects(ocean.scene);
+// しぶきや泡は、海の映り込みには描かない(映り込みの中では暗いかたまりに見えてしまう)
+ocean.hideInMirror(effects.object);
 // 水滴の筋の長さは画面の画素で計算するので、画面の大きさを伝えておく
 const viewSize = () => effects.setViewSize(innerWidth * devicePixelRatio, innerHeight * devicePixelRatio);
 // 水に落ちたところから、海面が波打って輪が広がる(しぶきの勢いで波の高さを決める)

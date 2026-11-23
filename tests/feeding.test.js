@@ -184,3 +184,12 @@ test('口を開けたりとじたりするあいだ、のどの皮が前後に�
     }
   }
 });
+
+test('捕食: のどは水の中でふくらみきり、ふくらんだ状態で水面を割って出てくる', async () => {
+  const { feedingPose, FEEDING } = await import('../src/logic/feeding.js');
+  // 口先が水面から4m出るころ(のどはまだ水の中)には、ふくらみきっている
+  let t = FEEDING.lunge;
+  while (feedingPose(t).tipY < 4) t += 0.01;
+  assert.ok(feedingPose(t).pouch > 0.99, String(feedingPose(t).pouch));
+  assert.equal(feedingPose(FEEDING.open - 0.1).pouch, 0);
+});

@@ -24,6 +24,7 @@ import { scorePhoto, lightOf, scoreLine } from './logic/photoScore.js';
 import { loadBook, saveBook, nextVisitor, recordSighting, recordPhoto, bookEntries, setNickname, displayName, population, bookTotal } from './logic/flukeId.js';
 import { traitsText } from './logic/traits.js';
 import { sightingMessage, countsForZukan } from './logic/zukan.js';
+import { specialCanCome } from './logic/specialCoats.js';
 import { TIMER, timerState, loadTimer, saveTimer, clockText, remainingText } from './logic/timer.js';
 import { PHOTOS } from './logic/photos.js';
 import { createZukan } from './ui/zukan.js';
@@ -68,6 +69,7 @@ let forcedVisitor = null;
 let timerVisitor = null;
 let pickedWhale = null, eventWhale = null;   // プラスの「来てほしいクジラ」(呼んだときに決め、来たときに使う)   // タイマーで知らせに来るクジラの番号
 let kids = loadKids(safeStorage()).on;   // 子供用モード(ボタンで何頭でも呼べる。図鑑・点数・実績はお休み)
+let specialsAllowed = true;   // いまの出方に、とくべつな子が来られるか(呼んで来てもらったときは来ない)
 let countingSightings = true;   // いまの出方を図鑑に数えるか(「呼ぶ」で来たクジラは数えない)
 let pendingSightings = [], sightingTimer = null;   // まとめて出すお知らせ   // 動作確認用: 出すクジラの番号
 // 撮った写真(この端末のブラウザに保存する)
@@ -172,7 +174,7 @@ const whalesReady = createWhales(ocean.scene, {
     if (eventWhale && !taken.includes(eventWhale)) return eventWhale;
     // タイマーで知らせに来るクジラは、先に決めてある(お知らせに名前を出すため)
     if (timerVisitor && !taken.includes(timerVisitor)) { const id = timerVisitor; timerVisitor = null; return id; }
-    let id = nextVisitor(book, Math.random, { solo });
+    let id = nextVisitor(book, Math.random, { solo: solo && specialsAllowed });
     for (let k = 0; k < 20 && taken.includes(id); k++) id = nextVisitor(book);
     return id;
   },
@@ -263,6 +265,7 @@ async function handleEvent(event) {
   if (event.kind === 'summon' || event.kind === 'pick') menu.setSummonStatus(null);
   if (event.kind === 'pick') { eventWhale = pickedWhale; pickedWhale = null; }
   countingSightings = event.kind === 'kids' ? false : countsForZukan(event);
+  specialsAllowed = specialCanCome(event);
   try {
     const whales = await whalesReady;
     // 「目が合う」は間近のカメラのすぐ前で起きるので、崖の上からは見えない(崖の真下になる)。かわりにスパイホップ

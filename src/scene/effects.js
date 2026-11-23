@@ -175,6 +175,9 @@ export function createEffects(scene) {
   const rand = (a, b) => a + Math.random() * (b - a);
 
   const api = {
+    // 粒をまとめて描くもの(海の映り込みから外すのに使う)
+    object: points,
+
     // 上に6〜9mほど噴き上がり、風に流れて3秒で消える霧
     // 潮吹き。ザトウクジラはまっすぐ上へ、もこもこと3〜5m。マッコウクジラは左前へ45度かたむく。
     // forward はクジラが向いている水平の向き

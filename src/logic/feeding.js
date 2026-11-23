@@ -41,7 +41,8 @@ const F = FEEDING;
 // gape: 口の開き(0〜1)、pouch: のどのふくらみ(0〜1)、tipY: 口先の高さ、pitch: 体の立ち方(度、90で真上)
 export function feedingPose(t) {
   const gape = ease((t - F.open) / (F.surface + 0.6 - F.open)) * (1 - ease((t - F.closeStart) / (F.closed - F.closeStart)));
-  const fill = ease((t - F.open) / 4);
+  // のどは水の中で水をのみこんでふくらみきり、ふくらんだ状態で水面を割って出てくる(持ち主の好み・写真の姿)
+  const fill = ease((t - F.open) / (F.surface - 0.4 - F.open));
   const pouch = fill * (1 - ease((t - F.filterStart) / (F.filterEnd - F.filterStart - 2)));
   // 下から突進して水面を割り、頭を5mほど出して止まり、それから沈む
   let tipY;

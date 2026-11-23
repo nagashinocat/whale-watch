@@ -1,6 +1,6 @@
 // このファイルは tools/build_sw.py で作る(手で書きかえない)
 // 一度開いたら、電波がなくても動くように、アプリのファイルを端末にとっておく
-const VERSION = 'ca1e794cc0e7';
+const VERSION = '691476cb8f3a';
 const APP = `whale-ocean-${VERSION}`;
 const EXTRA = 'whale-ocean-extra';   // 文字の形など、あとから読みこんだもの
 const FILES = [

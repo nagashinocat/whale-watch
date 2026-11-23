@@ -234,9 +234,10 @@ export function createOcean(canvas) {
       let dy = w.yaw - base.yaw;
       dy = Math.atan2(Math.sin(dy), Math.cos(dy));   // 近いほうへ回る
       yaw = base.yaw + dy * look.weight;
-      pitch = base.pitch + (Math.min(1.35, w.pitch) - base.pitch) * look.weight;
+      pitch = base.pitch + (Math.min(1.5, w.pitch) - base.pitch) * look.weight;
     }
-    const k = 1 - Math.exp(-dt * 4);
+    // 速く跳ぶクジラにおくれないよう、すばやく追う
+    const k = 1 - Math.exp(-dt * 7);
     let dy = yaw - look.yaw;
     dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     look.yaw += dy * k;
@@ -432,6 +433,8 @@ export function createOcean(canvas) {
     shake: amount => { if (!reduceMotion) shakeAmount = Math.max(shakeAmount, amount); },
     // 海面に貼りつけるもの(映り込みには描かない)を足す
     addSurfaceDecal: obj => { surfaceDecals.push(obj); scene.add(obj); },
+    // 海の映り込みには描かないもの(しぶきや泡の粒。映り込みの絵の中では、暗いかたまりになってしまう)
+    hideInMirror: obj => { surfaceDecals.push(obj); },
     // 時刻が変わったときに呼んでほしい処理(空の色を使うもの)を登録する
     onPalette: fn => paletteListeners.push(fn),
   };

@@ -20,7 +20,7 @@ export const SCORE = Object.freeze({
   // 出方ごとの、めずらしさ(会える回数が少ないほど高い)
   patternRarity: Object.freeze({
     spout: 4, voice: 0, fluke: 9, motherCalf: 12, sleeping: 8, breach: 16, bigBreach: 20, groupSpyhop: 18, groupBreach: 24,
-    calfBreach: 18, pod: 12, spyhop: 12, pecSlap: 10, lobtail: 10, feeding: 18, bubbleNet: 24, eyeContact: 24, bubbleRing: 26, summon: 6,
+    calfBreach: 18, pod: 12, spyhop: 12, pecSlap: 10, lobtail: 10, feeding: 18, bubbleNet: 24, eyeContact: 24, overhead: 26, bubbleRing: 26, summon: 6,
   }),
   airborne: 10,     // ジャンプで体ぜんぶが空中
   special: 24,      // とくべつな子

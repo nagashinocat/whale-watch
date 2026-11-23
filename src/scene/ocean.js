@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { Water } from 'three/addons/objects/Water.js';
-import { CAMERA_PRESETS } from './cameras.js';
+import { CAMERA_PRESETS, SPOT } from './cameras.js';
 import { sunForTime } from '../logic/sky.js';
 import { waterNormalPixels } from '../logic/waterNormals.js';
+import { RIPPLE, rippleGrid } from '../logic/ripples.js';
 import { createGradientSky } from './sky.js';
 import { createWhitecaps } from './whitecaps.js';
 import { createQualityControl } from '../logic/quality.js';
@@ -52,6 +53,77 @@ function tuneWaterShader(material) {
   return true;
 }
 
+// 波の輪(logic/ripples.js と同じ式)。落ちたところから広がる波で、海面の高さと向きを変える
+function addRipples(material) {
+  const list = Array.from({ length: RIPPLE.max }, () => new THREE.Vector4(0, 0, -1000, 0));   // x, z, 落ちた時刻, 高さ
+  material.uniforms.uRipples = { value: list };
+  material.uniforms.uRipTime = { value: 0 };
+  const packets = RIPPLE.packets.map(([wl, w, width]) => {
+    const K = (2 * Math.PI) / wl, phase = Math.sqrt(9.8 / K);
+    return `{
+          float env = exp(-pow((r - (${(phase / 2).toFixed(4)} * t + 2.0)) / ${width.toFixed(1)}, 2.0));
+          wave += ${w.toFixed(3)} * env * cos(${K.toFixed(5)} * r - ${(K * phase).toFixed(5)} * t);
+        }`;
+  }).join('');
+  const glsl = `
+    uniform vec4 uRipples[${RIPPLE.max}];
+    uniform float uRipTime;
+    varying vec2 vRipGrad;
+    float ripH(vec2 xz) {
+      float h = 0.0;
+      for (int i = 0; i < ${RIPPLE.max}; i++) {
+        vec4 q = uRipples[i];
+        float t = uRipTime - q.z;
+        if (t <= 0.0 || t > ${RIPPLE.life.toFixed(1)} || q.w == 0.0) continue;
+        float r = length(xz - q.xy);
+        float fade = pow(1.0 - t / ${RIPPLE.life.toFixed(1)}, 2.0);
+        float wave = 0.0;${packets}
+        wave /= sqrt(1.0 + r / 6.0);
+        wave *= 1.0 - exp(-t / 0.8);
+        float center = exp(-pow(r / ${RIPPLE.crater.toFixed(1)}, 2.0)) * -cos(t * 2.0) * exp(-t * 0.5);
+        h += q.w * fade * (wave + ${RIPPLE.craterDepth.toFixed(2)} * center);
+      }
+      return h;
+    }`;
+  material.vertexShader = material.vertexShader
+    .replace('void main() {', `${glsl}
+    void main() {
+      vec4 ripW = modelMatrix * vec4( position, 1.0 );
+      float rh = ripH(ripW.xz);
+      vRipGrad = vec2(ripH(ripW.xz + vec2(0.25, 0.0)) - rh, ripH(ripW.xz + vec2(0.0, 0.25)) - rh) / 0.25;
+      vec3 ripP = position + vec3(0.0, 0.0, rh);`)
+    .replace('vec4 mvPosition =  modelViewMatrix * vec4( position, 1.0 );', 'vec4 mvPosition =  modelViewMatrix * vec4( ripP, 1.0 );');
+  material.fragmentShader = material.fragmentShader
+    .replace('varying vec4 worldPosition;', 'varying vec4 worldPosition;\nvarying vec2 vRipGrad;')
+    .replace('vec3 surfaceNormal = normalize( noise.xzy * vec3( 1.5, 1.0, 1.5 ) );', `vec3 ripN = vec3( -vRipGrad.x, 0.0, -vRipGrad.y ) * 1.5 / ( 1.0 + length( vRipGrad ) * 2.0 );
+      vec3 surfaceNormal = normalize( noise.xzy * vec3( 1.5, 1.0, 1.5 ) + ripN );
+      // 映りこみのゆれは少しだけ(大きくゆらすと、映す絵の外=水平線より下を拾って、黒い穴のように見える)
+      vec3 mirrorNormal = normalize( noise.xzy * vec3( 1.5, 1.0, 1.5 ) + ripN * 0.3 );`)
+    .replace('vec2 distortion = surfaceNormal.xz * ( 0.001 + 1.0 / distance ) * distortionScale;', 'vec2 distortion = mirrorNormal.xz * ( 0.001 + 1.0 / distance ) * distortionScale;');
+  material.needsUpdate = true;
+  return {
+    // 波の輪を足す(いちばん弱くなったものと入れかえる)。近い場所・時刻の輪は1つにまとめて、大きいほうの高さにする
+    // (体が水に入るあいだ毎こま出るしぶきの波を足しあわせると、大きな穴のようにへこんでしまう)
+    // amp がマイナスのときは、まん中がへこまずに、もり上がってから波が広がる(水の中の泡が水を持ち上げるとき)
+    add(x, z, amp, now) {
+      const size = Math.abs(amp);
+      for (const q of list) {
+        if (Math.hypot(q.x - x, q.y - z) < 3 && now - q.z < 0.4 && Math.sign(q.w) === Math.sign(amp)) {
+          if (size > Math.abs(q.w)) q.w = amp;
+          return;
+        }
+      }
+      // あいている輪か、いちばん弱くなった輪を使う(大きなジャンプの波が、小さなしぶきの波に消されないように)
+      const left = q => { const t = now - q.z; return t < 0 || t > RIPPLE.life ? 0 : Math.abs(q.w) * (1 - t / RIPPLE.life) ** 2; };
+      let weak = list[0];
+      for (const q of list) if (left(q) < left(weak)) weak = q;
+      if (left(weak) > size) return;
+      weak.set(x, z, now, amp);
+    },
+    time(t) { material.uniforms.uRipTime.value = t; },
+  };
+}
+
 // 海・空・カメラ・描画ループ。
 export function createOcean(canvas) {
   const lowPower = window.innerWidth < 768 || window.devicePixelRatio > 2;
@@ -68,7 +140,16 @@ export function createOcean(canvas) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 30000);
 
-  const water = new Water(new THREE.PlaneGeometry(40000, 40000), {
+  // 海の網目: クジラの出るあたりは細かく(波の輪で海面が波打つように)、遠くはあらい
+  const grid = rippleGrid([SPOT[0], SPOT[2]]);
+  const waterGeo = new THREE.BufferGeometry();
+  // 海は x-y の面で作って、あとで寝かせる(世界の z = -y)
+  const local = new Float32Array(grid.positions.length);
+  for (let i = 0; i < local.length; i += 3) { local[i] = grid.positions[i]; local[i + 1] = -grid.positions[i + 2]; local[i + 2] = 0; }
+  waterGeo.setAttribute('position', new THREE.BufferAttribute(local, 3));
+  waterGeo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(local.length).map((_, i) => (i % 3 === 2 ? 1 : 0)), 3));
+  waterGeo.setIndex(grid.indices);
+  const water = new Water(waterGeo, {
     textureWidth: 512,
     textureHeight: 512,
     waterNormals: makeWaterNormals(lowPower ? 128 : 256),
@@ -79,8 +160,10 @@ export function createOcean(canvas) {
     fog: true,
   });
   water.rotation.x = -Math.PI / 2;
+  water.material.side = THREE.DoubleSide;
   scene.add(water);
   const tuned = tuneWaterShader(water.material);
+  const ripples = addRipples(water.material);
 
   // 白波。海に映り込むと二重に見えるので、海の映り込みを描くあいだは隠す
   const whitecaps = createWhitecaps(lowPower);
@@ -132,10 +215,47 @@ export function createOcean(canvas) {
   let shakeAmount = 0;
   const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
+  // クジラを目で追う(頭の上を跳ぶクジラを見上げて、ふり返る)。向きは横(yaw)と上下(pitch)の角度で、なめらかに動かす
+  // look.want: 見たい場所(なければ、いつもの向き)と強さ(0〜1)。look.seen: そのこまで呼ばれたか
+  const look = { yaw: null, pitch: 0, want: null, weight: 0, seen: 0 };
+  const anglesTo = (from, to) => {
+    const d = [to[0] - from[0], to[1] - from[1], to[2] - from[2]];
+    return { yaw: Math.atan2(-d[0], -d[2]), pitch: Math.atan2(d[1], Math.hypot(d[0], d[2])) };
+  };
+  function updateLook(dt) {
+    const base = anglesTo(preset.position, preset.target);
+    if (look.yaw === null) { look.yaw = base.yaw; look.pitch = base.pitch; }
+    // しばらく呼ばれなければ、いつもの向きへもどる
+    look.seen += dt;
+    if (look.seen > 0.5) look.weight = Math.max(0, look.weight - dt);
+    let yaw = base.yaw, pitch = base.pitch;
+    if (look.want && look.weight > 0) {
+      const w = anglesTo(preset.position, look.want);
+      let dy = w.yaw - base.yaw;
+      dy = Math.atan2(Math.sin(dy), Math.cos(dy));   // 近いほうへ回る
+      yaw = base.yaw + dy * look.weight;
+      pitch = base.pitch + (Math.min(1.35, w.pitch) - base.pitch) * look.weight;
+    }
+    const k = 1 - Math.exp(-dt * 4);
+    let dy = yaw - look.yaw;
+    dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+    look.yaw += dy * k;
+    look.pitch += (pitch - look.pitch) * k;
+  }
+  const looking = () => {
+    if (look.yaw === null) return false;
+    const b = anglesTo(preset.position, preset.target);
+    return look.weight > 0.001 || Math.abs(look.pitch - b.pitch) > 0.002 || Math.abs(Math.atan2(Math.sin(look.yaw - b.yaw), Math.cos(look.yaw - b.yaw))) > 0.002;
+  };
+
   function placeCamera() {
     camera.fov = preset.fov;
     camera.position.set(...preset.position);
-    camera.lookAt(...preset.target);
+    if (look.yaw === null) camera.lookAt(...preset.target);
+    else {
+      const c = Math.cos(look.pitch);
+      camera.lookAt(preset.position[0] - Math.sin(look.yaw) * c, preset.position[1] + Math.sin(look.pitch), preset.position[2] - Math.cos(look.yaw) * c);
+    }
     if (shakeAmount > 0.001) {
       const a = shakeAmount;
       camera.position.y += Math.sin(elapsed * 31) * 0.12 * a;
@@ -156,6 +276,7 @@ export function createOcean(canvas) {
 
   function setCamera(name) {
     preset = CAMERA_PRESETS[name] ?? CAMERA_PRESETS.cliff;
+    look.yaw = null; look.weight = 0; look.want = null;
     whitecaps.setStrength(preset.whitecaps ?? 0.5);
     placeCamera();
     placeWhaleLights();
@@ -215,12 +336,15 @@ export function createOcean(canvas) {
 
   function render(dt) {
     elapsed += dt;
+    ripples.time(elapsed);
     water.material.uniforms.time.value += dt * 0.6;
     sky.update(dt);
     whitecaps.update(dt, camera.position);
     if (shakeAmount > 0.001) shakeAmount *= Math.exp(-dt * 3);
-    if (preset.sway || shakeAmount > 0.001) placeCamera();
     for (const fn of updaters) fn(dt);
+    // クジラを目で追うのは、間近のカメラだけ(崖の上や上空は、いつもの向きのまま)
+    if (preset === CAMERA_PRESETS.near) updateLook(dt);
+    if (preset.sway || shakeAmount > 0.001 || looking()) placeCamera();
     // 画面を真っ暗にしているあいだは、動きだけ進めて描かない(電池を節約する)
     if (!eco) renderer.render(scene, camera);
   }
@@ -300,6 +424,10 @@ export function createOcean(canvas) {
     camera,
     // 毎フレーム呼んでほしい処理(クジラ・エフェクト)を登録する
     addUpdater: fn => updaters.push(fn),
+    // 海面の波の輪(x, z: 場所、amp: 高さ m)
+    addRipple: (x, z, amp) => ripples.add(x, z, amp, elapsed),
+    // クジラを目で追う(point: 見る場所、weight: 0〜1)。毎こま呼ぶ。呼ばなくなると、いつもの向きへもどる
+    look: (point, weight = 1) => { if (reduceMotion) return; look.want = point; look.weight = Math.max(0, Math.min(1, weight)); look.seen = 0; },
     // 画面を揺らす(0〜1)。動きを減らす設定の端末では揺らさない
     shake: amount => { if (!reduceMotion) shakeAmount = Math.max(shakeAmount, amount); },
     // 海面に貼りつけるもの(映り込みには描かない)を足す

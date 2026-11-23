@@ -24,11 +24,72 @@ export const BREACH = Object.freeze({
 // peak: 体の中心のいちばん高いところ(m)。ふつうのジャンプは約0.6m(体の半分以上が出る)
 export const FULL_BREACH = Object.freeze({ peak: 4.2, pitchFrom: 80, pitchTo: -30, roll: 95 });
 
+// 体のひねり(調べてわかったこと: ジャンプの映像と記録計の研究)
+//   ・ひねりは水の中で勢いをつけているときから始まり、水から出ていくあいだにいちばん速く回る
+//   ・回るのは頭と胸びれが先で、尾はおくれてついてくる(体がねじれて見える)
+//   ・着水して沈んだあと、水の中で体をもとの向きにもどしてから泳ぎ去る
+// start: 飛び出す何秒前からひねりはじめるか / atLaunch: 飛び出すときの倒れ(度)
+// lag: 尾が頭のひねりにおくれる秒数 / rightIn: 着水してから、体をもとの向きにもどすまでの秒数
+export const TWIST = Object.freeze({ start: 1.4, atLaunch: { normal: 20, full: 15 }, lag: 0.7, rightIn: 5, rightFrom: 0.6 });
+
+// 体の反り(調べてわかったこと: ジャンプの写真と映像)
+//   ・水から出ていくとき、背中をそらせて頭と尾を背中側へ反らす(弓なり)。いちばん高いところで、いちばん反る
+//   ・落ちはじめると反りをもどし、着水の前には少しおなか側へ丸める
+// peak: いちばん反ったときに、尾の先が背中側へ上がる長さ(体長に対する割合)
+export const ARCH = Object.freeze({ normal: 0.13, full: 0.2, top: 0.4, tuck: -0.25 });
+
+// 体の反り(体長に対する割合。+ は背中側へ反る)。L は飛び出してからの秒
+export function breachArch(L, full = false) {
+  const peak = full ? ARCH.full : ARCH.normal;
+  if (L < -TWIST.start) return 0;
+  // 水の中で強く尾をあおぎながら、少しずつ反りはじめる
+  if (L < 0) return 0.3 * peak * ease((L + TWIST.start) / TWIST.start);
+  if (L < BREACH.air) {
+    const u = L / BREACH.air;
+    if (u < ARCH.top) return lerp(0.3 * peak, peak, ease(u / ARCH.top));
+    // 落ちはじめると反りをもどし、着水の前に少し丸める
+    return lerp(peak, ARCH.tuck * peak, ease((u - ARCH.top) / (1 - ARCH.top)));
+  }
+  // 着水したら、まっすぐにもどる
+  return ARCH.tuck * peak * (1 - ease((L - BREACH.air) / 1.5));
+}
+
+// 胸びれ(調べてわかったこと: ジャンプの写真)。水の中では体にそわせ、水から出るときに大きく広げて振り上げ、
+// 落ちていくあいだは広げたまま、着水でたたきつけるように下ろす。角度は度(+ が背中側へ上げる)
+export const PEC = Object.freeze({ tucked: -15, raised: 55, hold: 30 });
+export function breachFin(L) {
+  if (L < -TWIST.start) return 0;
+  if (L < 0) return PEC.tucked * ease((L + TWIST.start) / TWIST.start);
+  if (L < BREACH.air) {
+    const u = L / BREACH.air;
+    if (u < 0.3) return lerp(PEC.tucked, PEC.raised, ease(u / 0.3));
+    if (u < 0.75) return lerp(PEC.raised, PEC.hold, ease((u - 0.3) / 0.45));
+    return lerp(PEC.hold, -10, ease((u - 0.75) / 0.25));
+  }
+  return -10 * (1 - ease((L - BREACH.air) / 2));
+}
+
+// 頭の倒れ(度)。L は飛び出してからの秒
+function headRoll(L, full) {
+  const top = full ? FULL_BREACH.roll : 80;
+  const first = full ? TWIST.atLaunch.full : TWIST.atLaunch.normal;
+  if (L < -TWIST.start) return 0;
+  if (L < 0) return first * ease((L + TWIST.start) / TWIST.start);
+  if (L < BREACH.air) {
+    // 水から出ていくあいだに速く回り、空中でゆっくりになる
+    const u = L / BREACH.air;
+    return lerp(first, top, 1 - (1 - u) ** (full ? 1.6 : 1.8));
+  }
+  // 着水して少し沈んでから、水の中で体をもとの向きにもどす
+  return top * (1 - ease((L - BREACH.air - TWIST.rightFrom) / TWIST.rightIn));
+}
+
 // 飛び出してから L 秒目の姿勢。k は体の大きさ(おとなを1)。full は大ジャンプ(体全体が水から出る)。
-// y は体の中心の高さ(m)、pitch は頭の上がり(度)、roll は横への倒れ(度)、along は前へ進んだ距離(m)
+// y は体の中心の高さ(m)、pitch は頭の上がり(度)、roll は頭の横への倒れ(度)、along は前へ進んだ距離(m)
+// twist は体のねじれ(度): 尾の倒れが頭よりどれだけおくれているか(尾は lag 秒前の頭と同じ向き)
 export function breachPose(L, k = 1, full = false) {
-  let y, pitch, roll;
-  if (L < 0) { y = -12; pitch = 20; roll = 0; }
+  let y, pitch;
+  if (L < 0) { y = -12; pitch = 20; }
   else if (L < BREACH.air) {
     const u = L / BREACH.air;
     if (full) {
@@ -36,18 +97,18 @@ export function breachPose(L, k = 1, full = false) {
       const a = 4 * (FULL_BREACH.peak + 8);
       y = -8 + a * u - a * u * u;
       pitch = lerp(FULL_BREACH.pitchFrom, FULL_BREACH.pitchTo, u ** 0.8);
-      roll = lerp(0, FULL_BREACH.roll, u ** 1.2);
     } else {
       // 体を立てて飛び出し、いちばん高いところで体の半分以上が水から出る
       y = -8 + 34.4 * u - 34.4 * u * u;
       pitch = lerp(75, -10, u ** 1.6);
-      roll = lerp(0, 80, u);
     }
-  } else { y = -8 - ease((L - BREACH.air) / 6) * 6; pitch = full ? FULL_BREACH.pitchTo : -10; roll = full ? FULL_BREACH.roll : 80; }
+  } else { y = -8 - ease((L - BREACH.air) / 6) * 6; pitch = full ? FULL_BREACH.pitchTo : -10; }
+  const roll = headRoll(L, full);
+  const twist = roll - headRoll(L - TWIST.lag, full);
   const along = L < 0 ? Math.max(0, L + BREACH.approach) * 0.3 : 2.4 + Math.min(L, 6) * 1.2;
   // 子クジラは体のわりに高く跳ぶ(高さは体の大きさの平方根に合わせる。そのぶん、落ちてくる速さもあまり落ちない)
   const h = Math.sqrt(k);
-  return { y: y * h, pitch, roll, along: along * k };
+  return { y: y * h, pitch, roll, twist, arch: breachArch(L, full), fin: breachFin(L), along: along * k };
 }
 
 // 群れでジャンプ: 2〜5頭が、0.3〜0.8秒ずつずれて次々に跳ぶ。跳び方は2とおり:
@@ -143,4 +204,51 @@ export function groupSpyhopPlan(rng = Math.random) {
   let d = 0;
   for (const i of order) { g[i].delay = d; d += 0.4 + rng() * 0.8; }
   return g;
+}
+
+// 頭の上を跳ぶ(間近のカメラの頭の上を、前から後ろへ跳びこえる)。
+//   ・前から水の中を近づき、カメラの手前 before m で飛び出す。体の中心はカメラの上 peak m を通り、うしろ after m に落ちる
+//   ・空中では、体の向きが飛ぶ向きにそってかわる(上向きに出て、下向きに落ちる)。カメラからは白いおなかと胸びれが見える
+//   ・高さと距離から、飛び出す速さと空中の時間を計算する(重力だけで飛ぶ)
+// side: カメラから右へずらす長さ(m。まうしろへ向きを変えるとき、真上でカメラがくるっと回らないように)
+export const OVERHEAD = Object.freeze({ launch: 9, before: 9, after: 9, peak: 6.5, exitY: -1, side: 3, from: 55, depth: 9 });
+
+// 空中にいる時間(秒)と、飛び出す速さ(前向き・上向き m/秒)
+export function overheadFlight(o = OVERHEAD) {
+  const vy = Math.sqrt(2 * 9.8 * (o.peak - o.exitY));
+  const air = (2 * vy) / 9.8;
+  return { air, vy, vz: (o.before + o.after) / air };
+}
+
+// t 秒目の体の中心(カメラからの前後 z: うしろが +、高さ y)と、頭の上がり(度)・反り・胸びれ。
+// 飛び出す前は、深いところから飛び出す点へ、飛び出すときの速さにつながるようになめらかに近づく(エルミート曲線)
+export function overheadPose(t, o = OVERHEAD) {
+  const { air, vy, vz } = overheadFlight(o);
+  const L = t - o.launch;
+  let z, y, dz, dy;
+  if (L < 0) {
+    const s = Math.max(0, t) / o.launch, T = o.launch;
+    const h00 = 2 * s ** 3 - 3 * s ** 2 + 1, h10 = s ** 3 - 2 * s ** 2 + s, h01 = -2 * s ** 3 + 3 * s ** 2, h11 = s ** 3 - s ** 2;
+    const d00 = (6 * s ** 2 - 6 * s) / T, d10 = (3 * s ** 2 - 4 * s + 1), d01 = (-6 * s ** 2 + 6 * s) / T, d11 = (3 * s ** 2 - 2 * s);
+    const P0 = [-o.from, -o.depth], V0 = [3, 0], P1 = [-o.before, o.exitY], V1 = [vz, vy];
+    z = h00 * P0[0] + h10 * T * V0[0] + h01 * P1[0] + h11 * T * V1[0];
+    y = h00 * P0[1] + h10 * T * V0[1] + h01 * P1[1] + h11 * T * V1[1];
+    dz = d00 * P0[0] + d10 * V0[0] + d01 * P1[0] + d11 * V1[0];
+    dy = d00 * P0[1] + d10 * V0[1] + d01 * P1[1] + d11 * V1[1];
+  } else if (L < air) {
+    z = -o.before + vz * L; y = o.exitY + vy * L - 4.9 * L * L;
+    dz = vz; dy = vy - 9.8 * L;
+  } else {
+    // 落ちたあとは、水の中を前へ進みながら深く潜っていく
+    const k = L - air, slow = Math.exp(-k * 0.5);
+    z = o.after + vz * (1 - slow) / 0.5;
+    y = o.exitY - vy * (1 - Math.exp(-k * 0.8)) / 0.8;
+    dz = vz * slow; dy = -vy * Math.exp(-k * 0.8);
+  }
+  const pitch = Math.atan2(dy, Math.max(0.01, dz)) * 180 / Math.PI;
+  const u = L / air;
+  // 空中では背中をそらせ(いちばん高いところでいちばん)、胸びれを大きく広げる
+  const arch = L < 0 || L > air ? 0.04 * Math.exp(-Math.abs(L < 0 ? L : L - air) * 2) : 0.04 + 0.12 * Math.sin(Math.PI * u);
+  const fin = L < -1.4 ? 0 : L < 0 ? -15 * ease((L + 1.4) / 1.4) : L < air ? lerp(-15, 60, ease(u / 0.3)) - 70 * ease((u - 0.8) / 0.2) : -10 * (1 - ease((L - air) / 2));
+  return { z, y, pitch, arch, fin, air, landed: L >= air };
 }

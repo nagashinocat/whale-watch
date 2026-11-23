@@ -3,6 +3,7 @@ import { createWhales } from './scene/whales.js';
 import { createEffects } from './scene/effects.js';
 import { createFootprints } from './scene/footprints.js';
 import { SPOT } from './scene/cameras.js';
+import { RIPPLE, bubbleBoil } from './logic/ripples.js';
 import { setEyeLight, setWhaleGlow } from './scene/whaleModel.js';
 import { cameraShake } from './logic/behavior.js';
 import { PATTERNS, PATTERN_LABELS, resolvePattern, voiceSound } from './logic/patterns.js';
@@ -109,7 +110,31 @@ let outEl = null;
 let dark = false;      // 真っ暗画面(音を流しっぱなしにして休んでいるので、知らせない)
 let onLanding = true;   // はじめのページを出しているあいだ(スタートを押すまで・しばらく使わなくてもどったとき)
 const effects = createEffects(ocean.scene);
+// 水滴の筋の長さは画面の画素で計算するので、画面の大きさを伝えておく
+const viewSize = () => effects.setViewSize(innerWidth * devicePixelRatio, innerHeight * devicePixelRatio);
+// 水に落ちたところから、海面が波打って輪が広がる(しぶきの勢いで波の高さを決める)
+{
+  const splash = effects.splash.bind(effects), spray = effects.spray.bind(effects);
+  effects.splash = (position, kind = 'small', heading) => {
+    const amp = typeof kind === 'object' ? Math.min(RIPPLE.maxAmp, 1.1 * (kind.strength ?? 0.5)) : kind === 'large' ? 1.3 : 0.25;
+    ocean.addRipple(position[0], position[2], amp);
+    return splash(position, kind, heading);
+  };
+  // 泡がはじけると、まとまった泡が水を持ち上げて、海面がぼこっと波打つ
+  effects.onPop = b => { const amp = bubbleBoil(b.r); if (amp > 0) ocean.addRipple(b.x, b.z, -amp); };
+  // 体が水を押しのけたところ(口を開けて飛び出す・横に倒れこむなど)を波打たせる
+  //(amp がマイナスなら、へこまずにもり上がる)
+  effects.ripple = (position, amp) => ocean.addRipple(position[0], position[2], Math.sign(amp) * Math.min(RIPPLE.maxAmp, Math.abs(amp)));
+  effects.spray = (point, velocity, dt) => {
+    ocean.addRipple(point[0], point[2], Math.min(0.2, 0.015 * Math.max(0, -velocity[1])));
+    return spray(point, velocity, dt);
+  };
+}
+viewSize();
+addEventListener('resize', viewSize);
 ocean.addUpdater(effects.update);
+// 動作確認: 波の輪を手で起こせるように
+if (DEBUG) window.WHALE_OCEAN = ocean;
 // 潜ったクジラの足あと(海面のなめらかな跡)
 const footprints = createFootprints();
 ocean.addSurfaceDecal(footprints.group);
@@ -128,6 +153,8 @@ const whalesReady = createWhales(ocean.scene, {
     const d = Math.hypot(position[0] - c.x, position[1] - c.y, position[2] - c.z);
     ocean.shake(cameraShake(d) * power);
   },
+  // クジラを目で追う(頭の上を跳ぶとき、間近のカメラが見上げてふり返る)
+  look: (point, weight) => ocean.look(point, weight),
   playSound: (name, opts) => playWhaleSound(name, opts),
   // この出方に来るクジラ(図鑑にのっているクジラが、ときどきもう一度来る)。taken は同じ出方ですでに来ているクジラ
   visitor(taken = [], { solo = false } = {}) {

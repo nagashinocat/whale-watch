@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SPECIAL, SOLO_PATTERNS, specialChance, specialMotif, specialBodyColor, FIREWORK_BURSTS } from '../src/logic/specialCoats.js';
-import { population, nextVisitor, bookTotal, individual } from '../src/logic/flukeId.js';
+import { SPECIAL, SOLO_PATTERNS, PAIR_PATTERNS, specialChance, specialMotif, specialBodyColor, FIREWORK_BURSTS } from '../src/logic/specialCoats.js';
+import { population, nextVisitor, bookTotal, individual, partnerOf, comesAsPair } from '../src/logic/flukeId.js';
 import { traitBodyColor, traitsText } from '../src/logic/traits.js';
 import { commentFor } from '../src/logic/zukan.js';
 import { SCHEDULE } from '../src/logic/config.js';
@@ -11,23 +11,45 @@ const seeded = s => () => { s = (s * 16807) % 2147483647; return s / 2147483647;
 const lum = c => 0.3 * c[0] + 0.6 * c[1] + 0.1 * c[2];
 const specials = () => population().filter(i => i.special);
 
-test('とくべつな3頭: 銀河・彗星・花火。図鑑は24頭と合わせて27頭', () => {
+test('とくべつな6頭: 銀河・彗星・花火が、ファンタジー版と宇宙版で2頭ずつ。図鑑は24頭と合わせて30頭', () => {
   const s = specials();
-  assert.deepEqual(s.map(i => i.traits.coat), ['galaxy', 'comet', 'fireworks']);
-  assert.deepEqual(s.map(i => i.id), [25, 26, 27]);
+  assert.deepEqual(s.map(i => i.traits.coat), ['galaxy', 'comet', 'fireworks', 'galaxy', 'comet', 'fireworks']);
+  assert.deepEqual(s.map(i => i.traits.style), ['fantasy', 'fantasy', 'fantasy', 'cosmic', 'cosmic', 'cosmic']);
+  assert.deepEqual(s.map(i => i.id), [25, 26, 27, 28, 29, 30]);
   // 図鑑の分母は、ふつうの24頭に、会えたとくべつな子だけを足していく
   assert.equal(bookTotal(), 24);
   assert.equal(bookTotal([{ id: 3 }, { id: 25, special: true }]), 25);
-  assert.equal(bookTotal(s.map(i => ({ ...i }))), 27);
-  assert.deepEqual(s.map(i => i.name), ['ギンガ', 'ホウキボシ', 'ハナビ']);
+  assert.equal(bookTotal(s.map(i => ({ ...i }))), 30);
+  assert.deepEqual(s.map(i => i.name), ['ギンガ', 'ホウキボシ', 'ハナビ', 'ホシゾラ', 'リュウセイ', 'ボタン']);
   for (const i of s) {
     assert.equal(i.category, 5, '尾びれの裏も真っ黒');
-    assert.ok(traitsText(i)[0].includes('真っ黒'));
+    assert.ok(traitsText(i)[0].includes('夜に光る'));
     assert.ok(commentFor(i).includes('夜に会うと、模様だけが光る'));
     // ほかの個性(傷・フジツボ・背びれの形)はつけない
     assert.deepEqual([i.traits.scars, i.traits.barnacles, i.traits.dorsal, i.traits.fluke], ['normal', 'normal', 'normal', 'normal']);
   }
   assert.ok(population().filter(i => !i.special).every(i => !SPECIAL.coats.includes(i.traits.coat)));
+  // 同じ模様の2頭は、たがいに「つがい」
+  for (const i of s) {
+    const p = individual(partnerOf(i.id));
+    assert.equal(p.traits.coat, i.traits.coat);
+    assert.notEqual(p.traits.style, i.traits.style);
+    assert.equal(partnerOf(p.id), i.id);
+  }
+  assert.equal(partnerOf(3), null);
+});
+
+test('とくべつな子は、ふだんは1頭で来て、たまに、つがいの2頭で来る', () => {
+  const rng = seeded(5);
+  let pairs = 0;
+  const N = 20000;
+  for (let k = 0; k < N; k++) if (comesAsPair(25, rng)) pairs++;
+  assert.ok(Math.abs(pairs / N - SPECIAL.pairChance) < 0.02, `${pairs / N}`);
+  assert.ok(SPECIAL.pairChance > 0 && SPECIAL.pairChance < 0.3, 'ふだんは1頭');
+  assert.equal(comesAsPair(3, () => 0), false, 'ふつうの子は、つがいでは来ない');
+  // つがいで来られる出かた(1頭で来る出かたのうち、カメラのすぐ前に来る「目が合う」以外)
+  assert.ok(PAIR_PATTERNS.every(n => SOLO_PATTERNS.includes(n)));
+  assert.ok(!PAIR_PATTERNS.includes('eyeContact'));
 });
 
 // 体じゅうの点で、模様の光る点の割合と場所を調べる
@@ -50,7 +72,7 @@ test('全身はほぼ真っ黒で、模様のところだけが色づいて光�
     assert.ok(lit.length / n > 0.01 && lit.length / n < 0.35, `${coat}: 光るところ ${(lit.length / n).toFixed(3)}`);
   }
   // おなかの白も、なくなる(ふつうのクジラのおなかは白い)
-  const galaxy = specials()[0];
+  const galaxy = specials()[0];   // 計算で作るクジラ(モデルを読みこめないとき)の模様
   assert.ok(lum(traitBodyColor(galaxy, 0.3, Math.PI, [0.9, 0.9, 0.9])) < 0.1);
 });
 
@@ -83,7 +105,7 @@ test('とくべつな子は、1頭で来る出かたのときだけ来る(群れ
     if (ids.has(nextVisitor({}, rng))) group++;
   }
   assert.equal(group, 0);
-  const expect = 60000 * 3 * specialChance();
+  const expect = 60000 * 6 * specialChance();
   assert.ok(Math.abs(solo - expect) < expect * 0.25, `${solo} / ${expect.toFixed(0)}`);
   // 1頭で来る出かたは、ほんとうに1頭(図鑑にのるおとなが1頭だけ)の出かた
   for (const n of ['pod', 'groupBreach', 'groupSpyhop', 'bubbleNet', 'motherCalf', 'calfBreach', 'voice', 'sleeping']) assert.ok(!SOLO_PATTERNS.includes(n));

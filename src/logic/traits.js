@@ -65,9 +65,16 @@ export function traitsText(ind) {
   const t = ind.traits ?? {};
   const out = [];
   if (t.coat === 'white') out.push(tr({ ja: '全身が真っ白(とてもめずらしい)', en: 'Pure white all over (extremely rare)' }));
-  if (t.coat === 'galaxy') out.push(tr({ ja: '全身が真っ黒で、わき腹に銀河のうずと星(夜に光る)', en: 'Jet black, with spiral galaxies and stars on its sides (they glow at night)' }));
-  if (t.coat === 'comet') out.push(tr({ ja: '全身が真っ黒で、両わきに尾を引く彗星(夜に光る)', en: 'Jet black, with a comet streaking down each side (it glows at night)' }));
-  if (t.coat === 'fireworks') out.push(tr({ ja: '全身が真っ黒で、体じゅうに打ち上げ花火(夜に光る)', en: 'Jet black, covered in bursting fireworks (they glow at night)' }));
+  const cosmic = t.style === 'cosmic';
+  if (t.coat === 'galaxy') out.push(cosmic
+    ? tr({ ja: '紫の夜空のような体に、星のかけらが散らばっている(夜に光る)', en: 'A body like a violet night sky, scattered with shards of starlight (they glow at night)' })
+    : tr({ ja: '体じゅうに、色とりどりの星がちりばめられている(夜に光る)', en: 'Studded all over with stars of every color (they glow at night)' }));
+  if (t.coat === 'comet') out.push(cosmic
+    ? tr({ ja: 'わき腹に、すっと尾を引く彗星(夜に光る)', en: 'A comet trailing a clean tail along each side (it glows at night)' })
+    : tr({ ja: 'わき腹に、光の粒をまきながら尾を引く彗星(夜に光る)', en: 'A comet scattering sparks as it streaks along each side (it glows at night)' }));
+  if (t.coat === 'fireworks') out.push(cosmic
+    ? tr({ ja: '体のあちこちに、小さな花火がぽつぽつと開く(夜に光る)', en: 'Little fireworks blooming here and there across the body (they glow at night)' })
+    : tr({ ja: '体じゅうに、色とりどりの打ち上げ花火(夜に光る)', en: 'Covered in bursting fireworks of every color (they glow at night)' }));
   if (t.coat === 'dark') out.push(tr({ ja: 'おなかまで黒い', en: 'Dark even on the belly' }));
   if (t.coat === 'pale') out.push(tr({ ja: 'おなかの白がわき腹まで広い', en: 'White belly reaching far up the sides' }));
   if (t.pec === 'darkTop') out.push(tr({ ja: '胸びれの表が黒い', en: 'Dark upper side of the flippers' }));
@@ -87,9 +94,10 @@ export function traitWord(ind) {
   const t = ind.traits ?? {};
   const w = (ja, en) => tr({ ja, en });
   if (t.coat === 'white') return w('ユキ', 'Snow');
-  if (t.coat === 'galaxy') return w('ギンガ', 'Galaxy');
-  if (t.coat === 'comet') return w('ホウキボシ', 'Comet');
-  if (t.coat === 'fireworks') return w('ハナビ', 'Firework');
+  const cosmic = t.style === 'cosmic';
+  if (t.coat === 'galaxy') return cosmic ? w('ホシゾラ', 'Starry') : w('ギンガ', 'Galaxy');
+  if (t.coat === 'comet') return cosmic ? w('リュウセイ', 'Meteor') : w('ホウキボシ', 'Comet');
+  if (t.coat === 'fireworks') return cosmic ? w('ボタン', 'Peony') : w('ハナビ', 'Firework');
   if (t.scars === 'propeller') return w('キズ', 'Scar');
   if (t.fluke === 'bite') return w('カケオ', 'Notch');
   return { hook: w('カギ', 'Hook'), knob: w('コブ', 'Knob'), nick: w('ハカケ', 'Chip') }[t.dorsal]
@@ -176,9 +184,11 @@ export function traitFinColor(ind, s, top, c) {
 }
 
 // 尾びれのうしろのふちの欠けの深さ(体長1)。s は尾びれの左 -1 〜 右 1
+// 尾びれの欠けの深さ(体長に対する割合)と、左右の広がり(尾びれの左右の位置 s で)
+export const FLUKE_BITE = Object.freeze({ depth: 0.03, width: 0.07 });
 export function flukeBite(ind, s) {
   if (ind.traits?.fluke !== 'bite') return 0;
-  return 0.03 * bump(s, ind.traits.bitePlace, 0.07);
+  return FLUKE_BITE.depth * bump(s, ind.traits.bitePlace, FLUKE_BITE.width);
 }
 
 // 尾びれの裏の色に個性を重ねる(白さ w を受けとって返す)

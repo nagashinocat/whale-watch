@@ -19,8 +19,8 @@ export const IMPACT = Object.freeze({
   // くらべる基準: 14mのおとなが秒速7mで横倒しに落ちる(約28トン → 約0.7メガジュール)
   refEnergy: 0.5 * 28500 * 7 * 7,
   maxCrown: 14,                // 王冠のいちばん高いところ(m)
-  particles: 5200,             // 基準の強さのときの粒の数(全部で)
-  maxParticles: 6500,          // 1回の水しぶきで使う粒の上限(スマホで重くならないように)
+  particles: 7500,             // 基準の強さのときの粒の数(全部で)。重い体が押しのける水の量を見せるため多め
+  maxParticles: 9000,          // 1回の水しぶきで使う粒の上限(スマホで重くならないように)
 });
 
 // 体の重さ(kg)。図鑑と同じ式(15mで35トン、体長の3乗に比例)
@@ -45,14 +45,14 @@ export function impactSplash({ mass, speed, length, width, surface = 'body' }) {
     energy, strength, crownHeight,
     length: length + 1.5, width: width * 1.6 + 1,
     outward: 0.32 * sheet,
-    crown: Math.round(total * 0.36), droplets: Math.round(total * 0.3), mist: Math.round(total * (column ? 0.22 : 0.34)),
-    column: column ? Math.round(total * 0.12) : 0, columnHeight: crownHeight * 0.75,
+    crown: Math.round(total * 0.36), droplets: Math.round(total * 0.3), mist: Math.round(total * (column ? 0.2 : 0.34)),
+    column: column ? Math.round(total * 0.14) : 0, columnHeight: crownHeight * 0.9,
     // 穴がふさがるまでの時間(穴の深さ ≒ 幅 のところから、水が落ちこむ時間)
     columnDelay: 0.35 + Math.sqrt((2 * Math.max(1, width)) / G),
-    mistHeight: Math.min(6, crownHeight * 0.5),
-    dropSize: 0.25 + 0.35 * Math.min(1.5, strength),
+    mistHeight: Math.min(8, crownHeight * 0.65),
+    dropSize: 0.3 + 0.42 * Math.min(1.5, strength),
     waveSpeed: Math.sqrt((G * wavelength) / (2 * Math.PI)),
-    foamRadius: Math.max(1.5, 0.45 * length * Math.min(1.3, 0.6 + 0.4 * strength)),
+    foamRadius: Math.max(1.5, 0.55 * length * Math.min(1.3, 0.6 + 0.4 * strength)),
     foamMs: 6000 + 22000 * Math.min(1.4, strength),
     shake: Math.min(1, strength),
   };

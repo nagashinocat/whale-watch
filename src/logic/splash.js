@@ -10,6 +10,11 @@
 
 const G = 9.8;
 
+// 粒の種類(描き方がちがう)。drop: 水滴(小さく、くっきり、速いと筋になる) / sheet: 水の膜や柱(すけて、ふちがちぎれる)
+// mist: 霧(ぼんやり、うすい) / foam: 海面の白い泡(レースのような模様が、だんだんとけて消える)
+export const PARTICLE = Object.freeze({ drop: 0, sheet: 1, mist: 2, foam: 3 });
+const KIND = { crown: PARTICLE.sheet, droplets: PARTICLE.drop, mist: PARTICLE.mist, column: PARTICLE.sheet };
+
 // length / width: 水しぶきの輪の長さと幅(m)。ジャンプの着水は横倒しなので、体の長さに沿って細長い
 // crownHeight: 水の膜が上がる高さ(m)
 export const SPLASH = Object.freeze({
@@ -65,7 +70,7 @@ export function splashParticles(kind, center, heading, rng = Math.random) {
     const vy = Math.sqrt(2 * G * h);
     const o = s.outward * r(0.7, 1.3);
     out.push({
-      part: 'crown', p: [q.x, center[1] + 0.1, q.z], v: [q.ox * o, vy, q.oz * o],
+      part: 'crown', kind: KIND.crown, p: [q.x, center[1] + 0.1, q.z], v: [q.ox * o, vy, q.oz * o],
       delay: r(0, 0.25), life: (2 * vy) / G + 0.2, size: big * r(1.0, 1.8),
       alpha: 0.9, gravity: G, wind: 0, grow: 1.3,
     });
@@ -76,7 +81,7 @@ export function splashParticles(kind, center, heading, rng = Math.random) {
     const q = ring(r(1.1, 1.4));
     const o = s.outward * r(0.9, 2.0);
     out.push({
-      part: 'droplets', p: [q.x, center[1] + s.crownHeight * r(0.3, 0.85), q.z], v: [q.ox * o, r(0, 3), q.oz * o],
+      part: 'droplets', kind: KIND.droplets, p: [q.x, center[1] + s.crownHeight * r(0.3, 0.85), q.z], v: [q.ox * o, r(0, 3), q.oz * o],
       delay: r(0.35, 0.9), life: r(1.6, 2.6) * Math.max(1, Math.sqrt(s.crownHeight / 6)), size: big * r(0.35, 0.7),
       alpha: 0.85, gravity: G, wind: 0, grow: 1,
     });
@@ -87,7 +92,7 @@ export function splashParticles(kind, center, heading, rng = Math.random) {
     const q = ring(r(0.8, 1.3));
     const o = s.outward * r(0.3, 1.1);
     out.push({
-      part: 'mist', p: [q.x, center[1] + s.mistHeight * r(0.2, 1), q.z], v: [q.ox * o, r(1, 3), q.oz * o],
+      part: 'mist', kind: KIND.mist, p: [q.x, center[1] + s.mistHeight * r(0.2, 1), q.z], v: [q.ox * o, r(1, 3), q.oz * o],
       delay: r(0.1, 0.8), life: r(4, 6.5), size: big * r(0.9, 1.5),
       alpha: 0.2, gravity: 2, wind: 1.6, grow: 2.2,
     });
@@ -99,9 +104,37 @@ export function splashParticles(kind, center, heading, rng = Math.random) {
     const h = s.columnHeight * r(0.55, 1.05);
     const vy = Math.sqrt(2 * G * h);
     out.push({
-      part: 'column', p: [q.x, center[1] + 0.2, q.z], v: [q.ox * r(0, 1.2), vy, q.oz * r(0, 1.2)],
+      part: 'column', kind: KIND.column, p: [q.x, center[1] + 0.2, q.z], v: [q.ox * r(0, 1.2), vy, q.oz * r(0, 1.2)],
       delay: s.columnDelay + r(0, 0.35), life: (2 * vy) / G + 0.4, size: big * r(0.8, 1.5),
       alpha: 0.85, gravity: G, wind: 0.3, grow: 1.6,
+    });
+  }
+  return out;
+}
+
+// 体の一部が水面を割って飛びこむときのしぶき(1こまぶん)。point: 水面を割ったところ / vel: その点の速さ(m/秒)
+// 水に入る速さ(下向き)が大きいほど、多く、高く上がる。水は進む向きに押されて、前と横へ扇のように広がる
+// (水面に斜めに入る板(尾びれや胸びれ)の、しぶきの研究の考え方を、ざっくりまねたもの)
+export const ENTRY = Object.freeze({ minSpeed: 1.5, perSpeed: 9, max: 60, rise: 0.55, spread: 0.9 });
+export function entrySpray(point, vel, dt, rng = Math.random) {
+  const down = -vel[1];
+  if (down < ENTRY.minSpeed) return [];
+  const r = (a, b) => a + rng() * (b - a);
+  const horiz = Math.hypot(vel[0], vel[2]);
+  const fx = horiz > 0.3 ? vel[0] / horiz : 0, fz = horiz > 0.3 ? vel[2] / horiz : 0;
+  const n = Math.min(ENTRY.max, Math.round((down - ENTRY.minSpeed + 1) * ENTRY.perSpeed * dt * 60 * 0.4 + rng()));
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    // 前へ寄った扇(進む向きがないときは、まわり全部)
+    const a = (horiz > 0.3 ? Math.atan2(fz, fx) : rng() * Math.PI * 2) + (rng() - 0.5) * 2 * ENTRY.spread * (horiz > 0.3 ? 1 : Math.PI);
+    const out_ = r(0.4, 1.0) * (down * 0.45 + horiz * 0.5);
+    const up = down * ENTRY.rise * r(0.5, 1.15);
+    const kind = rng() < 0.6 ? PARTICLE.drop : rng() < 0.7 ? PARTICLE.sheet : PARTICLE.mist;
+    out.push({
+      part: 'entry', kind, p: [point[0] + r(-0.3, 0.3), 0.05, point[2] + r(-0.3, 0.3)],
+      v: [Math.cos(a) * out_, up, Math.sin(a) * out_],
+      delay: r(0, 0.05), life: (2 * up) / G + r(0.2, 0.6), size: kind === PARTICLE.drop ? r(0.18, 0.4) : r(0.6, 1.2),
+      alpha: kind === PARTICLE.mist ? 0.25 : 0.85, gravity: kind === PARTICLE.mist ? 2 : G, wind: kind === PARTICLE.mist ? 1.2 : 0, grow: kind === PARTICLE.drop ? 1 : 1.6,
     });
   }
   return out;

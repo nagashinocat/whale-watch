@@ -140,15 +140,15 @@ export function population() {
       if (target) target.traits[key] = v;
     }
   }
-  // とくべつな3頭(全身真っ黒に、銀河・彗星・花火の模様)。ほかの個性はつけない
-  SPECIAL.coats.forEach((coat, k) => {
-    const ind = makeIndividual(SPECIAL.firstId + k);
-    ind.traits = { ...ind.traits, coat, pec: 'normal', dorsal: 'normal', fluke: 'normal', scars: 'normal', barnacles: 'normal', size: 'normal' };
+  // とくべつな6頭(銀河・彗星・花火の模様が、ファンタジー版と宇宙版で2頭ずつ)。ほかの個性はつけない
+  SPECIAL.styles.forEach((style, j) => SPECIAL.coats.forEach((coat, k) => {
+    const ind = makeIndividual(SPECIAL.firstId + j * SPECIAL.coats.length + k);
+    ind.traits = { ...ind.traits, coat, style, pec: 'normal', dorsal: 'normal', fluke: 'normal', scars: 'normal', barnacles: 'normal', size: 'normal' };
     ind.category = 5;   // 尾びれの裏も真っ黒
     ind.scars = []; ind.spots = [];
     ind.special = true;
     list.push(ind);
-  });
+  }));
   const used = {};
   for (const ind of list) {
     ind.baseName = autoName(ind);
@@ -158,6 +158,16 @@ export function population() {
   cache = { lang: lang(), list };
   return list;
 }
+
+// つがいの相手(同じ模様の、もう1つの姿の子)。とくべつな子でなければ null
+export function partnerOf(id) {
+  const me = individual(id);
+  if (!me?.special) return null;
+  return population().find(i => i.special && i.id !== id && i.traits.coat === me.traits.coat)?.id ?? null;
+}
+
+// とくべつな子が、つがいの2頭で来るか(たまに)
+export const comesAsPair = (id, rng = Math.random) => partnerOf(id) !== null && rng() < SPECIAL.pairChance;
 
 // 図鑑の分母: ふつうの24頭に、会えたとくべつな子の数を足す(会うまでは、いることもひみつ)。
 // met は図鑑にのっているクジラの一覧(bookEntries)

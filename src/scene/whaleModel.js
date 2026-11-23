@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { buildWhaleGeometry, SWIM, strokesPerSecond, WHALE_SPECS, jawHinge, JAW_MOVE, POUCH_SWELL, POUCH_SIDEWAYS, ENGULF, BODY_GRID, ringU, aroundTheta, bodyPoint, flukeOutline } from '../logic/whaleShape.js';
-import { traitBodyColor, traitFinColor, flukeBite } from '../logic/traits.js';
+import { traitBodyColor, traitFinColor, flukeBite, FLUKE_BITE } from '../logic/traits.js';
 import { specialMotif } from '../logic/specialCoats.js';
 import { buildFeatures } from '../logic/features3d.js';
 import { eyePatch, applyLid, eyeballPlacement, blinkOpen, EYE } from '../logic/eyeShape.js';
 import { flukeWhiteness } from '../logic/flukeId.js';
+import { MODEL, modelLayout, individualColors, specialAssets, eyeSpots, modelPouch, smoothOverMesh, shapeForIndividual, flukeEdge, finFlap, toLinear as modelLinear } from '../logic/whaleModelLayout.js';
 
 // 目の玉に映る空と海の色(時刻で変わる。setEyeLight で変える)
 const eyeUniforms = {
@@ -33,6 +34,11 @@ export function setEyeLight(palette) {
 // 目の玉。茶色の虹彩、そのまわりの白っぽい輪、明るいとU字になるひとみ。
 // 表面はぬれてつやがあり、空と海が映りこむ
 let eyeballMaterial = null;
+let eyeSocketMaterial = null;
+function socketMaterial() {
+  eyeSocketMaterial ??= new THREE.MeshStandardMaterial({ color: 0x0b0707, roughness: 0.9, metalness: 0 });
+  return eyeSocketMaterial;
+}
 function eyeMaterial() {
   if (eyeballMaterial) return eyeballMaterial;
   const m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.25, clearcoat: 1, clearcoatRoughness: 0.03 });
@@ -281,6 +287,352 @@ function featuresFor(kind, ind) {
   return geo;
 }
 
+// ---- 3Dモデルのザトウクジラ(assets/models/humpback.glb) ----
+// 読みこめたら、ザトウクジラはこのモデルで出す(読みこめないときは、これまでの計算で作ったクジラ)。
+// 泳ぐしなり・あごの動き・夜に光る模様は、これまでと同じ描き方(シェーダー)にのせる。
+let model = null;
+let modelLoading = null;
+export function loadWhaleModel() {
+  if (!modelLoading) modelLoading = (async () => {
+    const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+    const gltf = await new GLTFLoader().loadAsync(MODEL.url);
+    let src = null, mouth = null;
+    gltf.scene.traverse(o => { if (o.isMesh) { if (o.name === 'mouth') mouth = o; else src = o; } });
+    const geo = src.geometry;
+    const layout = modelLayout(geo.attributes.position.array, geo.attributes.normal.array);
+    const eyes = eyeSpots(geo.attributes.position.array, geo.attributes.normal.array);
+    // あごの重み(口の線で切ったときに決めてある)に、のどのふくらみを足す
+    const jaw = Float32Array.from(geo.attributes._jaw.array);
+    // ふくらみの重みは、網目でとなりとなじませる(段々や、胸びれのつけ根の裂け目が出ないように)
+    const P = geo.attributes.position.array, IX = geo.index.array;
+    const rawPouch = modelPouch(layout);
+    const pouch = smoothOverMesh(rawPouch, P, IX, 3);
+    // なじませると山が少し低くなるので、もとのいちばん大きいふくらみにそろえる
+    const peak = rawPouch.reduce((m, v) => Math.max(m, v), 0) / Math.max(1e-6, pouch.reduce((m, v) => Math.max(m, v), 0));
+    for (let i = 0; i < pouch.length; i++) pouch[i] = Math.min(1, pouch[i] * peak);
+    // 畝の筋を描く角度も、となりとなじませる(筋がぎざぎざに折れないように)
+    const sn = smoothOverMesh(layout.theta.map(Math.sin), P, IX, 2), cs = smoothOverMesh(layout.theta.map(Math.cos), P, IX, 2);
+    const theta = new Float32Array(sn.length);
+    for (let i = 0; i < theta.length; i++) theta[i] = (Math.atan2(sn[i], cs[i]) + Math.PI * 2) % (Math.PI * 2);
+    for (let i = 0; i < pouch.length; i++) jaw[i * 4 + 2] = pouch[i];
+    // 口の中: あごの重みを aJaw に
+    const mouthGeo = mouth.geometry;
+    mouthGeo.setAttribute('aJaw', mouthGeo.attributes._jaw);
+    mouthGeo.setAttribute('aM', mouthGeo.attributes._m);
+    mouthGeo.computeVertexNormals();
+    const m = src.material;
+    model = {
+      geo, layout, eyes, mouthGeo,
+      maps: { map: m.map, normalMap: m.normalMap, roughnessMap: m.roughnessMap },
+      jaw: new THREE.BufferAttribute(jaw, 4),
+      lid: geo.attributes._lid,
+      theta: new THREE.BufferAttribute(theta, 1),
+      fin: finFlap(geo.attributes.position.array, layout),
+      eyeSkin: geo.attributes._eyeskin.array,
+      specials: {},
+    };
+    return model;
+  })().catch(err => { console.warn('クジラのモデルを読みこめませんでした。計算で作ったクジラを使います', err); return null; });
+  return modelLoading;
+}
+export const whaleModelReady = () => !!model;
+
+// とくべつな子の素材(模様の画像・頂点の色・光るところの画像)。はじめて出るときに読みこむ
+function specialLook(coat, style) {
+  const key = `${coat}-${style}`;
+  if (model.specials[key]) return model.specials[key];
+  const a = specialAssets(coat, style);
+  const look = { texture: null, colors: null, glow: null, kind: a.texture ? 'texture' : 'colors', waiting: [] };
+  const ready = () => { for (const fn of look.waiting.splice(0)) fn(); };
+  if (a.texture) {
+    look.texture = new THREE.TextureLoader().load(a.texture);
+    look.texture.colorSpace = THREE.SRGBColorSpace;
+    look.texture.flipY = false;   // glTF のテクスチャと同じ向き
+    if (a.glow) {
+      look.glow = new THREE.TextureLoader().load(a.glow);
+      look.glow.colorSpace = THREE.SRGBColorSpace;
+      look.glow.flipY = false;
+    }
+  } else {
+    fetch(a.colors).then(r => r.arrayBuffer()).then(buf => {
+      const rgb = new Uint8Array(buf);
+      const lin = new Float32Array(rgb.length);
+      for (let i = 0; i < rgb.length; i++) lin[i] = modelLinear(rgb[i] / 255);
+      look.colors = lin;
+      ready();
+    }).catch(() => {});
+  }
+  model.specials[key] = look;
+  return look;
+}
+
+// 体のねじれ: 頭(胸びれより前)はそのまま、そこから尾へ向かって、体の軸のまわりに -uTwist まで回す。
+// 体全体の倒れは頭の向きに合わせてあるので、尾がおくれてついてくるように見える
+const TWIST_GLSL = `
+        uniform float uTwist;
+        float twistW(float z) { return smoothstep(-0.15, 0.5, z); }
+        vec3 twistP(vec3 p, float z) { float a = -uTwist * twistW(z), c = cos(a), s = sin(a); return vec3(p.x * c - p.y * s, p.x * s + p.y * c, p.z); }
+        // 体の反り: 頭(胸びれより前)はそのまま、そこから尾へ向かって背中側へ弓なりに曲げる。尾の先で uArch(体長の割合)
+        uniform float uArch;
+        float archS(float z) { return max(0.0, z + 0.15); }
+        float archY(float z) { float s = archS(z); return uArch * s * s / 0.4225; }
+        float archSlope(float z) { return uArch * 2.0 * archS(z) / 0.4225; }`;
+
+// 口の中の模様(計算で描く)。aM = [場所の種類, 前後(口先 0 〜 口の端 1), 横または上下(0〜1)]
+//   1 天井: まん中にピンクの盛り上がり(上あごの骨のすじ)、左右はひげ板のつけ根で黒い
+//   2 ひげ板: つけ根は黒く、先へいくほど茶色い毛(ふさ)になって、ばらばらにほつれる
+//   3 舌と口の底: ピンクに、まだらと、しわ
+//   4 のどの奥: 暗い赤
+function mouthDetail(shader) {
+  shader.vertexShader = shader.vertexShader
+    .replace('#include <common>', '#include <common>\nattribute vec3 aM;\nvarying vec3 vM;')
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvM = aM;');
+  shader.fragmentShader = shader.fragmentShader
+    .replace('#include <common>', `#include <common>
+      varying vec3 vM;
+      float mh(float x) { return fract(sin(x * 127.1) * 43758.5453); }
+      float mn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+        float a = mh(i.x + i.y * 57.0), b = mh(i.x + 1.0 + i.y * 57.0), c = mh(i.x + (i.y + 1.0) * 57.0), d = mh(i.x + 1.0 + (i.y + 1.0) * 57.0);
+        return mix(mix(a, b, f.x), mix(c, d, f.x), f.y); }`)
+    .replace('#include <color_fragment>', `#include <color_fragment>
+      {
+        float region = floor(vM.x + 0.5), s = vM.y, t = vM.z;
+        vec3 col = diffuseColor.rgb;
+        if (region == 1.0) {
+          float keel = 1.0 - smoothstep(0.08, 0.32, abs(t - 0.5));
+          col = mix(vec3(0.02, 0.016, 0.014), vec3(0.50, 0.17, 0.17), keel);
+          col *= 0.8 + 0.4 * mn(vec2(s * 40.0, t * 12.0));
+        } else if (region == 2.0) {
+          // 板1枚ずつの筋と、毛のほつれ
+          float plate = 0.6 + 0.4 * smoothstep(0.2, 0.8, mn(vec2(s * 420.0, t * 2.0)));
+          float hair = mn(vec2(s * 900.0 + t * 40.0, t * 18.0));
+          float fringe = smoothstep(0.25, 0.95, t);
+          vec3 root = vec3(0.012, 0.010, 0.009), tuft = vec3(0.20, 0.12, 0.065);
+          col = mix(root, tuft * (0.55 + 0.75 * hair), fringe) * plate;
+          if (t > 0.85 && hair < (t - 0.85) * 5.0) discard;   // 先は毛がほつれて、すきまがある
+        } else if (region == 3.0) {
+          float m = mn(vec2(s * 30.0, t * 20.0)), w = mn(vec2(s * 120.0, t * 6.0));
+          float center = 1.0 - smoothstep(0.1, 0.48, abs(t - 0.5));
+          // 舌のまん中のくぼみと、前後にのびるしわ。ふちの歯ぐきは暗い
+          float groove = 1.0 - 0.25 * (1.0 - smoothstep(0.0, 0.06, abs(t - 0.5)));
+          float folds = 0.94 + 0.06 * sin(t * 38.0 + sin(s * 9.0) * 2.5 + m * 3.0);
+          col = mix(vec3(0.14, 0.06, 0.06), vec3(0.55, 0.22, 0.21), center) * (0.8 + 0.3 * m) * (0.9 + 0.15 * w) * groove * folds;
+        } else if (region == 4.0) {
+          col = vec3(0.05, 0.012, 0.012) * (0.7 + 0.5 * mn(vec2(s * 10.0, t * 10.0)));
+        }
+        diffuseColor.rgb = col;
+      }`);
+}
+
+// モデルの目(左右)。モデルの目のくぼみに、これまでと同じ目の玉(空と海が映る、明るいとひとみがU字)をはめ、
+// 上まぶたを、目の玉にかぶさる殻にして、前へ回して閉じる(まばたき)
+function createModelEyes(parent, individual, uniforms) {
+  const r = MODEL.eye.radius;
+  const eyes = model.eyes.map(({ point, normal }) => {
+    const out = new THREE.Vector3(...normal);
+    const up = new THREE.Vector3(0, 1, 0).addScaledVector(out, -out.y).normalize();
+    const side = new THREE.Vector3().crossVectors(up, out);
+    const pivot = new THREE.Group();
+    pivot.position.fromArray(point).addScaledVector(out, -r * 1.05);   // 目の玉は、目の開きから少しだけのぞく
+    pivot.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, out));
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(r, 48, 32), eyeMaterial());
+    pivot.add(ball);
+    // 目のくぼみ: 目の玉のうしろを暗い肉でふさぐ(すき間から頭の中=口の中のひげ板などが透けて見えないように)
+    const socket = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 16), socketMaterial());
+    socket.scale.set(2.6, 2.4, 1.6);      // 目の開きは横に長いので、くぼみも横に広く(まぶたのつぎ目のすき間もふさぐ)
+    socket.position.z = -r * 1.3;         // 白目は見えるように、目の玉の前のほうは出しておく
+    pivot.add(socket);
+    parent.add(pivot);
+    return { ball };
+  });
+  let blinking = false, blinkT = 0, nextBlink = 4 + Math.random() * 6;
+  let baseOpen = EYE.relaxedOpen;
+  const look = { x: 0, y: 0, tx: 0, ty: 0, next: 1 };
+  // まぶたは体の肌そのもの。閉じぐあいをシェーダーに渡す(0 で開き、1 で閉じる)
+  const setOpen = open => { uniforms.uLid.value = 1 - open; };
+  setOpen(baseOpen);
+  return {
+    alive: false,
+    setBaseOpen(v) { baseOpen = v; if (!this.alive) setOpen(v); },
+    update(dt) {
+      if (!this.alive) return;
+      nextBlink -= dt;
+      if (!blinking && nextBlink <= 0) { blinking = true; blinkT = 0; }
+      if (blinking) {
+        blinkT += dt;
+        if (blinkT > 1.2) { blinking = false; nextBlink = 5 + Math.random() * 7; }
+      }
+      setOpen(blinking ? blinkOpen(blinkT, baseOpen) : baseOpen);
+      look.next -= dt;
+      if (look.next <= 0) {
+        look.tx = (Math.random() - 0.5) * 0.12; look.ty = (Math.random() - 0.5) * 0.08;
+        look.next = 1.5 + Math.random() * 2.5;
+      }
+      const k = 1 - Math.exp(-dt * 8);
+      look.x += (look.tx - look.x) * k; look.y += (look.ty - look.y) * k;
+      for (const e of eyes) e.ball.rotation.set(-look.y, look.x, 0);
+    },
+  };
+}
+
+// 1頭ぶんの網目(形は使い回し、色だけその子のもの)
+const modelGeometries = new Map();
+function modelGeometryFor(ind) {
+  const key = ind ? `${ind.id}` : 'plain';
+  if (modelGeometries.has(key)) return modelGeometries.get(key);
+  const g = new THREE.BufferGeometry();
+  for (const name of ['position', 'normal', 'uv']) g.setAttribute(name, model.geo.attributes[name]);
+  g.setIndex(model.geo.index);
+  // 背びれ・尾びれの形の個性があれば、その子だけ形を変える(向き=法線はそのまま使う。変わる量が小さいので)
+  const shaped = ind ? shapeForIndividual(model.geo.attributes.position.array, model.layout, ind) : null;
+  if (shaped) g.setAttribute('position', new THREE.BufferAttribute(shaped, 3));
+  g.setAttribute('aJaw', model.jaw);
+  g.setAttribute('aLid', model.lid);
+  g.setAttribute('aTheta', model.theta);   // 体のまわりの角度(のどの畝の筋を描くため)
+  g.setAttribute('aFin', model.finAttr ??= new THREE.BufferAttribute(model.fin.weight, 1));   // 胸びれの重み(胸びれを動かすため)
+  // 尾びれのうしろのふちの欠け: ふちまでの長さを持たせて、欠けの中をけずる(useModelLook)
+  if (ind?.traits?.fluke === 'bite') g.setAttribute('aFluke', new THREE.BufferAttribute(flukeEdge(model.geo.attributes.position.array, model.layout), 2));
+  const n = model.geo.attributes.position.count;
+  let color, mix, base;
+  if (ind && !ind.special) ({ color, mix, base } = individualColors(ind, model.layout));
+  else { color = new Float32Array(n * 3).fill(1); mix = new Float32Array(n); base = new Float32Array(n).fill(1); }
+  // まぶたの網目: 色は頂点ごとに写しとったもの(真っ白な子は、その子の色のまま)
+  const skin = model.eyeSkin;
+  if (ind?.traits?.coat !== 'white') {
+    for (let i = 0; i < n; i++) {
+      if (skin[i * 4 + 3] <= 0) continue;
+      color[i * 3] = skin[i * 4]; color[i * 3 + 1] = skin[i * 4 + 1]; color[i * 3 + 2] = skin[i * 4 + 2];
+      mix[i] = 1; base[i] = skin[i * 4 + 3];
+    }
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(color, 3));
+  g.setAttribute('aMix', new THREE.BufferAttribute(mix, 1));
+  g.setAttribute('aBase', new THREE.BufferAttribute(base, 1));
+  g.boundingSphere = model.geo.boundingSphere;
+  modelGeometries.set(key, g);
+  return g;
+}
+
+// 宇宙版のとくべつな子: 頂点の色が届いたら、その子の網目に入れる
+function cosmicGeometry(ind, look) {
+  const key = `${ind.id}-cosmic`;
+  if (modelGeometries.has(key)) return modelGeometries.get(key);
+  const g = modelGeometryFor(null).clone();
+  const n = g.attributes.position.count;
+  g.setAttribute('aMix', new THREE.BufferAttribute(new Float32Array(n).fill(1), 1));
+  g.setAttribute('aBase', new THREE.BufferAttribute(new Float32Array(n).fill(0.03), 1));
+  const apply = () => g.setAttribute('color', new THREE.BufferAttribute(look.colors, 3));
+  if (look.colors) apply(); else look.waiting.push(apply);
+  modelGeometries.set(key, g);
+  return g;
+}
+
+// これまでのクジラの描き方(material)に、モデルのテクスチャと、その子の色と、夜の光をのせる
+function useModelLook(material, ind, uniforms) {
+  const special = !!ind?.special;
+  const look = special ? specialLook(ind.traits.coat, ind.traits.style ?? 'fantasy') : null;
+  // fantasy: 模様の画像 / cosmic: 頂点の色 / real: ふつうのテクスチャ(彗星の子は、体はふつう)
+  // fantasy: 模様の画像 / cosmic: 頂点の色 / real: ふつうのテクスチャ。光るところの画像があれば、その形に光る
+  const style = !look ? 'real' : look.kind === 'texture' ? 'fantasy' : 'cosmic';
+  const glowMap = look?.glow ?? null;
+  material.map = style === 'fantasy' ? look.texture : model.maps.map;
+  material.normalMap = model.maps.normalMap;
+  material.roughnessMap = model.maps.roughnessMap;
+  material.roughness = 0.85;
+  const bite = ind?.traits?.fluke === 'bite';
+  const prev = material.onBeforeCompile;
+  material.onBeforeCompile = shader => {
+    prev(shader);
+    shader.uniforms.uGlow = GLOW.uGlow;
+    shader.uniforms.uGlowTime = GLOW.uGlowTime;
+    shader.uniforms.uLid = uniforms.uLid;
+    if (glowMap) shader.uniforms.uGlowMap = { value: glowMap };
+    if (bite) shader.uniforms.uBite = { value: new THREE.Vector2(ind.traits.bitePlace, FLUKE_BITE.depth) };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+        attribute float aMix;
+        attribute float aBase;
+        attribute vec3 aLid;
+        uniform float uLid;
+        varying float vMix;
+        varying float vBase;${bite ? '\n        attribute vec2 aFluke;\n        varying vec2 vFluke;' : ''}`)
+      // まぶた: 閉じぐあい uLid(0 で開き、1 で閉じる)だけ、まぶたの肌を動かす
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        transformed += uLid * aLid;
+        vMix = aMix; vBase = aBase;
+        vLocal = position; vTheta = aTheta;${bite ? '\n        vFluke = aFluke;' : ''}`)
+      .replace('varying float vMix;', 'varying float vMix;\n        attribute float aTheta;\n        varying float vTheta;\n        varying vec3 vLocal;\n        varying float vStretch;')
+      // ふくらんだのどは、畝の細かいでこぼこがのびて平らになる: 面の向きを、ふくらむ向きへ寄せる
+      .replace('vJaw = aJaw;', `vJaw = aJaw;
+        if (uPouch > 0.0 && aJaw.z > 0.0) {
+          vec2 pr = vec2(position.x, position.y + 0.02);
+          vec3 pd = normalize(vec3(pr.x / max(length(pr), 1e-4) * ${POUCH_SIDEWAYS.toFixed(4)}, -1.0, 0.0));
+          float sm = clamp(uPouch * aJaw.z * 2.5, 0.0, 0.85);
+          objectNormal = normalize(mix(objectNormal, pd, sm));
+          vStretch = sm;
+        } else vStretch = 0.0;`);
+    // 口の中は本物の網目で作ってあるので、体の色を口の中の色に塗りかえない。体の内側(裏の面)だけ、ほぼ真っ黒にする
+    // (目の開きなどのすき間から、頭の内側が明るく透けて見えないように)
+    shader.fragmentShader = shader.fragmentShader
+      .replace('float inside = gl_FrontFacing ? inMouth : jawPart;', 'float inside = gl_FrontFacing ? 0.0 : 1.0; opened = 1.0;')
+      .replace('vec3 mouthCol = mix(baleen, tongue, smoothstep(0.35, 0.75, vJaw.w));', 'vec3 mouthCol = vec3(0.004, 0.003, 0.003);')
+      // のどがふくらむと、白い畝のあいだのみぞが開いて、白い筋が見える
+      .replace('diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.5, 0.48), 0.45 * uPouch * vJaw.z * vJaw.w);', `{
+          // 筋は、おなか側のまん中あたりだけ(胸びれのつけ根の近くは、角度が急に変わるので描かない)
+          float belly = 1.0 - smoothstep(0.9, 1.3, abs(vTheta - 3.14159265));
+          float stretch = clamp(uPouch * vJaw.z * 1.6, 0.0, 1.0) * belly * smoothstep(0.08, 0.2, vJaw.z);
+          // 畝は頭から尾の向きにのびる筋。ゆるやかに波打ち、ところどころで分かれる
+          float ang = vTheta - 3.14159265;
+          float k = ang * ${(MODEL.grooves / Math.PI).toFixed(3)} + 0.12 * sin(vLocal.z * 35.0 + ang * 2.0);
+          float g = abs(fract(k) - 0.5) * 2.0;          // 0 が畝のまん中、1 がみぞ
+          // のびた畝の肌は、テクスチャのでこぼこが引きのばされるので、白い畝の色にかえる
+          vec3 ridge = vec3(0.66, 0.68, 0.70) * (0.82 + 0.18 * (1.0 - g));
+          diffuseColor.rgb = mix(diffuseColor.rgb, ridge, smoothstep(0.05, 0.4, stretch) * 0.85);
+          float open = smoothstep(1.0 - 0.7 * stretch, 1.02 - 0.55 * stretch, g) * step(0.01, stretch);
+          // 開いたみぞも白く(持ち主の好み)。畝より少し明るい白にして、筋がうっすら見えるようにする
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.88, 0.89, 0.90), open * 0.85);
+        }`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+        varying float vMix;
+        varying vec3 vLocal;
+        varying float vTheta;
+        varying float vStretch;
+        varying float vBase;
+        uniform float uGlow;
+        uniform float uGlowTime;${glowMap ? '\n        uniform sampler2D uGlowMap;' : ''}
+        // 模様の光: 明るい色(星・花火)は強く、うすい色(星雲の青)も弱く光る。暗い色ほど持ち上げて、夜でも色が見えるようにする
+        vec3 specialGlow(vec3 c) {
+          float m = max(c.r, max(c.g, c.b));
+          float mask = max(smoothstep(0.035, 0.18, m), 0.35 * smoothstep(0.025, 0.06, m));
+          return c / max(m, 1e-3) * pow(m, 0.6) * mask;
+        }${bite ? '\n        varying vec2 vFluke;\n        uniform vec2 uBite;' : ''}`)
+      // 色がふつうの子と同じところはテクスチャのまま。ちがうところは、テクスチャの明るさのむら(しわや陰)だけを使って、その子の色にする
+      .replace('#include <map_fragment>', `${bite ? `
+        // 尾びれのうしろのふちの欠け(深さ uBite.y、場所 uBite.x)。欠けの中は描かない
+        float biteD = uBite.y * exp(-pow((vFluke.x - uBite.x) / ${FLUKE_BITE.width.toFixed(3)}, 2.0));
+        if (biteD > 0.0005 && vFluke.y < biteD) discard;` : ''}
+        vec4 texel = texture2D(map, vMapUv);
+        float texLum = dot(texel.rgb, vec3(0.2126, 0.7152, 0.0722));
+        vec3 ownCol = vec3(clamp(texLum / vBase, 0.35, 1.8)) * vColor.rgb;
+        diffuseColor.rgb *= mix(texel.rgb, ownCol, vMix);`)
+      .replace('#include <color_fragment>', '')
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        normal = normalize(mix(normal, nonPerturbedNormal, vStretch));`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        ${style === 'fantasy' && glowMap ? `
+        // 光るところの画像がある子(ホウキボシ・リュウセイ): その形のまま、夜に光る
+        totalEmissiveRadiance += texture2D(uGlowMap, vMapUv).rgb * uGlow * 0.6;` : ''}${style === 'fantasy' && !glowMap ? `
+        // ファンタジー版: 模様の色のついたところが、夜に光る
+        totalEmissiveRadiance += specialGlow(texel.rgb) * uGlow * 1.2;` : ''}${style === 'cosmic' ? `
+        // 宇宙版: 色のついたところが、夜に光って、ゆっくりまたたく
+        totalEmissiveRadiance += specialGlow(vColor.rgb) * uGlow * 1.2 * (0.8 + 0.2 * sin(uGlowTime * 1.7 + vMapUv.x * 40.0));` : ''}`);
+  };
+  material.customProgramCacheKey = () => `whale-model-${style}${glowMap ? '-glowmap' : ''}${bite ? '-bite' : ''}`;
+  material.needsUpdate = true;
+  return { style, look };
+}
+
 // 形の計算には少し時間がかかるので、クジラが出てくる前にすませておく
 export function prepareWhaleGeometry() {
   geometryFor('humpback');
@@ -295,10 +647,15 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     uPhase: { value: Math.random() * Math.PI * 2 }, uSwim: { value: 1 },
     // 口の開き(下あご・上あごの角度、ラジアン)と、のどのふくらみ(0〜1)
     uLowerJaw: { value: 0 }, uUpperJaw: { value: 0 }, uPouch: { value: 0 },
+    uLid: { value: 1 - EYE.relaxedOpen },   // まぶたの閉じぐあい(3Dモデルのとき)
+    uTwist: { value: 0 },   // 体のねじれ(ラジアン)。尾が頭よりこれだけおくれて倒れる
+    uArch: { value: 0 },    // 体の反り(尾の先が背中側へ上がる長さ。体長の割合)
+    uFin: { value: 0 },     // 胸びれの上げぐあい(ラジアン。+ で背中側へ振り上げる)
   };
-  const [hingeY, hingeZ] = kind === 'humpback' ? jawHinge(kind) : [0, 0];
+  const useModel = kind === 'humpback' && !!model;
+  const [hingeY, hingeZ] = useModel ? MODEL.hinge : kind === 'humpback' ? jawHinge(kind) : [0, 0];
   // とくべつな子は、夜に模様が光る
-  const glows = kind === 'humpback' && !!individual?.special;
+  const glows = !useModel && kind === 'humpback' && !!individual?.special;
   const f = v => v.toFixed(5);
   // ぬれた肌は少しつやがある。重い描き方(二重のつや)はやめて、つるつる具合だけで出す
   const material = new THREE.MeshStandardMaterial({
@@ -313,8 +670,27 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     shader.uniforms.uLowerJaw = uniforms.uLowerJaw;
     shader.uniforms.uUpperJaw = uniforms.uUpperJaw;
     shader.uniforms.uPouch = uniforms.uPouch;
+    shader.uniforms.uTwist = uniforms.uTwist;
+    shader.uniforms.uArch = uniforms.uArch;
+    shader.uniforms.uFin = uniforms.uFin;
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', `#include <common>
+      .replace('#include <common>', `#include <common>${TWIST_GLSL}${useModel ? `
+        // 胸びれ: つけ根を通る体の向きの軸のまわりに回す。根もとは動かさず、先ほど大きく回す
+        attribute float aFin;
+        uniform float uFin;
+        vec3 finTurn(vec3 p) {
+          if (aFin == 0.0) return p;
+          float sd = sign(aFin), a = sd * uFin * smoothstep(0.0, 0.35, abs(aFin)), c = cos(a), s = sin(a);
+          vec2 d = vec2(p.x - sd * ${f(model.fin.pivot[0])}, p.y - ${f(model.fin.pivot[1])});
+          return vec3(sd * ${f(model.fin.pivot[0])} + d.x * c - d.y * s, ${f(model.fin.pivot[1])} + d.x * s + d.y * c, p.z);
+        }
+        vec3 finTurnN(vec3 n) {
+          if (aFin == 0.0) return n;
+          float a = sign(aFin) * uFin * smoothstep(0.0, 0.35, abs(aFin)), c = cos(a), s = sin(a);
+          return vec3(n.x * c - n.y * s, n.x * s + n.y * c, n.z);
+        }` : `
+        vec3 finTurn(vec3 p) { return p; }
+        vec3 finTurnN(vec3 n) { return n; }`}
         uniform float uPhase;
         uniform float uSwim;
         uniform float uLowerJaw;
@@ -352,6 +728,7 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
         }`)
       // 体がしなった向きに合わせて、陰のつけ方も曲げる(しなりの傾きは swimSlope と同じ式)
       .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+        objectNormal = finTurnN(objectNormal);
         float bendS = clamp(position.z + 0.5, 0.0, 1.0);
         float bendA = uPhase - ${SWIM.wave.toFixed(2)} * bendS;
         float bendSlope = uSwim * ${SWIM.amplitude.toFixed(4)} * (${SWIM.power.toFixed(2)} * pow(max(bendS, 1e-4), ${(SWIM.power - 1).toFixed(2)}) * sin(bendA)
@@ -363,14 +740,17 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
           vec2 jn = jawMoveNormal(jawTurn2(objectNormal.yz, upA), jd, uLowerJaw * aJaw.w);
           objectNormal = vec3(objectNormal.x, jn);
         }
+        objectNormal = normalize(vec3(objectNormal.x, objectNormal.y, objectNormal.z - archSlope(position.z) * objectNormal.y));
+        objectNormal = twistP(objectNormal, position.z);
         vJaw = aJaw;${glows ? `
         vGlow = aGlow;` : ''}`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
+        transformed = finTurn(transformed);
         // のみこんだ水で、のどがふくらむ(下へ大きく、横へも少し。pouchDirection と同じ式)
         if (uPouch > 0.0 && aJaw.z > 0.0) {
           vec2 r = vec2(transformed.x, transformed.y + 0.02);
           vec3 d = normalize(vec3(r.x / max(length(r), 1e-4) * ${f(POUCH_SIDEWAYS)}, -1.0, 0.0));
-          transformed += d * ${f(POUCH_SWELL)} * uPouch * aJaw.z;
+          transformed += d * ${f(POUCH_SWELL * (useModel ? MODEL.pouchSwell : 1))} * uPouch * aJaw.z;
         }
         // ひげ板: 口を開けると本当の長さまでのびる(閉じているあいだは下あごの中にしまってある)
         if (aJaw.z < 0.0) transformed.y += aJaw.z * smoothstep(0.05, 0.5, uLowerJaw);
@@ -379,8 +759,11 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
         transformed = jawApply(transformed);
         float swimS = clamp(position.z + 0.5, 0.0, 1.0);
         transformed.y += uSwim * ${SWIM.amplitude.toFixed(4)} * pow(swimS, ${SWIM.power.toFixed(2)})
-          * sin(uPhase - ${SWIM.wave.toFixed(2)} * swimS);`);
+          * sin(uPhase - ${SWIM.wave.toFixed(2)} * swimS);
+        transformed.y += archY(position.z);
+        transformed = twistP(transformed, position.z);`);
   };
+  const vertexPatch = material.onBeforeCompile;   // 泳ぐしなりとあごの動き(口の中の網目にも使う)
   const baseCompile = material.onBeforeCompile;
   material.onBeforeCompile = shader => {
     baseCompile(shader);
@@ -415,13 +798,29 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     if (glows) { shader.uniforms.uGlow = GLOW.uGlow; shader.uniforms.uGlowTime = GLOW.uGlowTime; }
   };
   material.customProgramCacheKey = () => `whale-${kind}${glows ? '-glow' : ''}`;
-  const mesh = new THREE.Mesh(geometryForIndividual(kind, individual), material);
-  mesh.scale.setScalar(lengthMeters);
-  // ザトウクジラは、目のまわりを細かく作った部品をはめこむ(体の網目のその部分は抜いてある)
-  const eyes = kind === 'humpback' ? createEyes(mesh, material, individual) : null;
-  // フジツボと、盛り上がった傷あと(体と同じ描き方なので、しなりやあごの動きもいっしょ)
-  const features = featuresFor(kind, individual);
-  if (features) mesh.add(new THREE.Mesh(features, material));
+  let mesh, eyes = null;
+  if (useModel) {
+    // 3Dモデル: 目・口・フジツボは、テクスチャと形にふくまれている(目の動きと口の開きは、あとで作る)
+    const { style, look } = useModelLook(material, individual, uniforms);
+    const geo = style === 'cosmic' ? cosmicGeometry(individual, look)
+      : modelGeometryFor(individual?.special ? null : individual);
+    mesh = new THREE.Mesh(geo, material);
+    mesh.scale.setScalar(lengthMeters);
+    eyes = createModelEyes(mesh, individual, uniforms);
+    // 口の中(天井・ひげ板・舌・のどの奥)。体と同じしなりとあごの動きで動く
+    const inner = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0, side: THREE.DoubleSide });
+    inner.onBeforeCompile = shader => { vertexPatch(shader); mouthDetail(shader); };
+    inner.customProgramCacheKey = () => 'whale-model-mouth';
+    mesh.add(new THREE.Mesh(model.mouthGeo, inner));
+  } else {
+    mesh = new THREE.Mesh(geometryForIndividual(kind, individual), material);
+    mesh.scale.setScalar(lengthMeters);
+    // ザトウクジラは、目のまわりを細かく作った部品をはめこむ(体の網目のその部分は抜いてある)
+    eyes = kind === 'humpback' ? createEyes(mesh, material, individual) : null;
+    // フジツボと、盛り上がった傷あと(体と同じ描き方なので、しなりやあごの動きもいっしょ)
+    const features = featuresFor(kind, individual);
+    if (features) mesh.add(new THREE.Mesh(features, material));
+  }
 
   // 大きいクジラほどゆっくり尾をあおぐ(14mでおよそ4.5秒に1回)
   const strokes = strokesPerSecond(lengthMeters);
@@ -433,6 +832,18 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     setSwim(amount) {
       uniforms.uSwim.value = amount;
     },
+    // 体のねじれ(ラジアン)。尾が頭よりこれだけおくれて倒れる
+    setTwist(rad) {
+      uniforms.uTwist.value = rad;
+    },
+    // 体の反り(尾の先が背中側へ上がる長さ。体長の割合。マイナスはおなか側へ丸める)
+    setArch(amount) {
+      uniforms.uArch.value = amount;
+    },
+    // 胸びれの上げぐあい(ラジアン。+ で背中側へ振り上げる)
+    setFin(rad) {
+      uniforms.uFin.value = rad;
+    },
     // 口とのど(捕食)。lower・upper はあごの角度(ラジアン)、pouch はのどのふくらみ(0〜1)
     setJaw(lower, upper, pouch) {
       uniforms.uLowerJaw.value = lower;
@@ -441,9 +852,11 @@ export function createWhaleMesh(kind, lengthMeters = WHALE_SPECS[kind].lengthMet
     },
     // 目(ザトウクジラだけ)。alive にすると、まばたきと目の動きをする
     eyes,
+    // 3Dモデルの右目の場所(体長1)。「目が合う」でカメラの前に目を持ってくるのに使う
+    eyeSpot: useModel ? { center: model.eyes[0].point, normal: model.eyes[0].normal } : null,
     update(dt) {
       uniforms.uPhase.value += dt * Math.PI * 2 * strokes;
-      if (glows) GLOW.uGlowTime.value = performance.now() / 1000;
+      if (glows || (useModel && individual?.special)) GLOW.uGlowTime.value = performance.now() / 1000;
       eyes?.update(dt);
     },
   };

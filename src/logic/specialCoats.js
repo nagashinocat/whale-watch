@@ -1,4 +1,5 @@
-// とくべつなクジラ(全身が真っ黒で、星空のような模様をもつ3頭)の模様と、出会える確率。
+// とくべつなクジラ(星空のような模様をもつ6頭)の模様と、出会える確率。
+// 3Dモデルを読みこめたときは、モデルの模様(assets/models/)を使う。ここの模様は、読みこめないときの計算で作るクジラ用
 // three.js は使わない(テストからも使う)。
 //
 //   galaxy(ギンガ): 左右のわき腹に、うずを巻く銀河。体じゅうに星と、きらりと光る十字の星
@@ -24,11 +25,17 @@ export const SPECIAL = Object.freeze({
   // 出会いの回数あたり、それぞれの子に会える割合(およそ1000回に1回)
   perEncounter: 1 / 1000,
   coats: Object.freeze(['galaxy', 'comet', 'fireworks']),
-  firstId: 25,   // 図鑑の番号(ふつうの24頭のあと)
+  // 姿は2つ(3Dモデルの見た目)。同じ模様の2頭は「つがい」で、たまに2頭そろって来る
+  styles: Object.freeze(['fantasy', 'cosmic']),
+  firstId: 25,   // 図鑑の番号(ふつうの24頭のあと。25〜27 がファンタジー版、28〜30 が宇宙版)
+  pairChance: 0.12,   // とくべつな子が来たとき、つがいの相手もいっしょに来る割合
 });
 
+// つがいの2頭で来られる出かた(カメラのすぐ前に来る「目が合う」では、2頭はならべない)
+export const PAIR_PATTERNS = Object.freeze(['spout', 'fluke', 'breach', 'bigBreach', 'spyhop', 'pecSlap', 'lobtail', 'feeding']);
+
 // 1頭だけで来る出かた(群れや親子では出さない)
-export const SOLO_PATTERNS = Object.freeze(['spout', 'fluke', 'breach', 'bigBreach', 'spyhop', 'pecSlap', 'lobtail', 'feeding', 'eyeContact']);
+export const SOLO_PATTERNS = Object.freeze(['spout', 'fluke', 'breach', 'bigBreach', 'spyhop', 'pecSlap', 'lobtail', 'feeding', 'eyeContact', 'overhead']);
 
 // 1頭で来るときに、とくべつな子がそれぞれ来る確率。
 // 出会い(鳴き声だけのとき以外)のうち、1頭で来る出かたは一部だけなので、そのぶん高くして、出会いあたり perEncounter にする

@@ -1,0 +1,25 @@
+<!doctype html><html><body style="margin:0;background:#000">
+<script type="importmap">{"imports":{"three":"./three/build/three.module.js","three/addons/":"./three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';import {createWhaleMesh,loadWhaleModel} from './src/scene/whaleModel.js';import {individual} from './src/logic/flukeId.js';
+const q=new URLSearchParams(location.search);const mode=q.get('mode');
+const W=1080,H=1920;
+const r=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});r.setSize(W,H);r.toneMapping=THREE.ACESFilmicToneMapping;r.toneMappingExposure=1.0;r.outputColorSpace=THREE.SRGBColorSpace;document.body.append(r.domElement);
+const s=new THREE.Scene();
+// 海の中のような、上が明るい青のグラデーション
+const c2=document.createElement('canvas');c2.width=4;c2.height=512;const g=c2.getContext('2d');const gr=g.createLinearGradient(0,0,0,512);gr.addColorStop(0,'#5fa8e8');gr.addColorStop(0.55,'#1d5f9e');gr.addColorStop(1,'#0a2746');g.fillStyle=gr;g.fillRect(0,0,4,512);
+const bg=new THREE.CanvasTexture(c2);bg.colorSpace=THREE.SRGBColorSpace;s.background=bg;
+s.add(new THREE.HemisphereLight(0xdfefff,0x234055,2.0));const d=new THREE.DirectionalLight(0xffffff,2.2);d.position.set(4,8,5);s.add(d);const d2=new THREE.DirectionalLight(0x88aacc,0.8);d2.position.set(-5,-2,-4);s.add(d2);
+if(mode==='new') await loadWhaleModel();
+const w=createWhaleMesh('humpback',14,{individual:individual(3)});const grp=new THREE.Group();grp.rotation.order='YXZ';grp.add(w.mesh);s.add(grp);w.setSwim(1);
+if(mode==='new'){await new Promise(res=>setTimeout(res,1500));}
+const cam=new THREE.PerspectiveCamera(32,W/H,0.1,200);
+window.frame=t=>{
+  // ゆっくり回りながら、こちらへ泳いでくる
+  grp.rotation.set(0.1, (-150+12*t)*Math.PI/180, 0.04);
+  w.update(1/30);
+  cam.position.set(0,-1.5,36);cam.lookAt(0,0.2,0);
+  r.render(s,cam);return r.domElement.toDataURL('image/jpeg',0.92);
+};
+window.ready=true;
+</script></body></html>
